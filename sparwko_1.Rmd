@@ -1,0 +1,385 @@
+---
+title: "Sprawozdanie 1"
+subtitle: "Eksploracja danych"
+author: "Emilia Porczyńska, Michał Szostak"
+date: "`r Sys.Date()`"
+output: 
+  pdf_document:
+    toc: true
+    fig_caption: yes
+    fig_width: 5 
+    fig_height: 4 
+    number_sections: true
+header-includes:
+   - \usepackage[OT4]{polski}
+   - \usepackage[utf8]{inputenc}
+   - \usepackage{graphicx}
+   - \usepackage{float}
+fontsize: 12pt 
+---
+
+## Wstęp
+
+Głównym celem naszego raportu jest przeanalizowanie bazy danych zawierającej informacje o klientach firmy telekomunikacyjnej w celu przewidzenia ich zachowań związanych z rezygnacją z usług firmy.
+
+Baza danych „Telco Customer”, na której będziemy pracować, została pobrana ze strony Kaggle (tu należy wstawić link). Jest to fikcyjny zbiór danych zawierający informacje o klientach firmy telekomunikacyjnej świadczącej usługi telefonii stacjonarnej oraz inne usługi telekomunikacyjne w Kalifornii.
+
+## Opis danych
+
+```{r, echo=FALSE, fig.width=6}
+dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE)
+# colSums(is.na(dane))
+# str(dane) # tabel ew
+# summary(dane) # usunac id
+dane$customerID <- NULL
+
+dane$SeniorCitizen <- factor(dane$SeniorCitizen,
+                             levels = c(0, 1),
+                             labels = c("No", "Yes"))
+ 
+library(knitr)
+library(kableExtra)
+
+tab <- summary(dane)
+tab[is.na(tab)] <- ""
+
+tab_t <- t(tab)
+
+kable(tab_t, booktabs = TRUE, caption = "Podsumowanie danych") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+```
+
+Analizowana przez nas baza danych zawiera `r nrow(dane)` przypadków oraz `r  ncol(dane)` cech.
+
+```{r, echo=FALSE}
+tabela_typow <- data.frame(
+  Typ = sapply(dane, class),
+  Opis = c(
+    "płeć (K/M)",
+    "Senior",
+    "Posiadanie Partnera",
+    "Finansowa odpowiedzialność",
+    "Licza miesięcy, w których osoba był aktywnym klientem",
+    "Czy klient ma usługi telefoniczne",
+    "Czy klient ma wiele linii telefonicznych",
+    "Firma zapewniajaca internet",
+    "Czy klient ma bezpieczęstwo w sieci",
+    "czy ma kopię zapasową",
+    "Czy ma ochronę urządzeń",
+    "Czy ma wsparcie techniczne",
+    "Czy ma pakiet z serwisem stramingowym",
+    "Czy ma platforme do strmigowania filmów",
+    "Okres umowy",
+    "Nie papierowe billingi",
+    "Metoda płatności",
+    "Miesięczna kwota płatności",
+    "Całkowita kwota płatności",
+    "CZy jest aktywnym klientem"
+  )
+)
+
+knitr::kable(tabela_typow, caption = "Opis zmiennych")
+```
+
+Zmienna SeniorCitizen pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmieniono kodowanie na wartości tekstowe: No – klient nie jest seniorem, Yes – klient jest seniorem.
+
+W danych występuje cecha CustomerID, która jednoznacznie identyfikuje klienta. Ze względów prywatności oraz ponieważ nie wnosi ona informacji istotnych dla analizy zachowań klientów, kolumna ta została usunięta z dalszej analizy.
+
+Wystepuja braki danych w kolumnie TotalCharges jest ich `r sum(colSums(is.na(dane)))` i są kodowane za pomoca Na. Na potrzeby analizy zdecydowano się zastąpić wartości NA zerami. Wynika to z charakterystyki zmiennej – TotalCharges oznacza łączną kwotę zapłaconą przez klienta. W przypadku nowych klientów brak tej wartości nie oznacza błędu danych, lecz fakt, że nie zdążyli oni jeszcze dokonać żadnej płatności. Potwierdza to obecność niezerowych wartości w kolumnie MonthlyCharges, która wskazuje bieżące opłaty abonamentowe – kwotę, jaką klient płaci miesięcznie za usługi firmy telekomunikacyjnej.
+
+Dodatkowo uwzględniono zmienną tenure, określającą liczbę miesięcy, przez które klient pozostaje w firmie. Zaobserwowano, że obserwacje z brakującymi wartościami w TotalCharges mają wartość tenure równą 0, co sugeruje, że są to nowi klienci, którzy nie zakończyli jeszcze pierwszego pełnego miesiąca korzystania z usług.
+
+W kolumnie **TotalCharges** mogą występować wartości odstające. Świadczy o tym fakt, że średnia wartość tej zmiennej jest znacznie wyższa od mediany, co wskazuje na mozliwą obecność ekstremalnych obserwacji. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych.
+
+## Analiza opisowa
+
+```{r, echo=FALSE}
+# wybieramy tylko kolumny typu factor lub character
+kategor <- dane[, sapply(dane, function(x) is.factor(x) | is.character(x))]
+tab_ <- summary(kategor)
+tab_[is.na(tab_)] <- ""
+
+kable(t(tab_), caption = "Tabela liczności dla danych jakościowych") %>%
+  kable_styling(full_width = FALSE)
+```
+
+```{r, echo=FALSE}
+num_data <- dane[sapply(dane, is.numeric)]
+tabela_summary <- data.frame(
+  Srednia = sapply(num_data, mean, na.rm = TRUE),
+  Mediana = sapply(num_data, median, na.rm = TRUE),
+  Odchylenie = sapply(num_data, sd, na.rm = TRUE),
+  Wariancja = sapply(num_data, var, na.rm = TRUE),
+  Min = sapply(num_data, min, na.rm = TRUE),
+  Q1 = sapply(num_data, quantile, 0.25, na.rm = TRUE),
+  Q3 = sapply(num_data, quantile, 0.75, na.rm = TRUE),
+  Max = sapply(num_data, max, na.rm = TRUE)
+)
+
+tabela_transposed <- t(tabela_summary)
+
+knitr::kable(tabela_transposed, caption = "Miary położenia i rozproszenia")
+
+
+```
+
+```{r, echo=FALSE, fig.align='center'}
+par(mfrow = c(1, 2))
+
+hist(dane$TotalCharges,
+     main = "Histogram TotalCharges",
+     xlab = "TotalCharges",
+     col = "lightblue",
+     breaks = 20)
+
+hist(dane$MonthlyCharges,
+     main = "Histogram MonthlyCharges",
+     xlab = "MonthlyCharges",
+     col = "lightgreen",
+     breaks = 20,
+     ylim = c(0, 800))
+
+```
+```{r, echo=FALSE, fig.align='center'}
+hist(dane$tenure,
+     main = "Histogram liczby miesiecy",
+     xlab = "liczba miesięcy",
+     col = "lightpink",
+     breaks = 20,
+     xlim = c(0,80))
+```
+
+```{r, echo=FALSE, fig.align='center'}
+par(mfrow = c(1, 3))
+library(vioplot)
+library(ggplot2)
+
+# Obsługa brakujących danych
+dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
+
+# # Poprawiony wykres - dodano x = ""
+# ggplot(dane, aes(x = "", y = TotalCharges)) +
+#   geom_violin(fill = "lightblue") +
+#   geom_boxplot(width = 0.1, fill = "white") +
+#   labs(title = "Violin + Boxplot TotalCharges", x = "") +
+#   theme_minimal()
+
+boxplot(dane$TotalCharges,
+     main = "Histogram TotalCharges",
+     xlab = "TotalCharges",
+     col = "lightblue")
+
+boxplot(dane$MonthlyCharges,
+     main = "Histogram MonthlyCharges",
+     xlab = "MonthlyCharges",
+     col = "lightgreen")
+boxplot(dane$tenure,
+     main = "Histogram tenure",
+     xlab = "tenure",
+     col = "lightpink")
+
+```
+
+
+```{r, echo=FALSE, fig.align='center'}
+library(ggplot2)
+library(patchwork)
+
+# MonthlyCharges
+p1 <- ggplot(dane, aes(x = MonthlyCharges)) +
+  geom_density(fill = "skyblue", alpha = 0.4, color = "blue", adjust = 1) +
+  labs(title = "Monthly Charges", x = "Value", y = "Density") +
+  theme_minimal()
+
+# TotalCharges
+p2 <- ggplot(dane, aes(x = TotalCharges)) +
+  geom_density(fill = "lightgreen", alpha = 0.4, color = "darkgreen", adjust = 1) +
+  labs(title = "Total Charges", x = "Value", y = "Density") +
+  theme_minimal()
+
+# Połączenie obok siebie
+p1 + p2
+
+
+```
+
+```{r, echo=FALSE}
+
+# Create a data frame for ggplot
+df <- data.frame(values = dane$tenure)
+
+# Plot using ggplot2
+ggplot(df, aes(x = values)) +
+  geom_density(fill = "pink2", alpha = 0.4, color = "pink4", adjust = 1) +
+  labs(title = "Kernel Density Plot (ggplot2)",
+       x = "Value",
+       y = "Density") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+barplot(table(dane$Contract),
+        main = "Rodzaj umowy",
+        col = "orange")
+```
+```{r, echo=FALSE}
+barplot(table(dane$PhoneService),
+        main = "Rodzaj umowy",
+        col = "pink3")
+```
+
+```{r, echo=FALSE}
+barplot(prop.table(table(dane$Contract)),
+        main = "Struktura umów (%)",
+        col = "lightblue")
+```
+
+```{r, echo=FALSE}
+
+par(mfrow = c(1, 4))
+pie(table(dane$gender),
+    main = "Struktura płci")
+
+pie(table(dane$Partner),
+    main = "Partner")
+
+pie(table(dane$SeniorCitizen),
+    main = "Senior")
+
+pie(table(dane$Dependents),
+    main = "Senior")
+
+```
+
+```{r, echo=FALSE}
+barplot(table(dane$InternetService),
+        main = "Internet",
+        col = "lightblue")
+```
+
+```{r, echo=FALSE}
+barplot(table(dane$PaymentMethod),
+        main = "Metoda płatności",
+        col = "lightblue")
+```
+
+```{r, echo=FALSE}
+plot(dane$MonthlyCharges, dane$TotalCharges,
+     main = "Wykres rozrzutu: MonthlyCharges vs TotalCharges",
+     xlab = "MonthlyCharges",
+     ylab = "TotalCharges",
+     pch = 19, col = "blue")
+
+# Dodanie linii regresji liniowej (opcjonalnie)
+abline(lm(TotalCharges ~ MonthlyCharges, data = dane), col = "red", lwd = 2)
+
+cor(dane$MonthlyCharges, dane$TotalCharges, use = "complete.obs") # korelacja tych dwocgh zmiennych
+```
+
+```{r, echo=FALSE}
+# scatter plot MonthlyCharges vs TotalCharges
+plot(dane$tenure, dane$TotalCharges,
+     main = "im dłużej klient, tym większa suma opłat",
+     xlab = "MonthlyCharges",
+     ylab = "TotalCharges",
+     pch = 19, col = "blue")
+
+# linia regresji liniowej
+abline(lm(TotalCharges ~ tenure, data = dane), col = "red", lwd = 2)
+```
+
+```{r, echo=FALSE}
+# scatter plot MonthlyCharges vs TotalCharges
+plot(dane$tenure, dane$MonthlyCharges,
+     main = "Czy starsi klienci płacą więcej/mniej miesięcznie?",
+     xlab = "MonthlyCharges",
+     ylab = "TotalCharges",
+     pch = 19, col = "blue")
+
+# linia regresji liniowej
+abline(lm(MonthlyCharges ~ tenure, data = dane), col = "red", lwd = 2)
+```
+
+```{r, echo=FALSE}
+barplot(table(dane$TechSupport),
+        main = "Struktura umów (%)",
+        col = "lightblue")
+```
+
+```{r, echo=FALSE}
+library(knitr)
+library(kableExtra)
+
+# Funkcja do tabeli
+make_table <- function(var){
+  df <- as.data.frame(table(var))
+  df$Procent <- round(prop.table(df$Freq)*100, 2)
+  colnames(df) <- c("Kategoria", "Liczebność", "Procent (%)")
+  return(df)
+}
+
+# Zmienna do analizy
+variables <- c("Contract", "gender", "InternetService", "PaymentMethod")
+
+# Pętla – print każdej tabeli
+for (v in variables){
+  print(
+    make_table(dane[[v]]) %>%
+      kable(caption = paste("Rozkład zmiennej", v)) %>%
+      kable_styling(full_width = FALSE, position = "center", stripe_color = "gray!15")
+  )
+}
+```
+
+Dodac opisy tego wszystkiego to jest podpunkt d z etapu 2.
+
+## Analiza opisowa z podziałem na grupy
+
+```{r, echo=FALSE}
+library(ggplot2)
+
+ggplot(dane, aes(x = MonthlyCharges, fill = Churn)) +
+  geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
+  labs(title = "Histogram MonthlyCharges według Churn") +
+  theme_minimal()
+
+ggplot(dane, aes(x = Churn, y = MonthlyCharges, fill = Churn)) +
+  geom_boxplot() +
+  labs(title = "MonthlyCharges według grupy Churn") +
+  theme_minimal()
+
+table(dane$gender, dane$Churn) |>  prop.table(margin = 2)
+
+ggplot(dane, aes(x = gender, fill = Churn)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proporcja", title = "Rozkład płci w grupach Churn") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+ggplot(dane, aes(x = Contract, fill = Churn)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proporcja",
+       title = "Rodzaj umowy w grupach Churn") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+ggplot(dane, aes(x = InternetService, fill = Churn)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proporcja",
+       title = "Rodzaj umowy w grupach Churn") +
+  theme_minimal()
+```
+
+```{r, echo=FALSE}
+ggplot(dane, aes(x = PaymentMethod, fill = Churn)) +
+  geom_bar(position = "fill") +
+  labs(y = "Proporcja",
+       title = "Rodzaj umowy w grupach Churn") +
+  theme_minimal()
+```
+
+I opisac to wszystko podpunkt b z etapu 3
+
+## Podsumowanie - wnioski
