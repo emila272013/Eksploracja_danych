@@ -10,6 +10,7 @@ output:
     fig_width: 5 
     fig_height: 4 
     number_sections: true
+    keep_tex: false
 header-includes:
    - \usepackage[OT4]{polski}
    - \usepackage[utf8]{inputenc}
@@ -26,7 +27,7 @@ Baza danych „Telco Customer”, na której będziemy pracować, została pobra
 
 ## Opis danych
 
-```{r, echo=FALSE, fig.width=6}
+```{r, echo=FALSE, fig.width=6, warning=FALSE, message=FALSE}
 dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE)
 # colSums(is.na(dane))
 # str(dane) # tabel ew
@@ -40,18 +41,46 @@ dane$SeniorCitizen <- factor(dane$SeniorCitizen,
 library(knitr)
 library(kableExtra)
 
+# Przygotowanie tabeli
 tab <- summary(dane)
 tab[is.na(tab)] <- ""
 
-tab_t <- t(tab)
 
-kable(tab_t, booktabs = TRUE, caption = "Podsumowanie danych") %>%
+# -------------------------------
+# Tabela 1: kolumny 1-5
+tab1 <- tab[, 1:6]
+kable(tab1, booktabs = TRUE,
+      caption = "Podsumowanie danych (kolumny 1-5)") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+
+# -------------------------------
+# Tabela 2: kolumny 6-10
+tab2 <- tab[, 7:10]
+kable(tab2, booktabs = TRUE,
+      caption = "Podsumowanie danych (kolumny 6-10)") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+
+# -------------------------------
+# Tabela 3: kolumny 11-15
+tab3 <- tab[, 11:14]
+kable(tab3, booktabs = TRUE,
+      caption = "Podsumowanie danych (kolumny 11-15)") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+
+# -------------------------------
+# Tabela 4: kolumny 16-21
+tab4 <- tab[, 15:18]
+kable(tab4, booktabs = TRUE,
+      caption = "Podsumowanie danych (kolumny 16-21)") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+
+tab5 <- tab[, 19:20]
+kable(tab5, booktabs = TRUE,
+      caption = "Podsumowanie danych (kolumny 16-21)") %>%
   kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
-Analizowana przez nas baza danych zawiera `r nrow(dane)` przypadków oraz `r  ncol(dane)` cech.
-
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 tabela_typow <- data.frame(
   Typ = sapply(dane, class),
   Opis = c(
@@ -78,8 +107,16 @@ tabela_typow <- data.frame(
   )
 )
 
-knitr::kable(tabela_typow, caption = "Opis zmiennych")
+
+kable(tabela_typow, 
+      caption = "Typy oraz opisy zmiennych", 
+      booktabs = TRUE,     # ładniejsze linie w PDF
+      align = "l") %>%     # wyrównanie tekstu do lewej
+  kable_styling(full_width = FALSE, 
+                latex_options = c("striped", "scale_down", "hold_position"))
 ```
+
+Analizowana przez nas baza danych zawiera `r nrow(dane)` przypadków oraz `r  ncol(dane)` cech.
 
 Zmienna SeniorCitizen pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmieniono kodowanie na wartości tekstowe: No – klient nie jest seniorem, Yes – klient jest seniorem.
 
@@ -93,17 +130,18 @@ W kolumnie **TotalCharges** mogą występować wartości odstające. Świadczy o
 
 ## Analiza opisowa
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 # wybieramy tylko kolumny typu factor lub character
 kategor <- dane[, sapply(dane, function(x) is.factor(x) | is.character(x))]
 tab_ <- summary(kategor)
 tab_[is.na(tab_)] <- ""
 
-kable(t(tab_), caption = "Tabela liczności dla danych jakościowych") %>%
-  kable_styling(full_width = FALSE)
+kable(t(tab_), caption = "Tabela liczności dla danych jakościowych", booktabs = TRUE) %>%
+  kable_styling(full_width = FALSE, 
+                latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 num_data <- dane[sapply(dane, is.numeric)]
 tabela_summary <- data.frame(
   Srednia = sapply(num_data, mean, na.rm = TRUE),
@@ -118,12 +156,15 @@ tabela_summary <- data.frame(
 
 tabela_transposed <- t(tabela_summary)
 
-knitr::kable(tabela_transposed, caption = "Miary położenia i rozproszenia")
-
-
+kable(tabela_transposed, 
+      caption = "Miary położenia i rozproszenia zmiennych liczbowych", 
+      booktabs = TRUE,     # lepsze linie w PDF
+      digits = 2) %>%      # zaokrąglamy liczby do 2 miejsc
+      kable_styling(full_width = FALSE, 
+                latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
-```{r, echo=FALSE, fig.align='center'}
+```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 2))
 
 hist(dane$TotalCharges,
@@ -140,7 +181,8 @@ hist(dane$MonthlyCharges,
      ylim = c(0, 800))
 
 ```
-```{r, echo=FALSE, fig.align='center'}
+
+```{r, echo=FALSE, fig.width=6, fig.align='center'}
 hist(dane$tenure,
      main = "Histogram liczby miesiecy",
      xlab = "liczba miesięcy",
@@ -149,7 +191,7 @@ hist(dane$tenure,
      xlim = c(0,80))
 ```
 
-```{r, echo=FALSE, fig.align='center'}
+```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 3))
 library(vioplot)
 library(ggplot2)
@@ -180,8 +222,7 @@ boxplot(dane$tenure,
 
 ```
 
-
-```{r, echo=FALSE, fig.align='center'}
+```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 library(ggplot2)
 library(patchwork)
 
@@ -203,7 +244,7 @@ p1 + p2
 
 ```
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.width=6, fig.align='center'}
 
 # Create a data frame for ggplot
 df <- data.frame(values = dane$tenure)
@@ -222,6 +263,7 @@ barplot(table(dane$Contract),
         main = "Rodzaj umowy",
         col = "orange")
 ```
+
 ```{r, echo=FALSE}
 barplot(table(dane$PhoneService),
         main = "Rodzaj umowy",
