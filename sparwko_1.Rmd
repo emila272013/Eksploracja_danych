@@ -19,105 +19,121 @@ header-includes:
 fontsize: 12pt 
 ---
 
-## Wstęp
+# Wstęp
 
 Głównym celem naszego raportu jest przeanalizowanie bazy danych zawierającej informacje o klientach firmy telekomunikacyjnej w celu przewidzenia ich zachowań związanych z rezygnacją z usług firmy.
 
-Baza danych „Telco Customer”, na której będziemy pracować, została pobrana ze strony Kaggle (tu należy wstawić link). Jest to fikcyjny zbiór danych zawierający informacje o klientach firmy telekomunikacyjnej świadczącej usługi telefonii stacjonarnej oraz inne usługi telekomunikacyjne w Kalifornii.
+Baza danych `Telco-Customer-Churn`, na której będziemy pracować, została pobrana ze strony [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/blastchar/telco-customer-churn). Jest to fikcyjny zbiór danych zawierający informacje o klientach firmy telekomunikacyjnej świadczącej usługi telefonii stacjonarnej oraz inne usługi telekomunikacyjne w Kalifornii.
 
-## Opis danych
+\newpage
 
-```{r, echo=FALSE, fig.width=6, warning=FALSE, message=FALSE}
-dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE)
-# colSums(is.na(dane))
-# str(dane) # tabel ew
-# summary(dane) # usunac id
-# dane$customerID <- NULL
-# 
-# dane$SeniorCitizen <- factor(dane$SeniorCitizen,
-#                              levels = c(0, 1),
-#                              labels = c("No", "Yes"))
- 
+# Opis danych
+
+```{r importy i wczytanie danych, echo=FALSE, warning=FALSE, message=FALSE}
 library(knitr)
 library(kableExtra)
+library(vioplot)
+library(ggplot2)
+library(patchwork)
+library(ggVennDiagram)
 
-# Przygotowanie tabeli
-tab <- summary(dane)
-tab[is.na(tab)] <- ""
-
-
-# -------------------------------
-# Tabela 1: kolumny 1-5
-tab1 <- tab[, 1:6]
-kable(tab1, booktabs = TRUE,
-      caption = "Podsumowanie danych (kolumny 1-5)") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
-
-# -------------------------------
-# Tabela 2: kolumny 6-10
-tab2 <- tab[, 7:10]
-kable(tab2, booktabs = TRUE,
-      caption = "Podsumowanie danych (kolumny 6-10)") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
-
-# -------------------------------
-# Tabela 3: kolumny 11-15
-tab3 <- tab[, 11:13]
-kable(tab3, booktabs = TRUE,
-      caption = "Podsumowanie danych (kolumny 11-15)") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
-
-# -------------------------------
-# Tabela 4: kolumny 16-21
-tab4 <- tab[, 14:16]
-kable(tab4, booktabs = TRUE,
-      caption = "Podsumowanie danych (kolumny 16-21)") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
-
-tab5 <- tab[, 17:21]
-kable(tab5, booktabs = TRUE,
-      caption = "Podsumowanie danych (kolumny 16-21)") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE)
 ```
 
-Powyższe tabele (tu można dodać odnośniki) przedstawiają statystyki opisowe dla każdej z analizowanych cech, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
+W analizowanej przez nas bazie danych jest zawartych `r  ncol(dane)` cech:
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-tabela_typow <- data.frame(
+```{r tabela cech, echo=FALSE, warning=FALSE, message=FALSE}
+tab_cechy <- data.frame(
   Typ = sapply(dane, class),
   Opis = c(
-    "Id klientów",
-    "płeć (K/M)",
-    "Senior",
-    "Posiadanie Partnera",
-    "Finansowa odpowiedzialność",
-    "Licza miesięcy, w których osoba był aktywnym klientem",
-    "Czy klient ma usługi telefoniczne",
-    "Czy klient ma wiele linii telefonicznych",
-    "Firma zapewniajaca internet",
-    "Czy klient ma bezpieczęstwo w sieci",
-    "czy ma kopię zapasową",
-    "Czy ma ochronę urządzeń",
-    "Czy ma wsparcie techniczne",
-    "Czy ma pakiet z serwisem stramingowym",
-    "Czy ma platforme do strmigowania filmów",
-    "Okres umowy",
-    "Nie papierowe billingi",
-    "Metoda płatności",
-    "Miesięczna kwota płatności",
-    "Całkowita kwota płatności",
-    "CZy jest aktywnym klientem"
+    "ID klienta",
+    "płeć klienta",
+    "czy klient jest seniorem",
+    "czy klient ma partnera",
+    "czy klient ma osoby na utrzymaniu",
+    "liczba miesięcy w których klient był aktywny",
+    "czy klient ma usługi telefoniczne",
+    "czy klient ma wiele linii telefonicznych",
+    "typ usługi internetowej",
+    "czy klient ma usługi bezpieczeństwa w sieci",
+    "czy klient ma usługę kopii zapasowej online",
+    "czy klient ma usługę ochrony urządzeń",
+    "czy klient ma usługę wsparcia technicznego",
+    "czy klient ma kablówkę",
+    "czy klient ma usługę streamowania filmów",
+    "okres umowy",
+    "czy klient się rozlicza elektronicznie",
+    "metoda płatności",
+    "miesięczna kwota płatności",
+    "łączna kwota płatności",
+    "czy klient zrezygnował"
   )
 )
 
 
-kable(tabela_typow, 
-      caption = "Typy oraz opisy zmiennych", 
+kable(tab_cechy, 
+      caption = "Typy oraz opisy cech", 
       booktabs = TRUE,     # ładniejsze linie w PDF
       align = "l") %>%     # wyrównanie tekstu do lewej
   kable_styling(full_width = FALSE, 
                 latex_options = c("striped", "scale_down", "hold_position"))
 ```
+
+Ich wartości dla `r nrow(dane)` przypadków zawartych w bazie prezentują się następująco:
+
+```{r podsumowanie danych, echo=FALSE, fig.width=6, warning=FALSE, message=FALSE, results='asis'}
+# Przygotowanie tabeli
+tab_summary <- summary(dane)
+tab_summary[is.na(tab_summary)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+#tab_summary <- trimws(tab_summary) # usunięcie niepotrzebnych spacji
+tab_summary <- gsub("\\s*:\\s*", ": ", tab_summary) # naprawienie zepsutych dwukropków
+
+
+# Tabela jest szeroka więc ją łamiemy na 6 kawałków i wyświetlamy w tej szatańskiej pętli
+kawalki = list(1:5, 6:9, 10:12, 13:15, 16:18, 19:21)
+
+for (i in 1:length(kawalki)) {
+  kawalek_tabeli = tab_summary[, kawalki[[i]]]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
+  
+  tabela = kable(kawalek_tabeli, booktabs = TRUE,
+        caption = sprintf("Podsumowanie danych (%d/%d)", i, length(kawalki))) %>%
+    kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
+  
+  print(tabela) # kabele z pętli się same nie printują więc musimy to zrobić sami
+}
+```
+
+Powyższe tabele przedstawiają statystyki opisowe dla każdej z analizowanych cech, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
+
+W danych występuje cecha `CustomerID`, która jednoznacznie identyfikuje klienta. Ze względów prywatności oraz ponieważ nie wnosi ona informacji istotnych dla analizy zachowań klientów, będziemy chcieli wykluczyć tą kolumnę z dalszej analizy.
+
+Zmienna `SeniorCitizen` pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmienimy kodowanie na wartości tekstowe: `"No"` – klient nie jest seniorem, `"Yes"` – klient jest seniorem.
+
+Wystepują braki danych w kolumnie `TotalCharges`. Jest ich `r sum(colSums(is.na(dane)))` i są kodowane za pomoca `NA`. Można jednak zauważyć, że brak danych w `TotalCharges` jest równoważny czasowi aktywności klienta równemu 0 miesięcy:
+
+```{r tabela NA, echo=FALSE}
+total_charges_na <- sum(is.na(dane$TotalCharges))
+tenure_0 <- sum(dane$tenure == 0)
+oba <- sum(is.na(dane$TotalCharges) & dane$tenure == 0)
+
+tabela_na <- data.frame(
+  "`tenure=0`" = tenure_0,
+  "`tenure=0` oraz `TotalCharges=NA`" = oba,
+  "`TotalCharges=NA`" = total_charges_na,
+  check.names = FALSE # bez tego nazwy kolumn robią się dziwne
+)
+
+knitr::kable(
+  tabela_na, 
+  align = "c",
+  caption = "Powiązanie `tenure=0` z `TotalCharges=NA`"
+)
+```
+
+Stąd możemy wywnioskować, że kiedy `TotalCharges=NA`, klient po prostu nie zdążył za nic zapłacić, więc łączna zapłacona kwota wynosi w rzeczywistości 0. Dlatego możemy bezpiecznie zamienić wszystkie `NA` w tej kolumnie na 0.
+
+Dokonujemy wymienionych wyżej korekt w następujący sposób:
 
 ```{r}
 dane$customerID <- NULL
@@ -129,24 +145,11 @@ dane$SeniorCitizen <- factor(dane$SeniorCitizen,
 dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
 ```
 
+# Analiza opisowa
 
-Analizowana przez nas baza danych zawiera `r nrow(dane)` przypadków oraz `r  ncol(dane)` cech.
+Przeprowadzimy analizę opisową, dzięki której poznamy strukturę oraz charakterystykę zmiennych. W ramach tej analizy dokonamy przeglądu poszczególnych cech, analizując ich rozkłady, podstawowe statystyki opisowe oraz identyfikując ewentualne nieprawidłowości.
 
-W danych występuje cecha CustomerID, która jednoznacznie identyfikuje klienta. Ze względów prywatności oraz ponieważ nie wnosi ona informacji istotnych dla analizy zachowań klientów, kolumna ta została usunięta z dalszej analizy.
-
-Zmienna SeniorCitizen pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmieniono kodowanie na wartości tekstowe: No – klient nie jest seniorem, Yes – klient jest seniorem.
-
-Wystepuja braki danych w kolumnie TotalCharges jest ich `r sum(colSums(is.na(dane)))` i są kodowane za pomoca Na. Na potrzeby analizy zdecydowano się zastąpić wartości NA zerami. Wynika to z charakterystyki zmiennej – TotalCharges oznacza łączną kwotę zapłaconą przez klienta. W przypadku nowych klientów brak tej wartości nie oznacza błędu danych, lecz fakt, że nie zdążyli oni jeszcze dokonać żadnej płatności. Potwierdza to obecność niezerowych wartości w kolumnie MonthlyCharges, która wskazuje bieżące opłaty abonamentowe – kwotę, jaką klient płaci miesięcznie za usługi firmy telekomunikacyjnej.
-
-Dodatkowo uwzględniono zmienną tenure, określającą liczbę miesięcy, przez które klient pozostaje w firmie. Zaobserwowano, że obserwacje z brakującymi wartościami w TotalCharges mają wartość tenure równą 0, co sugeruje, że są to nowi klienci, którzy nie zakończyli jeszcze pierwszego pełnego miesiąca korzystania z usług.
-
-W kolumnie **TotalCharges** mogą występować wartości odstające. Świadczy o tym fakt, że średnia wartość tej zmiennej jest znacznie wyższa od mediany, co wskazuje na mozliwą obecność ekstremalnych obserwacji. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych.
-
-## Analiza opisowa
-
-Następnie przeprowadzimy analizę opisową, dzięki której poznamy strukturę oraz charakterystykę zmiennych. W ramach tej analizy dokonamy przeglądu poszczególnych cech, analizując ich rozkłady, podstawowe statystyki opisowe oraz identyfikując ewentualne nieprawidłowości.
-
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
+```{r tabela zmiennych ilościowych, echo=FALSE, warning=FALSE, message=FALSE}
 num_data <- dane[sapply(dane, is.numeric)]
 tabela_summary <- data.frame(
   Srednia = sapply(num_data, mean, na.rm = TRUE),
@@ -171,7 +174,7 @@ kable(tabela_transposed,
 
 Powyższy wykres (tu można dodać odnośnik) przedstawia podstawowe statystyki opisowe dla zmiennych ilościowych ciągłych, takie jak średnia, wariancja, wartości minimalne i maksymalne oraz pierwszy i trzeci kwartyl.
 
-Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej TotalCharges występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
+Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 2))
@@ -193,7 +196,6 @@ hist(dane$MonthlyCharges,
 
 ```
 
-
 ```{r, echo=FALSE, fig.width=6, fig.align='center'}
 hist(dane$tenure,
      main = "Histogram liczby miesiecy",
@@ -213,13 +215,10 @@ Powyższy wykres (tu można dodać odnośnik) przedstawia rozkład zmiennej tenu
 
 Średnia oraz mediana tej zmiennej wynoszą około 30 miesięcy (tabela), co wskazuje, że przeciętny klient pozostaje w firmie przez około 2,5 roku. Rozkład zmiennej sugeruje obecność zarówno nowych klientów, jak i tych z dłuższym stażem, co może mieć istotne znaczenie w analizie rezygnacji z usług.
 
-Na wykresie można zauważyć stosunkowo dużą liczbę nowych klientów, natomiast klientów o dłuższym stażu jest mniej. Może to sugerować, że część klientów rezygnuje z usług firmy na wcześniejszym etapie współpracy, co wskazuje na potencjalnie wyższe ryzyko odejścia wśród nowych klientów. 
-
+Na wykresie można zauważyć stosunkowo dużą liczbę nowych klientów, natomiast klientów o dłuższym stażu jest mniej. Może to sugerować, że część klientów rezygnuje z usług firmy na wcześniejszym etapie współpracy, co wskazuje na potencjalnie wyższe ryzyko odejścia wśród nowych klientów.
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 3))
-library(vioplot)
-library(ggplot2)
 
 # Obsługa brakujących danych
 dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
@@ -247,7 +246,7 @@ boxplot(dane$tenure,
 
 ```
 
-Na powyższeym wykresie (znowu odnoscik) zosatły przedstawione rozkłady danych d=ciagłych na boxplotach. 
+Na powyższeym wykresie (znowu odnoscik) zosatły przedstawione rozkłady danych d=ciagłych na boxplotach.
 
 Zmienna Total Charges wykazuje silną prawoskośność (asymetrię dodatnią). Mediana znajduje się stosunkowo nisko, co sugeruje, że większość klientów wygenerowała dotychczas niewielki przychód skumulowany. Może to wynikać z dużej liczby nowych użytkowników lub klientów korzystających z najtańszych planów taryfowych. Zauważalny jest jednak górny „wąs” wykresu, który sięga poziomu 8000 jednostek, co wskazuje na obecność grupy lojalnych klientów o długim stażu, którzy przynieśli firmie znaczne przychody.
 
@@ -256,9 +255,6 @@ Rozkład zmiennej Monthly Charges jest zbliżony do równomiernego. Pudełko obe
 Wykres zmiennej Tenure również pokazuje rozkład równomierny i symetryczny. Oznacza to, że w zbiorze danych znajduje się zrównoważony miks klientów: zarówno nowi użytkownicy o niskim stażu, jak i osoby związane z firmą od wielu lat.
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
-library(ggplot2)
-library(patchwork)
-
 # MonthlyCharges
 p1 <- ggplot(dane, aes(x = MonthlyCharges)) +
   geom_density(fill = "lightgreen", alpha = 0.4, color = "darkgreen", adjust = 1) +
@@ -385,6 +381,7 @@ abline(lm(TotalCharges ~ MonthlyCharges, data = dane), col = "red", lwd = 2)
 
 # cor(dane$MonthlyCharges, dane$TotalCharges, use = "complete.obs")
 ```
+
 Na wykresie (odnośnik) można zauważyć liniową zależność między zmiennymi Monthly Charges a Total Charges. Czerwona linia przedstawia linię regresji liniowej, pokazującą ogólny trend wzrostu całkowitych opłat wraz ze wzrostem opłat miesięcznych.
 
 ```{r, echo=FALSE, fig.align='center'}
@@ -397,6 +394,7 @@ plot(dane$tenure, dane$TotalCharges,
 # linia regresji liniowej
 abline(lm(TotalCharges ~ tenure, data = dane), col = "red", lwd = 2)
 ```
+
 Na wykresie (odnośnik) można zauważyć liniową zależność między zmiennymi Tenure (liczba miesięcy jako klient) a Total Charges. Czerwona linia przedstawia linię regresji liniowej, pokazującą ogólny trend wzrostu całkowitych opłat wraz ze wzrostem stażu klienta.
 
 ```{r, echo=FALSE, fig.align='center'}
@@ -410,12 +408,12 @@ plot(dane$tenure, dane$MonthlyCharges,
 # linia regresji liniowej
 abline(lm(MonthlyCharges ~ tenure, data = dane), col = "red", lwd = 2)
 ```
+
 Na wykresie (odnośnik) przedstawiono zależność między zmiennymi Tenure (liczba miesięcy jako klient) a Monthly Charges. Czerwona linia wskazuje linię regresji liniowej. Warto jednak zauważyć, że wykres nie ujawnia żadnej wyraźnej zależności – wartości Monthly Charges są rozproszone w całym zakresie Tenure, co sugeruje, że wysokość miesięcznych opłat nie zależy od długości stażu klienta.
 
-## Analiza opisowa z podziałem na grupy
+# Analiza opisowa z podziałem na grupy
 
 ```{r, echo=FALSE}
-library(ggplot2)
 
 ggplot(dane, aes(x = MonthlyCharges, fill = Churn)) +
   geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
@@ -461,4 +459,4 @@ ggplot(dane, aes(x = PaymentMethod, fill = Churn)) +
 
 I opisac to wszystko podpunkt b z etapu 3
 
-## Podsumowanie - wnioski
+# Podsumowanie – wnioski
