@@ -32,11 +32,11 @@ dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE
 # colSums(is.na(dane))
 # str(dane) # tabel ew
 # summary(dane) # usunac id
-dane$customerID <- NULL
-
-dane$SeniorCitizen <- factor(dane$SeniorCitizen,
-                             levels = c(0, 1),
-                             labels = c("No", "Yes"))
+# dane$customerID <- NULL
+# 
+# dane$SeniorCitizen <- factor(dane$SeniorCitizen,
+#                              levels = c(0, 1),
+#                              labels = c("No", "Yes"))
  
 library(knitr)
 library(kableExtra)
@@ -62,28 +62,31 @@ kable(tab2, booktabs = TRUE,
 
 # -------------------------------
 # Tabela 3: kolumny 11-15
-tab3 <- tab[, 11:14]
+tab3 <- tab[, 11:13]
 kable(tab3, booktabs = TRUE,
       caption = "Podsumowanie danych (kolumny 11-15)") %>%
   kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
 
 # -------------------------------
 # Tabela 4: kolumny 16-21
-tab4 <- tab[, 15:18]
+tab4 <- tab[, 14:16]
 kable(tab4, booktabs = TRUE,
       caption = "Podsumowanie danych (kolumny 16-21)") %>%
   kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
 
-tab5 <- tab[, 19:20]
+tab5 <- tab[, 17:21]
 kable(tab5, booktabs = TRUE,
       caption = "Podsumowanie danych (kolumny 16-21)") %>%
   kable_styling(latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
+Powyższe tabele (tu można dodać odnośniki) przedstawiają statystyki opisowe dla każdej z analizowanych cech, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
+
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 tabela_typow <- data.frame(
   Typ = sapply(dane, class),
   Opis = c(
+    "Id klientów",
     "płeć (K/M)",
     "Senior",
     "Posiadanie Partnera",
@@ -116,11 +119,22 @@ kable(tabela_typow,
                 latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
+```{r}
+dane$customerID <- NULL
+
+dane$SeniorCitizen <- factor(dane$SeniorCitizen,
+                             levels = c(0, 1),
+                             labels = c("No", "Yes"))
+
+dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
+```
+
+
 Analizowana przez nas baza danych zawiera `r nrow(dane)` przypadków oraz `r  ncol(dane)` cech.
 
-Zmienna SeniorCitizen pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmieniono kodowanie na wartości tekstowe: No – klient nie jest seniorem, Yes – klient jest seniorem.
-
 W danych występuje cecha CustomerID, która jednoznacznie identyfikuje klienta. Ze względów prywatności oraz ponieważ nie wnosi ona informacji istotnych dla analizy zachowań klientów, kolumna ta została usunięta z dalszej analizy.
+
+Zmienna SeniorCitizen pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 oznaczało klienta będącego seniorem. Dla lepszej czytelności i interpretowalności danych zmieniono kodowanie na wartości tekstowe: No – klient nie jest seniorem, Yes – klient jest seniorem.
 
 Wystepuja braki danych w kolumnie TotalCharges jest ich `r sum(colSums(is.na(dane)))` i są kodowane za pomoca Na. Na potrzeby analizy zdecydowano się zastąpić wartości NA zerami. Wynika to z charakterystyki zmiennej – TotalCharges oznacza łączną kwotę zapłaconą przez klienta. W przypadku nowych klientów brak tej wartości nie oznacza błędu danych, lecz fakt, że nie zdążyli oni jeszcze dokonać żadnej płatności. Potwierdza to obecność niezerowych wartości w kolumnie MonthlyCharges, która wskazuje bieżące opłaty abonamentowe – kwotę, jaką klient płaci miesięcznie za usługi firmy telekomunikacyjnej.
 
@@ -130,16 +144,7 @@ W kolumnie **TotalCharges** mogą występować wartości odstające. Świadczy o
 
 ## Analiza opisowa
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE}
-# wybieramy tylko kolumny typu factor lub character
-kategor <- dane[, sapply(dane, function(x) is.factor(x) | is.character(x))]
-tab_ <- summary(kategor)
-tab_[is.na(tab_)] <- ""
-
-kable(t(tab_), caption = "Tabela liczności dla danych jakościowych", booktabs = TRUE) %>%
-  kable_styling(full_width = FALSE, 
-                latex_options = c("striped", "scale_down", "hold_position"))
-```
+Następnie przeprowadzimy analizę opisową, dzięki której poznamy strukturę oraz charakterystykę zmiennych. W ramach tej analizy dokonamy przeglądu poszczególnych cech, analizując ich rozkłady, podstawowe statystyki opisowe oraz identyfikując ewentualne nieprawidłowości.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE}
 num_data <- dane[sapply(dane, is.numeric)]
@@ -157,12 +162,16 @@ tabela_summary <- data.frame(
 tabela_transposed <- t(tabela_summary)
 
 kable(tabela_transposed, 
-      caption = "Miary położenia i rozproszenia zmiennych liczbowych", 
+      caption = "Miary położenia i rozproszenia zmiennych ilościowych", 
       booktabs = TRUE,     # lepsze linie w PDF
       digits = 2) %>%      # zaokrąglamy liczby do 2 miejsc
       kable_styling(full_width = FALSE, 
                 latex_options = c("striped", "scale_down", "hold_position"))
 ```
+
+Powyższy wykres (tu można dodać odnośnik) przedstawia podstawowe statystyki opisowe dla zmiennych ilościowych ciągłych, takie jak średnia, wariancja, wartości minimalne i maksymalne oraz pierwszy i trzeci kwartyl.
+
+Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej TotalCharges występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 2))
@@ -171,7 +180,9 @@ hist(dane$TotalCharges,
      main = "Histogram TotalCharges",
      xlab = "TotalCharges",
      col = "lightblue",
-     breaks = 20)
+     breaks = 20,
+     xlim = c(0, 10000),
+     ylim = c(0, 2000))
 
 hist(dane$MonthlyCharges,
      main = "Histogram MonthlyCharges",
@@ -182,6 +193,7 @@ hist(dane$MonthlyCharges,
 
 ```
 
+
 ```{r, echo=FALSE, fig.width=6, fig.align='center'}
 hist(dane$tenure,
      main = "Histogram liczby miesiecy",
@@ -190,6 +202,19 @@ hist(dane$tenure,
      breaks = 20,
      xlim = c(0,80))
 ```
+
+Powyższe histogramy (tu można dodać odnośnik) przedstawiają rozkład zmiennych TotalCharges oraz MonthlyCharges.
+
+Zmienna MonthlyCharges oznacza kwotę, jaką klient zobowiązany jest zapłacić w danym miesiącu za świadczone usługi. Jej rozkład jest stosunkowo równomierny, z widoczną koncentracją wartości w średnich przedziałach cenowych.
+
+Natomiast w przypadku zmiennej TotalCharges rozkład jest silnie prawoskośny, co oznacza, że większość klientów zapłaciła stosunkowo niewielkie łączne kwoty, a niewielka liczba klientów poniosła znacznie wyższe koszty. Może to sugerować występowanie wartości odstających.
+
+Powyższy wykres (tu można dodać odnośnik) przedstawia rozkład zmiennej tenure, określającej liczbę miesięcy, przez które klient korzysta z usług firmy.
+
+Średnia oraz mediana tej zmiennej wynoszą około 30 miesięcy (tabela), co wskazuje, że przeciętny klient pozostaje w firmie przez około 2,5 roku. Rozkład zmiennej sugeruje obecność zarówno nowych klientów, jak i tych z dłuższym stażem, co może mieć istotne znaczenie w analizie rezygnacji z usług.
+
+Na wykresie można zauważyć stosunkowo dużą liczbę nowych klientów, natomiast klientów o dłuższym stażu jest mniej. Może to sugerować, że część klientów rezygnuje z usług firmy na wcześniejszym etapie współpracy, co wskazuje na potencjalnie wyższe ryzyko odejścia wśród nowych klientów. 
+
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 3))
@@ -207,20 +232,28 @@ dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
 #   theme_minimal()
 
 boxplot(dane$TotalCharges,
-     main = "Histogram TotalCharges",
+     main = "TotalCharges",
      xlab = "TotalCharges",
      col = "lightblue")
 
 boxplot(dane$MonthlyCharges,
-     main = "Histogram MonthlyCharges",
+     main = "MonthlyCharges",
      xlab = "MonthlyCharges",
      col = "lightgreen")
 boxplot(dane$tenure,
-     main = "Histogram tenure",
+     main = "tenure",
      xlab = "tenure",
      col = "lightpink")
 
 ```
+
+Na powyższeym wykresie (znowu odnoscik) zosatły przedstawione rozkłady danych d=ciagłych na boxplotach. 
+
+Zmienna Total Charges wykazuje silną prawoskośność (asymetrię dodatnią). Mediana znajduje się stosunkowo nisko, co sugeruje, że większość klientów wygenerowała dotychczas niewielki przychód skumulowany. Może to wynikać z dużej liczby nowych użytkowników lub klientów korzystających z najtańszych planów taryfowych. Zauważalny jest jednak górny „wąs” wykresu, który sięga poziomu 8000 jednostek, co wskazuje na obecność grupy lojalnych klientów o długim stażu, którzy przynieśli firmie znaczne przychody.
+
+Rozkład zmiennej Monthly Charges jest zbliżony do równomiernego. Pudełko obejmuje zakres od około 35 do 90 jednostek, co odzwierciedla szerokie zróżnicowanie oferty firmy. Wskazuje to, że baza klientów składa się w podobnym stopniu zarówno z osób wybierających tańsze pakiety podstawowe, jak i z klientów decydujących się na droższe opcje premium.
+
+Wykres zmiennej Tenure również pokazuje rozkład równomierny i symetryczny. Oznacza to, że w zbiorze danych znajduje się zrównoważony miks klientów: zarówno nowi użytkownicy o niskim stażu, jak i osoby związane z firmą od wielu lat.
 
 ```{r, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 library(ggplot2)
@@ -228,18 +261,18 @@ library(patchwork)
 
 # MonthlyCharges
 p1 <- ggplot(dane, aes(x = MonthlyCharges)) +
-  geom_density(fill = "skyblue", alpha = 0.4, color = "blue", adjust = 1) +
+  geom_density(fill = "lightgreen", alpha = 0.4, color = "darkgreen", adjust = 1) +
   labs(title = "Monthly Charges", x = "Value", y = "Density") +
   theme_minimal()
 
 # TotalCharges
 p2 <- ggplot(dane, aes(x = TotalCharges)) +
-  geom_density(fill = "lightgreen", alpha = 0.4, color = "darkgreen", adjust = 1) +
+  geom_density(fill = "skyblue", alpha = 0.4, color = "blue", adjust = 1) +
   labs(title = "Total Charges", x = "Value", y = "Density") +
   theme_minimal()
 
 # Połączenie obok siebie
-p1 + p2
+p2 + p1
 
 
 ```
@@ -258,54 +291,89 @@ ggplot(df, aes(x = values)) +
   theme_minimal()
 ```
 
-```{r, echo=FALSE}
-barplot(table(dane$Contract),
-        main = "Rodzaj umowy",
-        col = "orange")
+Następnie zostały zbadane kształty rokładu zmiennych ciągłych przy użyciu wykresów gestości jądrowej.
+
+Na pierwszym wykresie (Total Charges) obserwujemy silną prawoskośność, z najwyższym szczytem w okolicy zera. Wskazuje to, że większość klientów to nowi użytkownicy lub osoby generujące niskie rachunki.
+
+Na wykresie Monthly Charges widoczne są dwa szczyty (bimodalny rozkład): pierwszy przy niskich wartościach (ok. 25 jednostek) reprezentuje klientów korzystających z najtańszych ofert, natomiast drugi, przy ok. 70 jednostek, obejmuje użytkowników wybierających droższe pakiety.
+
+Wykres zmiennej Tenure ma równiez dwa szczyty, co świadczy o dużej liczbie klientów o bardzo krótkim stażu lub takich co szybko zrezygnowali z usług. Na drugim końcu są klienci bardzo lojalni, którzy są z firmą przez długi czas.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
+# wybieramy tylko kolumny typu factor lub character
+kategor <- dane[, sapply(dane, function(x) is.factor(x) | is.character(x))]
+tab_ <- summary(kategor)
+tab_[is.na(tab_)] <- ""
+
+kable(t(tab_), caption = "Tabela liczności dla danych jakościowych", booktabs = TRUE) %>%
+  kable_styling(full_width = FALSE, 
+                latex_options = c("striped", "scale_down", "hold_position"))
 ```
 
-```{r, echo=FALSE}
+Powyższa tabela przedstawia iloczności dla zmiennych jakościowych.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=8, fig.align='center'}
+par(mfrow = c(1, 2), mar = c(7, 5, 4, 2))
+
+bp1 <- barplot(table(dane$Contract),
+               main = "Rodzaj umowy",
+               col = "orange",
+               ylim = c(0, 4000),
+               xaxt = "n")
+
+text(x = bp1, 
+     y = par("usr")[3] - 100, 
+     labels = names(table(dane$Contract)), 
+     srt = 45, 
+     adj = 1, 
+     xpd = TRUE)
+
+
+bp2 <- barplot(table(dane$PaymentMethod),
+               main = "Metoda płatności",
+               col = "lightblue",
+               ylim = c(0, 2500),
+               xaxt = "n") 
+text(x = bp2, 
+     y = par("usr")[3] - 50, 
+     labels = names(table(dane$PaymentMethod)), 
+     srt = 45, 
+     adj = 1, 
+     xpd = TRUE)
+```
+
+Na powyższych wykresach widzimy rozkład klientów względem wyboru umowy oraz metody płatności.
+
+Najczęściej wybieraną formą umowy jest „miesiąc na miesiąc”, co daje klientom większą elastyczność i ułatwia rezygnację, a jednocześnie jest atrakcyjne dla nowych użytkowników, którzy nie chcą wiązać się długoterminowo.
+
+Najczęstszą metodą płatności jest elektroniczny czek, co wskazuje na preferencje klientów względem tradycyjnych, ale wygodnych sposobów regulowania należności.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
+par(mfrow = c(1, 2), mar = c(6, 4, 4, 2))
 barplot(table(dane$PhoneService),
-        main = "Rodzaj umowy",
+        main = "Usługa telefoniczna",
         col = "pink3")
-```
 
-```{r, echo=FALSE}
-barplot(prop.table(table(dane$Contract)),
-        main = "Struktura umów (%)",
-        col = "lightblue")
-```
+bp <- barplot(table(dane$InternetService),
+              main = "usługa internetowa",
+              col = "lightblue",
+              xaxt = "n")  # usuwa standardowe etykiety
 
-```{r, echo=FALSE}
-
-par(mfrow = c(1, 4))
-pie(table(dane$gender),
-    main = "Struktura płci")
-
-pie(table(dane$Partner),
-    main = "Partner")
-
-pie(table(dane$SeniorCitizen),
-    main = "Senior")
-
-pie(table(dane$Dependents),
-    main = "Senior")
+# Dodajemy etykiety pod kątem 45 stopni
+text(x = bp,
+     y = par("usr")[3] - 50,  # trochę poniżej osi X
+     labels = names(table(dane$InternetService)),
+     srt = 45,       # obrót 45 stopni
+     adj = 1,
+     xpd = TRUE)  
 
 ```
 
-```{r, echo=FALSE}
-barplot(table(dane$InternetService),
-        main = "Internet",
-        col = "lightblue")
-```
+Na powyższych wykresach obserwujemy podział klientów pod względem posiadania usługi telefonicznej. Widać, że zdecydowana większość klientów decyduje się na tę opcję.
 
-```{r, echo=FALSE}
-barplot(table(dane$PaymentMethod),
-        main = "Metoda płatności",
-        col = "lightblue")
-```
+Na wykresie dotyczącym usługi internetowej najwięcej klientów wybiera pakiet Fiber, natomiast nieco mniej osób korzysta z DSL. Istnieje także grupa klientów, którzy nie korzystają z internetu w ramach oferty firmy.
 
-```{r, echo=FALSE}
+```{r, fig.align='center'}
 plot(dane$MonthlyCharges, dane$TotalCharges,
      main = "Wykres rozrzutu: MonthlyCharges vs TotalCharges",
      xlab = "MonthlyCharges",
@@ -315,65 +383,34 @@ plot(dane$MonthlyCharges, dane$TotalCharges,
 # Dodanie linii regresji liniowej (opcjonalnie)
 abline(lm(TotalCharges ~ MonthlyCharges, data = dane), col = "red", lwd = 2)
 
-cor(dane$MonthlyCharges, dane$TotalCharges, use = "complete.obs") # korelacja tych dwocgh zmiennych
+# cor(dane$MonthlyCharges, dane$TotalCharges, use = "complete.obs")
 ```
+Na wykresie (odnośnik) można zauważyć liniową zależność między zmiennymi Monthly Charges a Total Charges. Czerwona linia przedstawia linię regresji liniowej, pokazującą ogólny trend wzrostu całkowitych opłat wraz ze wzrostem opłat miesięcznych.
 
-```{r, echo=FALSE}
-# scatter plot MonthlyCharges vs TotalCharges
+```{r, echo=FALSE, fig.align='center'}
 plot(dane$tenure, dane$TotalCharges,
      main = "im dłużej klient, tym większa suma opłat",
-     xlab = "MonthlyCharges",
+     xlab = "Liczba miesięcy",
      ylab = "TotalCharges",
      pch = 19, col = "blue")
 
 # linia regresji liniowej
 abline(lm(TotalCharges ~ tenure, data = dane), col = "red", lwd = 2)
 ```
+Na wykresie (odnośnik) można zauważyć liniową zależność między zmiennymi Tenure (liczba miesięcy jako klient) a Total Charges. Czerwona linia przedstawia linię regresji liniowej, pokazującą ogólny trend wzrostu całkowitych opłat wraz ze wzrostem stażu klienta.
 
-```{r, echo=FALSE}
+```{r, echo=FALSE, fig.align='center'}
 # scatter plot MonthlyCharges vs TotalCharges
 plot(dane$tenure, dane$MonthlyCharges,
      main = "Czy starsi klienci płacą więcej/mniej miesięcznie?",
-     xlab = "MonthlyCharges",
-     ylab = "TotalCharges",
+     xlab = "tenure",
+     ylab = "MonthlyCharges",
      pch = 19, col = "blue")
 
 # linia regresji liniowej
 abline(lm(MonthlyCharges ~ tenure, data = dane), col = "red", lwd = 2)
 ```
-
-```{r, echo=FALSE}
-barplot(table(dane$TechSupport),
-        main = "Struktura umów (%)",
-        col = "lightblue")
-```
-
-```{r, echo=FALSE}
-library(knitr)
-library(kableExtra)
-
-# Funkcja do tabeli
-make_table <- function(var){
-  df <- as.data.frame(table(var))
-  df$Procent <- round(prop.table(df$Freq)*100, 2)
-  colnames(df) <- c("Kategoria", "Liczebność", "Procent (%)")
-  return(df)
-}
-
-# Zmienna do analizy
-variables <- c("Contract", "gender", "InternetService", "PaymentMethod")
-
-# Pętla – print każdej tabeli
-for (v in variables){
-  print(
-    make_table(dane[[v]]) %>%
-      kable(caption = paste("Rozkład zmiennej", v)) %>%
-      kable_styling(full_width = FALSE, position = "center", stripe_color = "gray!15")
-  )
-}
-```
-
-Dodac opisy tego wszystkiego to jest podpunkt d z etapu 2.
+Na wykresie (odnośnik) przedstawiono zależność między zmiennymi Tenure (liczba miesięcy jako klient) a Monthly Charges. Czerwona linia wskazuje linię regresji liniowej. Warto jednak zauważyć, że wykres nie ujawnia żadnej wyraźnej zależności – wartości Monthly Charges są rozproszone w całym zakresie Tenure, co sugeruje, że wysokość miesięcznych opłat nie zależy od długości stażu klienta.
 
 ## Analiza opisowa z podziałem na grupy
 
