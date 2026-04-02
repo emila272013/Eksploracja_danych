@@ -36,6 +36,8 @@ library(vioplot)
 library(ggplot2)
 library(patchwork)
 library(ggVennDiagram)
+library(showtext) # żeby były polskie znaki na wykresach
+showtext_auto()   #
 
 #opts_chunk$set(dev = "svglite") # żeby były polskie znaki na wykresach
 
@@ -116,7 +118,7 @@ Zmienna `SeniorCitizen` pierwotnie była zakodowana wartościami 0 i 1, gdzie 1 
 
 Wystepują braki danych w kolumnie `TotalCharges`. Jest ich `r sum(colSums(is.na(dane)))` i są kodowane za pomoca `NA`. Można jednak zauważyć, że brak danych w `TotalCharges` jest równoważny czasowi aktywności klienta równemu 0 miesięcy:
 
-```{r tabela NA, echo=FALSE}
+```{r tabela NA, echo=FALSE, warning=FALSE, message=FALSE}
 total_charges_na <- sum(is.na(dane$TotalCharges))
 tenure_0 <- sum(dane$tenure == 0)
 oba <- sum(is.na(dane$TotalCharges) & dane$tenure == 0)
@@ -166,7 +168,7 @@ dane$TotalCharges[is.na(dane$TotalCharges)] <- 0
 
 Przeprowadzimy analizę opisową, dzięki której poznamy strukturę oraz charakterystykę zmiennych. W ramach tej analizy dokonamy przeglądu poszczególnych cech, analizując ich rozkłady, podstawowe statystyki opisowe oraz identyfikując ewentualne nieprawidłowości.
 
-```{r tabela zmiennych ilościowych, echo=FALSE, warning=FALSE, message=FALSE}
+```{r tab:statystyki, echo=FALSE, warning=FALSE, message=FALSE}
 num_data <- dane[sapply(dane, is.numeric)]
 tabela_summary <- data.frame(
   "Średnia" = sapply(num_data, mean, na.rm = TRUE),
@@ -193,7 +195,7 @@ kable(tabela_transposed,
 
 Powyższa tabela przedstawia podstawowe statystyki opisowe dla zmiennych ilościowych ciągłych, takie jak średnia, wariancja, wartości minimalne i maksymalne oraz pierwszy i trzeci kwartyl.
 
-Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
+Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
 
 ```{r histogramy zmiennych ilościowych (1/2), echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 2))
@@ -233,17 +235,15 @@ hist(dane$Tenure,
 )
 ```
 
-Powyższe histogramy przedstawiają rozkład zmiennych `TotalCharges` oraz `MonthlyCharges`.
+Powyższe histogramy przedstawiają rozkład zmiennych `TotalCharges`, `MonthlyCharges` oraz `Tenure`.
 
 Zmienna `MonthlyCharges` oznacza kwotę jaką klient zobowiązany jest zapłacić w danym miesiącu za świadczone usługi. Jej rozkład jest stosunkowo równomierny, z widoczną koncentracją wartości w średnich przedziałach cenowych.
 
-Natomiast w przypadku zmiennej `TotalCharges` rozkład jest silnie prawoskośny, co oznacza że większość klientów zapłaciła stosunkowo niewielkie łączne kwoty, a niewielka liczba klientów poniosła znacznie wyższe koszty. Może to sugerować występowanie wartości odstających.
+Natomiast w przypadku zmiennej `TotalCharges` rozkład jest silnie prawoskośny, co oznacza że większość klientów zapłaciła stosunkowo niewielkie łączne kwoty, a mniejsza (?) liczba klientów poniosła znacznie wyższe koszty. Może to sugerować występowanie wartości odstających.
 
 Ostatni wykres przedstawia rozkład zmiennej `Tenure` określającej liczbę miesięcy przez które klient korzystał z usług firmy do tej pory.
 
-Średnia oraz mediana tej zmiennej wynoszą około 30 miesięcy, co wskazuje, że przeciętny klient pozostaje w firmie przez około 2,5 roku. Rozkład zmiennej sugeruje obecność zarówno nowych klientów, jak i tych z dłuższym stażem, co może mieć istotne znaczenie w analizie rezygnacji z usług.
-
-Na wykresie można zauważyć stosunkowo dużą liczbę nowych klientów. Klientów o dłuższym stażu jest natomiast mniej. Może to sugerować, że część klientów rezygnuje z usług firmy na wcześniejszym etapie współpracy, co wskazuje na potencjalnie wyższe ryzyko odejścia wśród nowych klientów.
+Średnia oraz mediana tej zmiennej wynoszą około 30 miesięcy (zob. tabela \@ref{tab:statystyki}), co wskazuje, że przeciętny klient pozostaje w firmie przez około 2,5 roku. Rozkład zmiennej sugeruje obecność zarówno klientów o krótkim stażu – obejmujących osoby nowe oraz te, które szybko zrezygnowały z usług – jak i klientów o dłuższym okresie współpracy. Co może mieć istotne znaczenie w dalszej analizie rezygnacji z usług (churn).
 
 ```{r boxploty, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 3)) # żeby były 3 wykresy obok siebie
@@ -265,7 +265,8 @@ boxplot(dane$Tenure,
 
 ```
 
-Na powyższeym wykresie zostały przedstawione rozkłady danych ciagłych na boxplotach (nigdzie nie piszemy co oznacza ten wykres może lepiej violin po prostu).
+Na powyższeym wykresie zostały przedstawione rozkłady danych ciagłych na boxplotach (nigdzie nie piszemy co oznacza ten wykres może lepiej violin po prostu
+my nie mamy tego violin wkoncu).
 
 Zmienna `TotalCharges` wykazuje silną prawoskośność (asymetrię dodatnią). Mediana znajduje się stosunkowo nisko, co sugeruje, że większość klientów wygenerowała dotychczas niewielki przychód skumulowany. Może to wynikać z dużej liczby nowych użytkowników lub klientów korzystających z najtańszych planów taryfowych. Zauważalny jest jednak górny „wąs” wykresu, który sięga poziomu 8000 jednostek, co wskazuje na obecność grupy lojalnych klientów o długim stażu, którzy przynieśli firmie znaczne przychody.
 
@@ -328,7 +329,7 @@ kable(tab_pay, caption = "Liczności dla metod płatności (PaymentMethod)", boo
 
 ```
 
-Powyższa tabela przedstawia iloczności dla zmiennych jakościowych.
+Powyższe tabele przedstawiają iloczności dla zmiennych jakościowych.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
 par(mfrow = c(1, 2), mar = c(7, 5, 4, 2))
@@ -389,6 +390,13 @@ text(x = bp,
 
 Na powyższych wykresach obserwujemy podział klientów pod względem posiadania usługi telefonicznej. Widać, że zdecydowana większość klientów decyduje się na tę opcję.
 
+W analizowanym zbiorze danych wyróżniono dwa główne typy usług internetowych: DSL oraz Fiber Optic.
+
+DSL (Digital Subscriber Line)
+Jest to technologia wykorzystująca tradycyjne linie telefoniczne do przesyłu internetu. Charakteryzuje się niższą prędkością oraz zazwyczaj niższą ceną. Jest to rozwiązanie starsze, ale nadal popularne wśród klientów korzystających z podstawowych usług.
+Fiber Optic (światłowód)
+Jest to nowoczesna technologia oparta na światłowodach, umożliwiająca bardzo szybki i stabilny dostęp do internetu. Usługa ta oferuje znacznie wyższe prędkości, ale często wiąże się z wyższymi kosztami abonamentu.
+
 Na wykresie dotyczącym usługi internetowej najwięcej klientów wybiera pakiet Fiber, natomiast nieco mniej osób korzysta z DSL. Istnieje także grupa klientów, którzy nie korzystają z internetu w ramach oferty firmy.
 
 ```{r, fig.align='center'}
@@ -435,50 +443,184 @@ Na wykresie (odnośnik) przedstawiono zależność między zmiennymi Tenure (lic
 
 # Analiza opisowa z podziałem na grupy
 
-```{r, echo=FALSE}
+W następnym etapie przeprowadzono analizę opisową zmiennych z uwzględnieniem podziału klientów na dwie grupy: osoby, które zrezygnowały z usług (Churn = "Yes"), oraz klientów lojalnych, kontynuujących korzystanie z oferty firmy (Churn = "No").
 
-ggplot(dane, aes(x = MonthlyCharges, fill = Churn)) +
-  geom_histogram(alpha = 0.5, position = "identity", bins = 30) +
-  labs(title = "Histogram MonthlyCharges według Churn") +
-  theme_minimal()
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
 
-ggplot(dane, aes(x = Churn, y = MonthlyCharges, fill = Churn)) +
-  geom_boxplot() +
-  labs(title = "MonthlyCharges według grupy Churn") +
-  theme_minimal()
+p1 <- ggplot(dane, aes(x = MonthlyCharges, fill = Churn)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30, color = "white") +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Rozkład miesięcznych opłat a rezygnacja",
+    x = "Opłaty miesięczne (Monthly Charges)",
+    y = "Liczba klientów",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) # Środkowanie tytułu
 
-table(dane$Gender, dane$Churn) |>  prop.table(margin = 2)
+p2 <- ggplot(dane, aes(x = Churn, y = MonthlyCharges, fill = Churn)) +
+  geom_boxplot(alpha = 0.7, outlier.colour = "red", outlier.shape = 16) +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Miesięczne opłaty według grupy Churn",
+    x = "Czy klient odszedł?",
+    y = "Opłaty miesięczne (Monthly Charges)",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "none"
+  )
 
-ggplot(dane, aes(x = Gender, fill = Churn)) +
-  geom_bar(position = "fill") +
-  labs(y = "Proporcja", title = "Rozkład płci w grupach Churn") +
-  theme_minimal()
+ p1+p2
+
+# table(dane$Gender, dane$Churn) |>  prop.table(margin = 2)
+
 ```
+Zestawienie histogramu oraz wykresu pudełkowego pozwala na szczegółową analizę zależności między wysokością miesięcznego abonamentu (Monthly Charges) a decyzją klienta o rezygnacji z usług (Churn).
 
-```{r, echo=FALSE}
+Wykres pudełkowy wyraźnie wskazuje na różnice pomiędzy analizowanymi grupami. Mediana opłat miesięcznych dla klientów, którzy zrezygnowali z usług (Churn = Yes), jest wyższa (około 80 jednostek) niż w przypadku klientów lojalnych (Churn = No), gdzie wynosi około 65 jednostek. Sugeruje to, że wyższy koszt usługi może być istotnym czynnikiem wpływającym na decyzję o odejściu.
+
+Histogram dodatkowo pokazuje, że rezygnacje rzadko występują wśród klientów korzystających z najtańszych pakietów (około 20–30 jednostek). Największe zagęszczenie klientów odchodzących obserwuje się w przedziale 70–100 jednostek, co odpowiada droższym ofertom.
+
+Z kolei klienci pozostający w firmie (Churn = No) częściej występują w niższych przedziałach cenowych, co może wskazywać, że niższa cena stanowi istotny czynnik sprzyjający utrzymaniu klienta.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
+
+p1 <- ggplot(dane, aes(x = TotalCharges, fill = Churn)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30, color = "white") +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Rozkład miesięcznych opłat a rezygnacja",
+    x = "Całkowite opłaty",
+    y = "Liczba klientów",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) # Środkowanie tytułu
+
+p2 <- ggplot(dane, aes(x = Churn, y = TotalCharges, fill = Churn)) +
+  geom_boxplot(alpha = 0.7, outlier.colour = "red", outlier.shape = 16) +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Miesięczne opłaty według grupy Churn",
+    x = "Czy klient odszedł?",
+    y = "Całkowite opłaty",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "none"
+  )
+
+p1+p2
+
+```
+W kolejnym kroku przeanalizowano zmienną Total Charges w zależności od tego, czy klient zrezygnował z usług firmy (Churn).
+
+Z analizy wynika, że całkowita kwota zapłacona przez klientów, którzy odeszli (Churn = Yes), jest wyraźnie niższa niż w przypadku klientów pozostających w firmie. Oznacza to, że większość rezygnacji następuje na wczesnym etapie korzystania z usług.
+
+Wynik ten jest spójny z wcześniejszymi obserwacjami – mimo że klienci odchodzący często ponoszą wyższe miesięczne opłaty, korzystają z usług przez krótszy czas, co przekłada się na niższy poziom opłat całkowitych.
+
+Dodatkowo, na wykresie pudełkowym dla grupy klientów rezygnujących widoczne są wartości odstające. Wskazuje to, że wśród osób odchodzących znajdują się również tacy klienci, którzy korzystali z usług przez dłuższy czas i wygenerowali wyższe łączne opłaty, jednak ostatecznie zdecydowali się na rezygnację.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
+
+p1 <- ggplot(dane, aes(x = Tenure, fill = Churn)) +
+  geom_histogram(alpha = 0.6, position = "identity", bins = 30, color = "white") +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Rozkład miesięcznych opłat a rezygnacja",
+    x = "Liczba miesiecy w firmie",
+    y = "Liczba klientów",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold")) # Środkowanie tytułu
+
+p2 <- ggplot(dane, aes(x = Churn, y = Tenure, fill = Churn)) +
+  geom_boxplot(alpha = 0.7, outlier.colour = "red", outlier.shape = 16) +
+  scale_fill_manual(values = c("No" = "#5DADE2", "Yes" = "#E74C3C")) +
+  labs(
+    title = "Miesięczne opłaty według grupy Churn",
+    x = "Czy klient odszedł?",
+    y = "Licza miesiecy w firmie",
+    fill = "Czy odszedł?"
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.position = "none"
+  )
+
+p1+p2
+
+```
+Na wykresach przedstawiono rozkład zmiennej Tenure (liczba miesięcy bycia klientem) z podziałem na osoby, które zrezygnowały z usług (Churn = Yes) oraz te, które pozostały w firmie (Churn = No).
+
+Wśród klientów, którzy odeszli, dominują osoby o krótkim stażu – największa liczba rezygnacji występuje w pierwszych miesiącach korzystania z usług. Jednocześnie bardzo niewielki odsetek klientów odchodzi po dłuższym okresie współpracy.
+
+Z kolei w grupie klientów lojalnych przeważają osoby o długim stażu, co wskazuje na stabilność tej grupy. Potwierdza to również wykres pudełkowy – mediana zmiennej Tenure dla klientów, którzy odeszli, jest wyraźnie niższa niż dla klientów pozostających w firmie.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
 ggplot(dane, aes(x = Contract, fill = Churn)) +
-  geom_bar(position = "fill") +
-  labs(y = "Proporcja",
-       title = "Rodzaj umowy w grupach Churn") +
+  geom_bar(position = "dodge") + # słupki obok siebie pokazuja sztuki
+  labs(y = "Liczba klientów", 
+       title = "Ilościowe zestawienie rodzaju umowy i Churn") +
   theme_minimal()
 ```
+na wykresie mamy zależnosci od rodzaju umowy od tego czy ktos odszedł czy nie i mozemy zawuwazyc ze najczesciej klienci wybieraja opcjie na miesica umowy jak i wsrod tych co odchodza i tych co nie.
 
-```{r, echo=FALSE}
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
 ggplot(dane, aes(x = InternetService, fill = Churn)) +
-  geom_bar(position = "fill") +
+  geom_bar(position = "dodge") +
+  labs(y = "Proporcja",
+       title = "Rodzaj umowy w grupach Churn") +
+  theme_minimal()
+```
+Na wykresie widać, że najwięcej osób rezygnuje z usług internetu światłowodowego, co wpływa na cenę usług oraz może mieć znaczenie przy podejmowaniu decyzji o rezygnacji. Natomiast wśród klientów, którzy pozostają w firmie, najczęściej wybieraną opcją jest wolniejszy, ale tańszy internet.
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
+ggplot(dane, aes(x = StreamingTV, fill = Churn)) +
+  geom_bar(position = "dodge") +
   labs(y = "Proporcja",
        title = "Rodzaj umowy w grupach Churn") +
   theme_minimal()
 ```
 
-```{r, echo=FALSE}
-ggplot(dane, aes(x = PaymentMethod, fill = Churn)) +
-  geom_bar(position = "fill") +
-  labs(y = "Proporcja",
-       title = "Rodzaj umowy w grupach Churn") +
-  theme_minimal()
+NWm czy to dowac ten wykres
+
+```{r}
+
+library(knitr)
+library(kableExtra)
+
+# # Funkcja do generowania ładnej tabeli
+# render_table <- function(data, var_name) {
+#   tab_data <- data %>%
+#     group_by(.data[[var_name]], Churn) %>%
+#     summarise(Liczba = n(), .groups = "drop") %>%
+#     mutate(Procent = round(Liczba / sum(Liczba) * 100, 1)) # Dodajemy % dla kontekstu
+#   
+#   kable(tab_data, booktabs = TRUE, caption = paste("Analiza zmiennej:", var_name)) %>%
+#     kable_styling(latex_options = c("striped", "hold_position"), full_width = F)
+# }
+# 
+# # Wywołanie dla konkretnych, najważniejszych zmiennych
+# render_table(dane, "Gender")
+# cos nie dzialła nwm
 ```
 
-I opisac to wszystko podpunkt b z etapu 3
+Płec nie ma wpływu na rezygnajcie z usług firmy. (jakoś ładniej to opisać)
+
 
 # Podsumowanie – wnioski
+
+
+
+
+
