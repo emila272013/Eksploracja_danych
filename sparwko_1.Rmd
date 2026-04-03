@@ -195,6 +195,8 @@ kable(tabela_transposed,
 
 Powyższa tabela przedstawia podstawowe statystyki opisowe dla zmiennych ilościowych ciągłych, takie jak średnia, wariancja, wartości minimalne i maksymalne oraz pierwszy i trzeci kwartyl.
 
+Zakres wartości zmiennych ilościowych jest zróżnicowany. Zmienna `TotalCharges` przyjmuje wartości od 0 do 8684.80, co wskazuje na duże zróżnicowanie całkowitych opłat klientów. W przypadku `MonthlyCharges` wartości mieszczą się w przedziale od 18.25 do 118.75, natomiast `Tenure` przyjmuje wartości od 0 do 72 miesięcy, co odzwierciedla zarówno nowych, jak i długoletnich klientów.
+
 Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
 
 ```{r histogramy zmiennych ilościowych (1/2), echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
@@ -268,11 +270,13 @@ boxplot(dane$Tenure,
 Na powyższeym wykresie zostały przedstawione rozkłady danych ciagłych na boxplotach (nigdzie nie piszemy co oznacza ten wykres może lepiej violin po prostu
 my nie mamy tego violin wkoncu).
 
-Zmienna `TotalCharges` wykazuje silną prawoskośność (asymetrię dodatnią). Mediana znajduje się stosunkowo nisko, co sugeruje, że większość klientów wygenerowała dotychczas niewielki przychód skumulowany. Może to wynikać z dużej liczby nowych użytkowników lub klientów korzystających z najtańszych planów taryfowych. Zauważalny jest jednak górny „wąs” wykresu, który sięga poziomu 8000 jednostek, co wskazuje na obecność grupy lojalnych klientów o długim stażu, którzy przynieśli firmie znaczne przychody.
+Zmienna `TotalCharges` wykazuje silną prawoskośność. Mediana znajduje się stosunkowo nisko, co sugeruje, że większość klientów wygenerowała dotychczas niewielki przychód skumulowany. Może to wynikać z dużej liczby nowych użytkowników lub klientów korzystających z najtańszych planów taryfowych. Zauważalny jest jednak górny „wąs” wykresu, który sięga poziomu 8000 jednostek, co wskazuje na obecność grupy lojalnych klientów o długim stażu, którzy przynieśli firmie znaczne przychody.
 
 Rozkład zmiennej `MonthlyCharges` jest zbliżony do równomiernego. Pudełko obejmuje zakres od około 35 do 90 jednostek, co odzwierciedla szerokie zróżnicowanie oferty firmy. Wskazuje to, że baza klientów składa się w podobnym stopniu zarówno z osób wybierających tańsze pakiety podstawowe, jak i z klientów decydujących się na droższe opcje premium.
 
 Wykres zmiennej `Tenure` również pokazuje rozkład równomierny i symetryczny. Oznacza to, że w zbiorze danych znajduje się zrównoważony miks klientów: zarówno nowi użytkownicy o niskim stażu, jak i osoby związane z firmą od wielu lat.
+
+Największą zmiennością charakteryzuje się zmienna `TotalCharges`.
 
 ```{r wykresy gęstości, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 # MonthlyCharges
@@ -330,6 +334,13 @@ kable(tab_pay, caption = "Liczności dla metod płatności (PaymentMethod)", boo
 ```
 
 Powyższe tabele przedstawiają iloczności dla zmiennych jakościowych.
+Na podstawie zestawień liczności można scharakteryzować bazę klientów oraz wskazać dominujące trendy w poszczególnych segmentach. Struktura demograficzna klientów jest stosunkowo zrównoważona pod względem płci – liczba kobiet i mężczyzn jest niemal identyczna. Jednocześnie zdecydowaną większość stanowią osoby młodsze, podczas gdy seniorzy tworzą wyraźną mniejszość.
+
+Analiza korzystania z usług telekomunikacyjnych pokazuje, że usługi podstawowe są powszechnie wykorzystywane – zdecydowana większość klientów posiada usługę telefoniczną, a znaczna część z nich korzysta również z więcej niż jednej linii. W przypadku internetu najpopularniejszą technologią jest światłowód, który wyprzedza łącza DSL, choć zauważalna jest także grupa klientów niekorzystających z internetu u badanego operatora.
+
+Z perspektywy kontraktowej najczęściej wybieraną formą współpracy jest umowa krótkoterminowa (miesięczna), co wskazuje na dużą elastyczność, ale jednocześnie potencjalnie większe ryzyko rezygnacji. Umowy długoterminowe są wyraźnie mniej popularne.
+
+Istotnym elementem analizy jest wskaźnik rezygnacji (Churn), który wynosi około 25%, co oznacza, że ponad jedna czwarta klientów zdecydowała się zakończyć współpracę z operatorem. Pozostała część bazy to klienci lojalni
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
 par(mfrow = c(1, 2), mar = c(7, 5, 4, 2))
@@ -443,7 +454,43 @@ Na wykresie (odnośnik) przedstawiono zależność między zmiennymi Tenure (lic
 
 # Analiza opisowa z podziałem na grupy
 
-W następnym etapie przeprowadzono analizę opisową zmiennych z uwzględnieniem podziału klientów na dwie grupy: osoby, które zrezygnowały z usług (Churn = "Yes"), oraz klientów lojalnych, kontynuujących korzystanie z oferty firmy (Churn = "No").
+W następującym etapie przeprowadzono analizę opisową zmiennych z uwzględnieniem podziału klientów na dwie grupy: osoby, które zrezygnowały z usług (Churn = "Yes"), oraz klientów lojalnych, kontynuujących korzystanie z oferty firmy (Churn = "No").
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE,}
+library(dplyr)
+
+# wybór zmiennych numerycznych
+num_vars <- names(dane)[sapply(dane, is.numeric)]
+
+# tabela wskaźników opisowych
+tabela_opisowa <- dane %>%
+  group_by(Churn) %>%
+  summarise(across(all_of(num_vars),
+                   list(
+                     mean = ~mean(.x, na.rm = TRUE),
+                     median = ~median(.x, na.rm = TRUE),
+                     min = ~min(.x, na.rm = TRUE),
+                     max = ~max(.x, na.rm = TRUE),
+                     sd = ~sd(.x, na.rm = TRUE)
+                   ),
+                   .names = "{.col}_{.fn}"
+  ))
+# transpozycja + konwersja do data frame
+tab_t <- as.data.frame(t(tabela_opisowa))
+
+# dodanie nazw wierszy jako kolumny
+tab_t <- tibble::rownames_to_column(tab_t, "Zmienna")
+
+# nadanie nazw kolumn (opcjonalnie)
+colnames(tab_t)[-1] <- unique(dane$Churn)
+
+# ładna tabela
+kable(tab_t, caption = "Wskaźniki opisowe zmiennych numerycznych wg Churn", booktabs = TRUE) %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "hold_position"))
+
+```
+Na podstawie wskaźników opisowych można zauważyć istotne różnice między klientami, którzy zrezygnowali z usług, a tymi, którzy pozostali. Klienci odchodzący charakteryzują się niższą średnią wartością Tenure, co wskazuje na krótszy staż w firmie. Jednocześnie ich średnie wartości TotalCharges są niższe, co sugeruje mniejsze zaangażowanie finansowe. W przypadku MonthlyCharges można zaobserwować wyższe wartości w grupie klientów rezygnujących, co może wskazywać na większą wrażliwość cenową tej grupy.
 
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
 
@@ -584,17 +631,23 @@ ggplot(dane, aes(x = InternetService, fill = Churn)) +
 ```
 Na wykresie widać, że najwięcej osób rezygnuje z usług internetu światłowodowego, co wpływa na cenę usług oraz może mieć znaczenie przy podejmowaniu decyzji o rezygnacji. Natomiast wśród klientów, którzy pozostają w firmie, najczęściej wybieraną opcją jest wolniejszy, ale tańszy internet.
 
-```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=7, fig.align='center'}
-ggplot(dane, aes(x = StreamingTV, fill = Churn)) +
-  geom_bar(position = "dodge") +
-  labs(y = "Proporcja",
-       title = "Rodzaj umowy w grupach Churn") +
-  theme_minimal()
-```
+TO JEST TEN PODUNKT B z etap 3
 
-NWm czy to dowac ten wykres
+Na podstawie przeprowadzonej analizy można stwierdzić, że największe zróżnicowanie między grupami klientów występuje zarówno dla zmiennych ilościowych, jak i jakościowych, w szczególności Tenure, MonthlyCharges, Contract oraz InternetService.
 
-```{r}
+Zmienna Tenure wyraźnie różnicuje klientów – osoby, które zrezygnowały z usług, charakteryzują się krótszym stażem w porównaniu do klientów lojalnych, co wskazuje, że ryzyko odejścia jest największe na początku współpracy.
+
+W przypadku MonthlyCharges można zauważyć, że klienci odchodzący ponoszą przeciętnie wyższe miesięczne opłaty, co może świadczyć o większej wrażliwości tej grupy na ceny usług.
+
+Istotne różnice obserwujemy również dla zmiennej Contract. Klienci korzystający z umów krótkoterminowych (month-to-month) znacznie częściej rezygnują z usług niż osoby związane umowami długoterminowymi. Oznacza to, że długość kontraktu ma istotny wpływ na lojalność klientów.
+
+Zmienna InternetService także wykazuje zróżnicowanie między grupami – klienci korzystający z internetu światłowodowego częściej rezygnują z usług niż użytkownicy innych technologii, co może wynikać z wyższych kosztów lub oczekiwań względem jakości usługi.
+
+Wymienione zmienne najlepiej pozwalają na rozróżnienie klientów, którzy odchodzą, od tych, którzy pozostają w firmie.
+
+TU JEST TABELEA DO ZMIENNYCH JAKOSCIOWYCH KTORE MOGA TO POTEWRDZIC ALE NO NWM
+
+```{r, echo=FALSE, warning=FALSE, message=FALSE}
 
 library(knitr)
 library(kableExtra)
@@ -619,6 +672,27 @@ Płec nie ma wpływu na rezygnajcie z usług firmy. (jakoś ładniej to opisać)
 
 
 # Podsumowanie – wnioski
+
+Naszym zadaniem było przeanalizowanie bazy danych klientów firmy Telcko xcustomer i mozeliwego okreslenia powodów rezygancji z udsług tej firmy.
+
+Podsumowując najwiekszą zmiennością wśrod zmiennych ilosciowych ma cech `TotalCharges`, co wynika z obecności zarówno nowych klientów, jak i lojalnych użytkowników o wysokich skumulowanych opłatach.
+
+najczwsciej klienci decydują sie na umowe na miesiac oraz na interent światłowodowy.
+
+Nastepnie przeprowadzają tą analize z podziałem na dwie grupy tych co zrezygnowali z usług firmy i tych co nadal są jej klientami, mozna stwierdzic ze osoby rezygnujące najczesciej maja umowe na miesiac oraz decyduja sie na internet swiatłowodowy przez co ich koszt miesieczny jest wiekszy i moze byc to powodem rezygnacji.
+
+Najczęściej klienci decydują się na umowę miesięczną oraz korzystają z internetu światłowodowego. Przeprowadzając analizę z podziałem na dwie grupy — klientów, którzy zrezygnowali z usług (Churn = Yes), oraz tych, którzy pozostali lojalni (Churn = No) — można zaobserwować wyraźne różnice. Osoby rezygnujące najczęściej mają umowę miesięczną i korzystają z internetu światłowodowego, co skutkuje wyższymi miesięcznymi opłatami i może być jednym z powodów odejścia. Z kolei klienci lojalni częściej posiadają umowy roczne lub dwuletnie i wybierają tańsze formy internetu, co sprzyja ich utrzymaniu w firmie. Ponadto lojalni klienci charakteryzują się wyższym stażem (Tenure) oraz wyższymi skumulowanymi opłatami (TotalCharges), co świadczy o ich długotrwałym związaniu z firmą.
+
+
+Analiza danych klientów firmy telekomunikacyjnej pozwoliła wyciągnąć kilka istotnych wniosków na temat ich charakterystyki. Baza klientów nie jest zrównoważona pod względem płci, lecz w większości składa się z osób młodszych, podczas gdy seniorzy stanowią mniejszość. Większość klientów nie posiada osób na utrzymaniu, a liczba osób posiadających partnera jest wyrównana. W zakresie korzystania z usług prawie wszyscy klienci mają telefon, a znaczna część posiada więcej niż jedną linię. Najpopularniejszą usługą internetową jest światłowód, choć część klientów nie korzysta z internetu, natomiast wśród usług dodatkowych dominują opcje rozrywkowe, takie jak streaming filmów i telewizji, podczas gdy usługi takie jak ochrona online czy kopie zapasowe są rzadziej wybierane.
+
+W aspekcie kontraktowym najczęściej spotykane są umowy krótkoterminowe (month-to-month), a w płatnościach dominuje czek elektroniczny i faktura elektroniczna. Około 26–27% klientów zdecydowało się zrezygnować z usług, przy czym osoby odchodzące częściej mają krótkoterminowe kontrakty i wyższe miesięczne opłaty, co sugeruje większą wrażliwość na cenę i ryzyko odejścia w początkowym okresie współpracy. Podsumowując, typowy klient firmy korzysta z telefonu i internetu światłowodowego, wybiera usługi rozrywkowe, posiada krótkoterminowy kontrakt i preferuje fakturę elektroniczną, a kluczowe czynniki różnicujące lojalnych klientów od tych odchodzących to staż współpracy, wysokość miesięcznych opłat, rodzaj kontraktu oraz typ usługi internetowej.
+
+Wnioski biznesowe sugerują, że firma mogłaby zmniejszyć koszty internetu światłowodowego lub zaoferować atrakcyjniejsze pakiety w tej samej cenie, ale z dodatkowymi usługami, co mogłoby zwiększyć lojalność klientów i zmniejszyć wskaźnik rezygnacji.
+
+
+
+
 
 
 
