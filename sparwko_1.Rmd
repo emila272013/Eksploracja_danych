@@ -12,8 +12,8 @@ output:
     number_sections: true
     keep_tex: false
 header-includes:
-   - \usepackage[OT4]{polski}
    - \usepackage[utf8]{inputenc}
+   - \usepackage[polish]{babel}
    - \usepackage{graphicx}
    - \usepackage{float}
 fontsize: 12pt 
@@ -21,9 +21,9 @@ fontsize: 12pt
 
 # Wstęp
 
-Głównym celem naszego raportu jest przeanalizowanie bazy danych zawierającej informacje o klientach firmy telekomunikacyjnej w celu przewidzenia ich zachowań związanych z rezygnacją z usług firmy.
+Głównym celem naszego raportu jest przeanalizowanie bazy danych zawierającej informacje o klientach firmy telekomunikacyjnej w celu przewidzenia ich zachowań związanych z rezygnacją z usług firmy.
 
-Baza danych `Telco-Customer-Churn`, na której będziemy pracować, została pobrana ze strony [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/blastchar/telco-customer-churn). Jest to fikcyjny zbiór danych zawierający informacje o klientach firmy telekomunikacyjnej świadczącej usługi telefonii stacjonarnej oraz inne usługi telekomunikacyjne w~Kalifornii.
+Baza danych `Telco-Customer-Churn`, na której będziemy pracować, została pobrana ze strony [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/blastchar/telco-customer-churn). Jest to fikcyjny zbiór danych zawierający informacje o klientach firmy telekomunikacyjnej świadczącej usługi telefonii stacjonarnej oraz inne usługi telekomunikacyjne w Kalifornii.
 
 \newpage
 
@@ -35,9 +35,8 @@ library(kableExtra)
 library(vioplot)
 library(ggplot2)
 library(patchwork)
-library(ggVennDiagram)
-
-#opts_chunk$set(dev = "svglite") # żeby były polskie znaki na wykresach
+library(showtext) # żeby były polskie znaki na wykresach
+showtext_auto()   #
 
 dane <- read.csv("WA_Fn-UseC_-Telco-Customer-Churn.csv", stringsAsFactors = TRUE)
 ```
@@ -88,19 +87,26 @@ Ich wartości dla `r nrow(dane)` przypadków zawartych w bazie prezentują się 
 # Przygotowanie tabeli
 tab_summary <- summary(dane)
 tab_summary[is.na(tab_summary)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
-#tab_summary <- trimws(tab_summary) # usunięcie niepotrzebnych spacji
 tab_summary <- gsub("\\s*:\\s*", ": ", tab_summary) # naprawienie zepsutych dwukropków
 
 
 # Tabela jest szeroka więc ją łamiemy na 6 kawałków i wyświetlamy w tej szatańskiej pętli
 kawalki = list(1:5, 6:9, 10:12, 13:15, 16:18, 19:21)
 
-for (i in 1:length(kawalki)) {
+# pierwszy kawałek (osobno żeby był caption)
+kawalek_tabeli = tab_summary[, kawalki[[1]]]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
+kable(kawalek_tabeli, booktabs = TRUE,
+        caption = "Podsumowanie danych") %>%
+    kable_styling(latex_options = c("striped", "scale_down", "hold_position")
+)
+
+# pozostałe kawałki
+for (i in 2:length(kawalki)) {
   kawalek_tabeli = tab_summary[, kawalki[[i]]]
   kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
   
-  tabela = kable(kawalek_tabeli, booktabs = TRUE,
-        caption = sprintf("Podsumowanie danych (%d/%d)", i, length(kawalki))) %>%
+  tabela = kable(kawalek_tabeli, booktabs = TRUE) %>%
     kable_styling(latex_options = c("striped", "scale_down", "hold_position")
   )
   
@@ -122,9 +128,9 @@ tenure_0 <- sum(dane$tenure == 0)
 oba <- sum(is.na(dane$TotalCharges) & dane$tenure == 0)
 
 tabela_na <- data.frame(
-  "`tenure=0`" = tenure_0,
-  "`tenure=0` oraz `TotalCharges=NA`" = oba,
-  "`TotalCharges=NA`" = total_charges_na,
+  "tenure=0" = tenure_0,
+  "tenure=0 oraz TotalCharges=NA" = oba,
+  "TotalCharges=NA" = total_charges_na,
   check.names = FALSE # bez tego nazwy kolumn robią się dziwne
 )
 
@@ -132,9 +138,10 @@ kable(
   tabela_na, 
   align = "c",
   booktabs = TRUE,
-  caption = "Powiązanie `tenure=0` z `TotalCharges=NA`") %>%
+  escape = FALSE, # żeby działało \texttt (``)
+  caption = "Powiązanie \\texttt{tenure=0} z \\texttt{TotalCharges=NA}") %>%
   kable_styling(full_width = FALSE, 
-                latex_options = c("striped", "scale_down", "hold_position")
+                latex_options = c("striped", "hold_position")
 )
 ```
 
@@ -193,7 +200,7 @@ kable(tabela_transposed,
 
 Powyższa tabela przedstawia podstawowe statystyki opisowe dla zmiennych ilościowych ciągłych, takie jak średnia, wariancja, wartości minimalne i maksymalne oraz pierwszy i trzeci kwartyl.
 
-Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
+Na podstawie wstępnej analizy danych można przypuszczać, że w zmiennej `TotalCharges` występują wartości odstające, na co wskazuje zauważalna różnica między średnią a medianą. Ponieważ średnia jest statystyką wrażliwą na wartości odstające, różnica między średnią a medianą sugeruje, że niektóre płatności klientów są znacznie wyższe od typowych. W przypadku pozostałych zmiennych ich rozkłady wydają się być bardziej równomierne, bez wyraźnych oznak obecności wartości ekstremalnych.
 
 ```{r histogramy zmiennych ilościowych (1/2), echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 par(mfrow = c(1, 2))
@@ -271,7 +278,7 @@ Zmienna `TotalCharges` wykazuje silną prawoskośność (asymetrię dodatnią). 
 
 Rozkład zmiennej `MonthlyCharges` jest zbliżony do równomiernego. Pudełko obejmuje zakres od około 35 do 90 jednostek, co odzwierciedla szerokie zróżnicowanie oferty firmy. Wskazuje to, że baza klientów składa się w podobnym stopniu zarówno z osób wybierających tańsze pakiety podstawowe, jak i z klientów decydujących się na droższe opcje premium.
 
-Wykres zmiennej `Tenure` również pokazuje rozkład równomierny i symetryczny. Oznacza to, że w zbiorze danych znajduje się zrównoważony miks klientów: zarówno nowi użytkownicy o niskim stażu, jak i osoby związane z firmą od wielu lat.
+Wykres zmiennej `Tenure` również pokazuje rozkład równomierny i symetryczny. Oznacza to, że w zbiorze danych znajduje się zrównoważony miks klientów: zarówno nowi użytkownicy o niskim stażu, jak i osoby związane z firmą od wielu lat.
 
 ```{r wykresy gęstości, echo=FALSE, fig.width=6, fig.align='center', warning=FALSE, message=FALSE}
 # MonthlyCharges
@@ -302,17 +309,16 @@ Na pierwszym wykresie (`TotalCharges`) obserwujemy silną prawoskośność, z na
 
 Na wykresie `MonthlyCharges` widoczne są dwa szczyty (bimodalny rozkład): pierwszy przy niskich wartościach (ok. 25 jednostek) reprezentuje klientów korzystających z najtańszych ofert, natomiast drugi, przy ok. 70 jednostek, obejmuje użytkowników wybierających droższe pakiety.
 
-Wykres zmiennej `Tenure` ma równiez dwa szczyty, co świadczy o dużej liczbie klientów o bardzo krótkim stażu lub takich co szybko zrezygnowali z usług. Na drugim końcu są klienci bardzo lojalni, którzy są z firmą przez długi czas.
-
-<--- dotąd zrobiłem
+Wykres zmiennej `Tenure` ma równiez dwa szczyty, co świadczy o dużej liczbie klientów o bardzo krótkim stażu lub takich co szybko zrezygnowali z usług. Na drugim końcu są klienci bardzo lojalni, którzy są z firmą przez długi czas.
 
 ```{r tabela liczności dla danych jakościowych, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
 # wybieramy tylko kolumny typu factor lub character, PaymentMethod na razie pomijamy bo jest szerokie
 kategor <- dane[, sapply(dane, function(x) is.factor(x) | is.character(x)) & names(dane) != "PaymentMethod" ]
 tab_ <- summary(kategor)
 tab_[is.na(tab_)] <- ""
+tab_ <- gsub("\\s*:\\s*", ": ", tab_)
 
-kable(t(tab_), caption = "Liczności dla danych jakościowych", booktabs = TRUE) %>%
+kable(t(tab_), caption = "Liczności dla danych jakościowych (poza PaymentMethod)", booktabs = TRUE) %>%
   kable_styling(full_width = FALSE, 
                 latex_options = c("striped", "scale_down", "hold_position"))
 
@@ -322,7 +328,7 @@ tab_pay <- as.data.frame(table(dane$PaymentMethod))
 colnames(tab_pay) <- c("Metoda płatności", "Liczność")
 
 # 3. Generujemy tabelę (dodajemy row.names = FALSE, aby pozbyć się numerowania wierszy)
-kable(tab_pay, caption = "Liczności dla metod płatności (PaymentMethod)", booktabs = TRUE, row.names = FALSE) %>%
+kable(tab_pay, caption = "Liczności dla danych jakościowych (PaymentMethod)", booktabs = TRUE, row.names = FALSE) %>%
   kable_styling(full_width = FALSE, 
                 latex_options = c("striped", "hold_position"))
 
@@ -369,11 +375,11 @@ Najczęstszą metodą płatności jest elektroniczny czek, co wskazuje na prefer
 ```{r, echo=FALSE, warning=FALSE, message=FALSE, fig.width=6, fig.align='center'}
 par(mfrow = c(1, 2), mar = c(6, 4, 4, 2))
 barplot(table(dane$PhoneService),
-        main = "Usługa telefoniczna",
+        main = "PhoneService",
         col = "pink3")
 
 bp <- barplot(table(dane$InternetService),
-              main = "usługa internetowa",
+              main = "InternetService",
               col = "lightblue",
               xaxt = "n")  # usuwa standardowe etykiety
 
@@ -389,7 +395,7 @@ text(x = bp,
 
 Na powyższych wykresach obserwujemy podział klientów pod względem posiadania usługi telefonicznej. Widać, że zdecydowana większość klientów decyduje się na tę opcję.
 
-Na wykresie dotyczącym usługi internetowej najwięcej klientów wybiera pakiet Fiber, natomiast nieco mniej osób korzysta z DSL. Istnieje także grupa klientów, którzy nie korzystają z internetu w ramach oferty firmy.
+Na wykresie dotyczącym usługi internetowej najwięcej klientów wybiera pakiet Fiber, natomiast nieco mniej osób korzysta z DSL. Istnieje także grupa klientów, którzy nie korzystają z internetu w ramach oferty firmy.
 
 ```{r, fig.align='center'}
 plot(dane$MonthlyCharges, dane$TotalCharges,
