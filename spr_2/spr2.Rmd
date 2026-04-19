@@ -1,0 +1,196 @@
+---
+title: "Sprawozdanie 1"
+subtitle: "Eksploracja danych"
+author: "Emilia Porczyńska, Michał Szostak"
+date: "`r Sys.Date()`"
+output: 
+  bookdown::pdf_document2:
+    toc: true
+    fig_caption: yes
+    fig_width: 5 
+    fig_height: 4 
+    number_sections: true
+    keep_tex: false
+header-includes:
+   - \usepackage[utf8]{inputenc}
+   - \usepackage[polish]{babel}
+   - \usepackage{graphicx}
+   - \usepackage{float}
+fontsize: 12pt 
+---
+
+## Częśc 1
+
+### Wstęp
+
+W pierszej częsci raportu naszym celem bedzie zdyskretyzowac bazę danych zawierajaca informacjie o wynikach pomiarów dla trzech gatunków irysów. Dane zostały udestępnione przez Ronalda Fishera w 1936 roku.
+
+Baza danych została pobrana z gotowych zbiorów danych w bibliotece datasets w R. Nasze dane pomiary kwatow takie jak długosći szerekosć dwóch rówznych częsci kwaiatu dziąłki kielicga oraz płatka .
+
+Naszym zadaneiem bedzie przeanalizowanie cech i wybranie dwoch. Jednej ktora najlepiej podzieli dane i drugiej ktora zrobi to najgorzej. Następnie przeprowadzenie dyskretezacji dla czterch metod dyskretyzacji nienadzorowanej, przyjmując ze liczba klas wynosi 3. Do porównania wykorzystamy algorytmy: equal width, equal frequ ency, k-means clustering oraz dyskretyzacji na bazie przedziałów zadanych przez uniytkownika.
+
+### Opis danych
+
+```{r, echo=FALSE}
+library(datasets)
+
+dane <- iris
+
+plot(dane$Sepal.Length, runif(nrow(dane)))
+plot(dane$Sepal.Width, runif(nrow(dane)))
+plot(dane$Petal.Length, runif(nrow(dane)))
+plot(dane$Petal.Width, runif(nrow(dane)))
+```
+
+```{r, echo=FALSE}
+hist(dane$Petal.Length)
+hist(dane$Petal.Width)
+```
+
+```{r, echo=FALSE}
+boxplot(dane$Petal.Width ~ dane$Species)
+boxplot(dane$Petal.Length ~ dane$Species)
+```
+
+Najpelsza Petal width a najgorsza Sepal Length
+
+zdania sa podzielone czat mowi ze leiej petal length a geminik ze width rozumeim czemu leght ale jestem za width.
+
+```{r, echo=FALSE}
+library(arules)
+podzial_11 <- discretize(dane$Sepal.Length, method = "interval", breaks = 3)
+
+podzial_12 <- discretize(dane$Petal.Width, method = "interval", breaks = 3)
+
+podzial_21 <- discretize(dane$Sepal.Length, method = "frequency", breaks = 3)
+
+podzial_22 <- discretize(dane$Petal.Width, method = "frequency", breaks = 3)
+
+podzial_31 <- discretize(dane$Sepal.Length, method = "cluster", breaks = 3)
+
+podzial_32 <- discretize(dane$Petal.Width, method = "cluster", breaks = 3)
+
+podzial_41 <- discretize(dane$Sepal.Length, method = "fixed", 
+      breaks = c(-Inf, 5.5, 6.5, Inf), labels = c("small","medium", "large"))
+
+podzial_42 <- discretize(dane$Petal.Width, method = "fixed", 
+      breaks = c(-Inf, 0.7, 1.7, Inf), labels = c("small","medium", "large"))
+```
+
+Terat porownanie 1 metody
+
+```{r, echo=FALSE}
+table(podzial_11)
+table(podzial_12)
+```
+
+```{r, echo=FALSE}
+
+linie_podzialu_11 <- attributes(podzial_11)$"discretized:breaks"
+linie_podzialu_12 <- attributes(podzial_12)$"discretized:breaks"
+
+# par(mfrow = c(2, 1), mar = c(2, 4, 2, 1))
+plot(dane$Sepal.Length, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_11, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+
+plot(dane$Petal.Width, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_12, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+```
+
+```{r, echo=FALSE}
+plot(iris$Species~podzial_11, col=1:3)
+
+plot(iris$Species~podzial_12, col=1:3)
+```
+
+TEraz dla kolejnej metody frequency.
+
+```{r, echo=FALSE}
+table(podzial_21)
+table(podzial_22)
+```
+
+```{r, echo=FALSE}
+
+linie_podzialu_21 <- attributes(podzial_21)$"discretized:breaks"
+linie_podzialu_22 <- attributes(podzial_22)$"discretized:breaks"
+
+# par(mfrow = c(2, 1), mar = c(2, 4, 2, 1))
+plot(dane$Sepal.Length, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_21, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+
+plot(dane$Petal.Width, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_22, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+```
+
+```{r, echo=FALSE}
+plot(iris$Species~podzial_21, col=1:3)
+
+plot(iris$Species~podzial_22, col=1:3)
+```
+
+Teraz dla metody cluster.
+
+```{r, echo=FALSE}
+table(podzial_31)
+table(podzial_32)
+```
+
+```{r, echo=FALSE}
+
+linie_podzialu_31 <- attributes(podzial_31)$"discretized:breaks"
+linie_podzialu_32 <- attributes(podzial_32)$"discretized:breaks"
+
+# par(mfrow = c(2, 1), mar = c(2, 4, 2, 1))
+plot(dane$Sepal.Length, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_31, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+
+plot(dane$Petal.Width, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_32, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+```
+
+```{r, echo=FALSE}
+plot(iris$Species~podzial_31, col=1:3)
+
+plot(iris$Species~podzial_32, col=1:3)
+```
+
+Teraz dla wlasnego podzialu.
+
+```{r, echo=FALSE}
+table(podzial_41)
+table(podzial_42)
+```
+
+```{r, echo=FALSE}
+
+linie_podzialu_41 <- c(-Inf, 5.5, 6.5, Inf)
+linie_podzialu_42 <- c(-Inf, 0.7, 1.7, Inf)
+
+# par(mfrow = c(2, 1), mar = c(2, 4, 2, 1))
+plot(dane$Sepal.Length, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_41, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+
+plot(dane$Petal.Width, runif(150), col=iris$Species, main = "Metoda: interval discretization")
+abline(v = linie_podzialu_42, col = "red", lwd=3)
+legend(x = "topright", legend=levels(iris$Species), col=1:3, pch=21, bg = "azure")
+```
+
+```{r, echo=FALSE}
+plot(iris$Species~podzial_41, col=1:3)
+
+plot(iris$Species~podzial_42, col=1:3)
+```
+
+## Część 2
+
+### Wstęp
+
+### Opis danych
