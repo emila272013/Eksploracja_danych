@@ -1,5 +1,5 @@
 ---
-title: "Sprawozdanie 1"
+title: "Sprawozdanie 2"
 subtitle: "Eksploracja danych"
 author: "Emilia Porczyńska, Michał Szostak"
 date: "`r Sys.Date()`"
@@ -194,3 +194,71 @@ plot(iris$Species~podzial_42, col=1:3)
 ### Wstęp
 
 ### Opis danych
+
+### Przygotowanie danych 
+
+```{r, echo=FALSE}
+dane_2 <- read.csv("uaScoresDataFrame.csv", stringsAsFactors = TRUE)
+head(dane_2)
+dane_2$X <- NULL
+dane_2_ilo <- dane_2[, sapply(dane_2, is.numeric)]
+head(dane_2_ilo)
+```
+
+```{r, echo=FALSE}
+boxplot(dane_2_ilo, col=rainbow(17))
+dane_2_ilo_stand <- scale(dane_2_ilo)
+boxplot(dane_2_ilo_stand)
+```
+
+### Wyznaczanie składowych głownych 
+
+```{r, echo=FALSE}
+pca_dane <- prcomp(dane_2_ilo, scale.=TRUE, center=TRUE, retx=TRUE)
+# pca_dane
+pca_dane$rotation[, 1:3]
+```
+
+Najwyzszy wskaznik dla PC1 ma Housing i Cost.of livig wiec mmozemy interpretowac ta zmienna jako koszty zycia i poziom rozwoju. Nastepnie PC2 najwyzszy wskaznik dla safety i health care i enviromental quality i tolerance wiec mozemy interpretowac ta zmienna jako innowacynjosc . Natomiast PC3 najwyze wartosci loading maja ecomony wiec mozemy interpretowac ta zmienna jako frastruktura i dostępność / mobilność.
+
+PC1 reprezentuje ogólny poziom życia i koszty utrzymania, z największym wpływem zmiennych Housing i Cost.of.Living.
+
+PC2 odzwierciedla jakość życia oraz poziom innowacyjności, związany ze zmiennymi takimi jak Startups, Venture Capital, Safety i Healthcare.
+
+PC3 można interpretować jako komponent związany z infrastrukturą i mobilnością, ponieważ największe ładunki mają zmienne Commute oraz Travel Connectivity.
+
+### Zmienność odpowiadająca poszczególnym składowym
+
+```{r, echo=FALSE}
+plot(pca_dane, main="Wariancje poszczególnych składowych")
+
+variance <- 100*(pca_dane$sdev^2)/sum(pca_dane$sdev^2)
+barplot(cumsum(variance), main="Skumulowana wariancja (w %)", names.arg=paste0("PC",1:17), las = 2)
+abline(h=80, col="green", lty=2, lwd=2)
+abline(h=90, col="red", lty=2, lwd=2)
+legend("right", legend=c("80%","90%"), lwd=2, lty=2, col=c("green","red"))
+```
+
+Do wyjasnienia 80% skal=dowych potrzebne jest 7 zmiennych, natomiast do wyjaśnienia 90% składowych potrezbne jest 10 zmiennych.
+
+### Wizualizacja danych wielowymiarowych
+
+```{r, echo=FALSE}
+kolory <- rainbow(5)
+plot(pca_dane$x[,1], pca_dane$x[,2], col = kolory[as.numeric(dane_2$UA_Continent)], 
+     pch=16, xlab="PC1", ylab="PC2", cex=1.2)
+```
+
+```{r, echo=FALSE}
+library(plot3D)
+
+scatter3D(pca_dane$x[,1], pca_dane$x[,2], pca_dane$x[,3], xlab="PC1", ylab="PC2", zlab="PC3",  
+          colvar=as.numeric(dane_2$UA_Continent), col=kolory, pch=16, colkey = FALSE) 
+legend("topright",legend=levels(dane_2$UA_Continent), col=kolory, pch=16,bg="azure2")
+```
+
+### Korelacja zmiennych
+
+### Końcowe wyniki
+
+## Część 3
