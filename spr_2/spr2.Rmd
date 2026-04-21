@@ -195,7 +195,7 @@ plot(iris$Species~podzial_42, col=1:3)
 
 ### Opis danych
 
-### Przygotowanie danych 
+### Przygotowanie danych
 
 ```{r, echo=FALSE}
 dane_2 <- read.csv("uaScoresDataFrame.csv", stringsAsFactors = TRUE)
@@ -211,7 +211,7 @@ dane_2_ilo_stand <- scale(dane_2_ilo)
 boxplot(dane_2_ilo_stand)
 ```
 
-### Wyznaczanie składowych głownych 
+### Wyznaczanie składowych głownych
 
 ```{r, echo=FALSE}
 pca_dane <- prcomp(dane_2_ilo, scale.=TRUE, center=TRUE, retx=TRUE)
@@ -258,6 +258,49 @@ legend("topright",legend=levels(dane_2$UA_Continent), col=kolory, pch=16,bg="azu
 ```
 
 ### Korelacja zmiennych
+
+wykres korelacji tak o
+
+```{r, echo=FALSE}
+library(factoextra)
+library(corrplot)
+
+variables <- get_pca_var(pca_dane)
+corrplot(variables$cor)
+```
+
+```{r, echo=FLASE}
+correlation.matrix <- cor(dane_2_ilo)
+corrplot(correlation.matrix)
+```
+
+```{r, echo=FALSE}
+fviz_pca_biplot(pca_dane,
+                geom.ind = "point",   # tylko punkty
+                col.ind = "grey70",   # jasne punkty
+                col.var = "blue",
+                repel = TRUE,
+                select.var = list(contrib = 10)) # tutaj ile cech chcemy
+
+fviz_pca_biplot(pca_dane,
+                label = "var",
+                habillage = dane_2$UA_Continent,
+                repel = TRUE,
+                select.var = list(contrib = 10),
+                col.var = "black",
+                pointsize = 1.5)
+
+fviz_pca_biplot(pca_dane,
+                label = "var",
+                habillage = dane_2$UA_Continent,
+                addEllipses = TRUE,
+                ellipse.level = 0.95,
+                repel = TRUE,
+                select.var = list(contrib = 10),
+                col.ind = "grey50",
+                pointsize = 2,
+                col.var = "black")
+```
 
 ### Końcowe wyniki
 
