@@ -261,7 +261,7 @@ legend("topright",legend=levels(dane_2$UA_Continent), col=kolory, pch=16,bg="azu
 
 wykres korelacji tak o
 
-```{r, echo=FALSE}
+```{r}
 library(factoextra)
 library(corrplot)
 
@@ -269,7 +269,7 @@ variables <- get_pca_var(pca_dane)
 corrplot(variables$cor)
 ```
 
-```{r, echo=FLASE}
+```{r, echo=FALSE}
 correlation.matrix <- cor(dane_2_ilo)
 corrplot(correlation.matrix)
 ```
