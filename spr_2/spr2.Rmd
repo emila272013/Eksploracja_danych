@@ -208,7 +208,7 @@ head(dane_2_ilo)
 ```{r, echo=FALSE}
 boxplot(dane_2_ilo, col=rainbow(17))
 dane_2_ilo_stand <- scale(dane_2_ilo)
-boxplot(dane_2_ilo_stand)
+boxplot(dane_2_ilo_stand, col=rainbow(17))
 ```
 
 ### Wyznaczanie składowych głownych
@@ -305,3 +305,11 @@ fviz_pca_biplot(pca_dane,
 ### Końcowe wyniki
 
 ## Część 3
+
+### Wstep
+
+### Opis danych
+
+```{r, echo=FALSE}
+dane_3 <- read.csv("train.csv")
+```
