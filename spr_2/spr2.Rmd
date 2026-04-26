@@ -12,30 +12,53 @@ output:
     number_sections: true
     keep_tex: false
 header-includes:
-   - \usepackage[utf8]{inputenc}
-   - \usepackage[polish]{babel}
-   - \usepackage{graphicx}
-   - \usepackage{float}
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[polish]{babel}
+  - \usepackage{graphicx}
+  - \usepackage{float}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \definecolor{setosa}{HTML}{2A2570}
+  - \definecolor{versicolor}{HTML}{3B1A6B}
+  - \definecolor{virginica}{HTML}{2C5F8A}
 fontsize: 12pt 
 ---
 
-## Częśc 1
+\newpage
 
-### Wstęp
+# Część 1 – dyskretyzacja cech ciągłych
 
-W pierszej częsci raportu naszym celem bedzie zdyskretyzowac bazę danych zawierajaca informacjie o wynikach pomiarów dla trzech gatunków irysów. Dane zostały udestępnione przez Ronalda Fishera w 1936 roku.
+## Wstęp
 
-Baza danych została pobrana z gotowych zbiorów danych w bibliotece datasets w R. Nasze dane pomiary kwatow takie jak długosći szerekosć dwóch rówznych częsci kwaiatu dziąłki kielicga oraz płatka .
-
-Naszym zadaneiem bedzie przeanalizowanie cech i wybranie dwoch. Jednej ktora najlepiej podzieli dane i drugiej ktora zrobi to najgorzej. Następnie przeprowadzenie dyskretezacji dla czterch metod dyskretyzacji nienadzorowanej, przyjmując ze liczba klas wynosi 3. Do porównania wykorzystamy algorytmy: equal width, equal frequ ency, k-means clustering oraz dyskretyzacji na bazie przedziałów zadanych przez uniytkownika.
-
-### Opis danych
-
-```{r, echo=FALSE}
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
 library(datasets)
+library(arules)
+library(plot3D)
+library(ggplot2)
+library(factoextra)
+library(corrplot)
+library(showtext) # żeby były polskie znaki na wykresach
+showtext_auto()   #
 
 dane <- iris
+```
 
+Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*).
+
+```{r iris-pictures, echo=FALSE, out.width="32%", fig.show="hold", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
+
+knitr::include_graphics(c("iris_setosa.jpg", "iris_versicolor.jpg", "iris_virginica.jpg"))
+```
+
+Zbiór danych został udostępniony przez Ronalda Fishera w 1936 roku. Pobieramy go z zestawu gotowych zbiorów dostępnych w pakiecie `datasets` w R.
+
+Naszym pierwszym zadaniem będzie przeanalizowanie własności cech oraz wybranie jednej cechy, która najlepiej rozróżni gatunki kwiatu oraz jednej, która zrobi to najgorzej.
+
+Następnym naszym zadaniem będzie przeprowadzenie dyskretyzacji wybranych cech na trzy klasy przy użyciu różnych metod dyskretyzacji nienadzorowanej oraz porównanie ich wyników. Będziemy porównywać metody *equal width*, *equal frequency*, *k-means clustering* oraz dyskretyzację na bazie przedziałów zadanych przez użytkownika (przez nas).
+
+## Opis danych
+
+```{r, echo=FALSE}
 plot(dane$Sepal.Length, runif(nrow(dane)))
 plot(dane$Sepal.Width, runif(nrow(dane)))
 plot(dane$Petal.Length, runif(nrow(dane)))
@@ -57,7 +80,6 @@ Najpelsza Petal width a najgorsza Sepal Length
 zdania sa podzielone czat mowi ze leiej petal length a geminik ze width rozumeim czemu leght ale jestem za width.
 
 ```{r, echo=FALSE}
-library(arules)
 podzial_11 <- discretize(dane$Sepal.Length, method = "interval", breaks = 3)
 
 podzial_12 <- discretize(dane$Petal.Width, method = "interval", breaks = 3)
@@ -189,13 +211,13 @@ plot(iris$Species~podzial_41, col=1:3)
 plot(iris$Species~podzial_42, col=1:3)
 ```
 
-## Część 2
+# Część 2
 
-### Wstęp
+## Wstęp
 
-### Opis danych
+## Opis danych
 
-### Przygotowanie danych
+## Przygotowanie danych
 
 ```{r, echo=FALSE}
 dane_2 <- read.csv("uaScoresDataFrame.csv", stringsAsFactors = TRUE)
@@ -211,7 +233,7 @@ dane_2_ilo_stand <- scale(dane_2_ilo)
 boxplot(dane_2_ilo_stand, col=rainbow(17))
 ```
 
-### Wyznaczanie składowych głownych
+## Wyznaczanie składowych głownych
 
 ```{r, echo=FALSE}
 pca_dane <- prcomp(dane_2_ilo, scale.=TRUE, center=TRUE, retx=TRUE)
@@ -227,7 +249,7 @@ PC2 odzwierciedla jakość życia oraz poziom innowacyjności, związany ze zmie
 
 PC3 można interpretować jako komponent związany z infrastrukturą i mobilnością, ponieważ największe ładunki mają zmienne Commute oraz Travel Connectivity.
 
-### Zmienność odpowiadająca poszczególnym składowym
+## Zmienność odpowiadająca poszczególnym składowym
 
 ```{r, echo=FALSE}
 plot(pca_dane, main="Wariancje poszczególnych składowych")
@@ -250,21 +272,17 @@ plot(pca_dane$x[,1], pca_dane$x[,2], col = kolory[as.numeric(dane_2$UA_Continent
 ```
 
 ```{r, echo=FALSE}
-library(plot3D)
 
 scatter3D(pca_dane$x[,1], pca_dane$x[,2], pca_dane$x[,3], xlab="PC1", ylab="PC2", zlab="PC3",  
           colvar=as.numeric(dane_2$UA_Continent), col=kolory, pch=16, colkey = FALSE) 
 legend("topright",legend=levels(dane_2$UA_Continent), col=kolory, pch=16,bg="azure2")
 ```
 
-### Korelacja zmiennych
+## Korelacja zmiennych
 
 wykres korelacji tak o
 
 ```{r}
-library(factoextra)
-library(corrplot)
-
 variables <- get_pca_var(pca_dane)
 corrplot(variables$cor)
 ```
@@ -302,13 +320,13 @@ fviz_pca_biplot(pca_dane,
                 col.var = "black")
 ```
 
-### Końcowe wyniki
+## Końcowe wyniki
 
-## Część 3
+# Część 3
 
-### Wstep
+## Wstep
 
-### Opis danych
+## Opis danych
 
 ```{r, echo=FALSE}
 dane_3 <- read.csv("train.csv")
