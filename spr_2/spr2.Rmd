@@ -146,10 +146,10 @@ discretize(dane$CECHA, method = METODA, breaks = 3)
 
 W miejsce `CECHA` wpisujemy identyfikator odpowiedniej cechy, a w miejsce `METODA` identyfikator metody:
 
-- `"interval"` dla metody *equal width*,
-- `"frequency"` dla metody *equal frequency*,
-- `"cluster"` dla metody *k–means clustering* oraz
-- `"fixed"` dla ręcznego podziału.
+-   `"interval"` dla metody *equal width*,
+-   `"frequency"` dla metody *equal frequency*,
+-   `"cluster"` dla metody *k–means clustering* oraz
+-   `"fixed"` dla ręcznego podziału.
 
 W przypadku ostatniej metody, zamiast `breaks = 3` piszemy wektor punktów rozdzielających, przykładowo:
 
@@ -230,7 +230,6 @@ plot_podzialy <- function(podzial_pl, podzial_sw) {
 }
 ```
 
-
 ```{r helper-tabela-dyskretyzacji, echo=FALSE}
 # pomocnicza funkcja do tabel wyników dyskretyzacji
 tabela_dyskretyzacji <- function(podzial_pl, podzial_sw) {
@@ -284,11 +283,11 @@ axis(2, at = seq(0, 1, 0.2), las = 1)
 tabela_dyskretyzacji(podzial_1b, podzial_1a)
 ```
 
-Dzieląc cechę długości płatka (`Petal.Length`) na równe przedziały z bardzo dobrą skutecznością rozdzielamy irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od pozostałych. Wszystkie kwiaty tego gatunku wpadają w przedział najkrótszej długości oraz nie wpadają do tego przedziału żadne irysy innego gatunku. 
+Dzieląc cechę długości płatka (`Petal.Length`) na równe przedziały z bardzo dobrą skutecznością rozdzielamy irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od pozostałych. Wszystkie kwiaty tego gatunku wpadają w przedział najkrótszej długości oraz nie wpadają do tego przedziału żadne irysy innego gatunku.
 
 W miarę skutecznie rozróżniamy też gatunki \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}, które wpadają zazwyczaj odpowiednio w przedział o średniej długości i przedział o najdłuższej długości. W niektórych przypadkach \textcolor{versicolor}{\textit{Iris versicolor}} trafia jednak do przedziału o najdłuższej długości, a \textcolor{virginica}{\textit{Iris virginica}} do przedziału o średniej długości. Więcej razy występuje ten pierwszy przypadek niż drugi.
 
-Jeżeli podzielimy zamiast tego na równe przedziały cechę szerokości działki kielicha (`Sepal.Width`), nie otrzymamy żadnych zadowalających nas rezultatów. 
+Jeżeli podzielimy zamiast tego na równe przedziały cechę szerokości działki kielicha (`Sepal.Width`), nie otrzymamy żadnych zadowalających nas rezultatów.
 
 ### Metoda equal frequency
 
@@ -396,10 +395,9 @@ Pozostałe dwa gatunki zbyt się jednak pokrywają tą cechą aby można je był
 
 ### Podsumowanie
 
-Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku  \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
+Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
 
 Żadna metoda nie pozwoliła na rozróżnienie gatunków na podstawie cechy szerokości działki kielicha (`Sepal.Width`). Pokazuje to że ograniczając zbiór danych możemy stracić informacje których żadnym algorytmem nie będziemy w stanie odzyskać.
-
 
 # Część 2 - Analiza składowych głownych
 
@@ -646,12 +644,63 @@ fviz_pca_biplot(pca_dane,
 
 ## Końcowe wyniki
 
-# Część 3
+# Część 3 - Skalowanie wielowymiarowe (MDS)
 
 ## Wstep
 
+W ostatniej częsci raportu wykonaliśmy saklowanie wielowymairowe na danych, które zawierja wybrane charakterystyki opisujące pasażerów Titanica.
+
+Skalowanie wielowymiarowe (MDS) jest metodą statystyczną służącą do przedstawiania podobieństw lub różnic między obiektami w przestrzeni o małej liczbie wymiarów, najczęściej 2D lub 3D. Jego celem jest takie rozmieszczenie punktów, aby odległości między nimi jak najlepiej odpowiadały oryginalnym relacjom podobieństwa.
+
 ## Opis danych
 
-```{r, echo=FALSE}
+```{r wczyt_dane_3, echo=FALSE}
 dane_3 <- read.csv("train.csv")
+```
+
+Zbiór danych zawiera informacjie o pasażerach Titanica miedzy innymi takie jak: wiek, płeć, miejsce rozpocząecia podrózy oraz klasa pasażerska. Ważna zmienna występujaca w bazie dancyh jest checha `r dane_3$Survived`, która informuje nas czy dana osoba przeżyła katastrofę czy nie. Dane zawierją `r nrow(dane_3)` informacji o róznych pasażerach oraz `r ncol(dane_3)` cech które ich opisują.
+
+```{r zmiana_typow_3, echo=FALSE}
+dane_3 <- read.csv("train.csv")
+#str(dane_3)
+dane_3[] <- lapply(dane_3, function(x) {
+  if (is.character(x)) {
+    as.factor(x)
+  } else {
+    x
+  }
+})
+dane_3$Pclass <- ordered(dane_3$Pclass)
+
+
+```
+
+Typy zmiennych ktore po wczytaniu danych byly wczytanie jako characet zmienilismy na factor sa to zmienne takie jak `r dane_3$Name` , `r dane_3$Sex` , `r dane_3$Ticket` , `r dane_3$Cabin` oraz `r dane_3$Embarked` . Zmienną `r dane_3$Pclass` zmieniono na zmienną porządkową.
+
+```{r tabela_typy_i_opisy, echo=FALSE}
+tab_cechy <- data.frame(
+  Typ = sapply(dane_3, function(x) paste(class(x), collapse = ", ")),
+  Opis = c(
+    "ID pasażera",
+    "Czy przeżył",
+    "Numer klasy",
+    "Imię pasażera",
+    "Płeć",
+    "Wiek",
+    "Liczba rodzeństwa oraz małżonków podróżujących z pasażerem",
+    "Liczba rodziców oraz dzieci podróżujących z pasażerem",
+    "Numer biletu",
+    "Opłata za bilet",
+    "Numer kabiny",
+    "Port zaokrętowania pasażera"
+  )
+)
+
+
+kable(tab_cechy, 
+      caption = "Typy oraz opisy cech", 
+      booktabs = TRUE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE, 
+                latex_options = c("striped", "scale_down", "hold_position"))
 ```
