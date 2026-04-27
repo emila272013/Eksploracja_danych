@@ -52,14 +52,13 @@ Tymczasowo w osobnym pliku żeby się szybciej kompilowało.
 
 Tymczasowo w osobnym pliku żeby się szybciej kompilowało.
 
-
 # Część 3 - Skalowanie wielowymiarowe (MDS)
 
 ## Wstep
 
 W ostatniej częsci raportu wykonaliśmy saklowanie wielowymairowe na danych, które zawierja wybrane charakterystyki opisujące pasażerów Titanica.
 
-Skalowanie wielowymiarowe (MDS) jest metodą statystyczną służącą do przedstawiania podobieństw lub różnic między obiektami w przestrzeni o małej liczbie wymiarów, najczęściej 2D lub 3D. Jego celem jest takie rozmieszczenie punktów, aby odległości między nimi jak najlepiej odpowiadały oryginalnym relacjom podobieństwa.
+tuatj opis tego czym jest to skalownaie mds
 
 ## Opis danych
 
@@ -67,10 +66,9 @@ Skalowanie wielowymiarowe (MDS) jest metodą statystyczną służącą do przeds
 dane_3 <- read.csv("train.csv")
 ```
 
-Zbiór danych zawiera informacjie o pasażerach Titanica miedzy innymi takie jak: wiek, płeć, miejsce rozpocząecia podrózy oraz klasa pasażerska. Ważna zmienna występujaca w bazie dancyh jest checha `r dane_3$Survived`, która informuje nas czy dana osoba przeżyła katastrofę czy nie. Dane zawierją `r nrow(dane_3)` informacji o róznych pasażerach oraz `r ncol(dane_3)` cech które ich opisują.
+Zbiór danych zawiera informacjie o pasażerach Titanica miedzy innymi takie jak: wiek, płeć, miejsce rozpocząecia podrózy oraz klasa pasażerska. Ważna zmienna występujaca w bazie dancyh jest checha Survived, która informuje nas czy dana osoba przeżyła katastrofę czy nie. Dane zawierją `r nrow(dane_3)` informacji o róznych pasażerach oraz `r ncol(dane_3)` cech które ich opisują.
 
 ```{r zmiana-typow-3, echo=FALSE}
-dane_3 <- read.csv("train.csv")
 #str(dane_3)
 dane_3[] <- lapply(dane_3, function(x) {
   if (is.character(x)) {
@@ -84,7 +82,7 @@ dane_3$Pclass <- ordered(dane_3$Pclass)
 
 ```
 
-Typy zmiennych ktore po wczytaniu danych byly wczytanie jako characet zmienilismy na factor sa to zmienne takie jak `r dane_3$Name` , `r dane_3$Sex` , `r dane_3$Ticket` , `r dane_3$Cabin` oraz `r dane_3$Embarked` . Zmienną `r dane_3$Pclass` zmieniono na zmienną porządkową.
+Typy zmiennych ktore po wczytaniu danych byly wczytanie jako characet zmienilismy na factor sa to zmienne takie jak Name , Sex , Ticket, Cabin oraz undefined . Zmienną Pclass zmieniono na zmienną porządkowa.
 
 ```{r tabela-typy-i-opisy, echo=FALSE}
 tab_cechy <- data.frame(
@@ -112,4 +110,45 @@ kable(tab_cechy,
       align = "l") %>%
   kable_styling(full_width = FALSE, 
                 latex_options = c("striped", "scale_down", "hold_position"))
+
+dane_3$Name <- NULL
+dane_3$PassengerId <- NULL
+dane_3$Ticket <- NULL
 ```
+
+Z danych zosatły usuniete zmienne takei jak PassengerId , Name oraz Ticket, które nie wniosą nic do naszej analiza sa to indywidulane dane kazdego pasazera w celu ochrony danych zostaną one usunięte z dalszej analizy.
+
+```{r tabela-brako-dane-3, echo=FALSE}
+tab_braki <- data.frame(
+  Liczba_NA = sapply(dane_3, function(x) sum(is.na(x))),
+  Liczba_puste_pozycje = sapply(dane_3, function(x) sum(x == "", na.rm = TRUE))
+)
+
+kable(tab_braki,
+      caption = "Braki danych w zbiorze",
+      booktabs = TRUE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "hold_position"))
+```
+
+Zmienna cabin zaweira az 687 braków w dancyhh, wiec nie bedizmey jej uwzgledniac w dalszej analizie, rózwniez z tego powodu ze pełniła funkcjei identyfikatora. Natomiast zmienna Age zawiera 177 braków w tym przypadku nie bedziemy sie decydowac na usunieniecei tej zmiennej tylko zastapimy te braki mediana z pozostałych wartosci Age, równiez nie decydujemy sie na opcje usuniecia wierszy z tymi brakmi, ponieważ stanowią one prawie 20% danych. Natomiast braki w zmiennej Embark, ktora oznaczła port w którym wsiadł psazaer, błedy uzpełnimy najczestszą opsca jak pojawai sie w dancyh.
+
+```{r podsumowanie-danych-3, echo=FALSE}
+dane_3$Embarked <- as.character(dane_3$Embarked)
+mode_embarked <- names(sort(table(dane_3$Embarked[dane_3$Embarked != "0"]), decreasing = TRUE))[1]
+
+dane_3$Embarked[dane_3$Embarked == "0"] <- mode_embarked
+dane_3$Embarked <- as.factor(dane_3$Embarked)
+dane_3$Cabin <- NULL
+dane_3$Age[is.na(dane_3$Age)] <- median(dane_3$Age, na.rm = TRUE)
+summary(dane_3)
+```
+
+W tabeli powyzej znajdują sie statystyki opisowe zmienych oraz licznosci wstapien poszczegolnych katergii w zmiennych jakosciwoych.
+
+## Redukcja wymiaru na bazie MDS
+
+## Wizualizajca dancyh
+
+## Podsumowanie
