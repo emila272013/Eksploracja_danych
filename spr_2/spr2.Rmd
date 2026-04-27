@@ -20,9 +20,9 @@ header-includes:
   - \usepackage{floatrow}
   - \floatsetup[table]{capposition=bottom}
   - \usepackage{caption}
-  - \definecolor{setosa}{HTML}{9B72EF}
-  - \definecolor{versicolor}{HTML}{713DC5}
-  - \definecolor{virginica}{HTML}{C3B1F7}
+  - \definecolor{setosa}{HTML}{833FE7}
+  - \definecolor{versicolor}{HTML}{5D00BE}
+  - \definecolor{virginica}{HTML}{A68DE5}
 fontsize: 12pt 
 ---
 
@@ -45,10 +45,17 @@ library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
 showtext_auto()   #
 
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
+
 dane <- iris
 
 # kolory gatunków (takie same jak w tekście)
 kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
+# kolor linii granic przedziałów
+kolor_granic <- "#AB0046"
+
+# kolor tła legend
+kolor_tla_legendy <- "#F5FDFF"
 ```
 
 Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*).
@@ -83,25 +90,26 @@ tab_cechy <- data.frame(
 
 kable(tab_cechy,
       caption = "Typy oraz opisy cech",
-      booktabs = TRUE,     # ładniejsze linie w PDF
-      escape = FALSE,      # żeby \textcolor zadziałało
-      align = "l") %>%     # wyrównanie tekstu do lewej
-  kable_styling(full_width = FALSE, 
-                latex_options = c("striped", "scale_down", "hold_position")
+      booktabs = TRUE,
+      escape = FALSE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "scale_down", "hold_position"),
+                stripe_color = "gray!10"
 )
 ```
 
 Wartości pomiarów prezentują się następująco:
 
 ```{r podsumowanie-danych, echo=FALSE, warning=FALSE, message=FALSE}
-tab_summary <- summary(dane[, setdiff(names(dane), "Species")])
+tab_summary <- summary(dane[, setdiff(names(dane), "Species")]) # Species nie pokazujemy bo już znamy
 tab_summary[is.na(tab_summary)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
 tab_summary <- gsub("\\s*:\\s*", ": ", tab_summary) # naprawienie zepsutych dwukropków
 tab_summary <- tab_summary[rowSums(tab_summary != "") > 0, ] # usunięcie pustych wierszy
 
 kable(tab_summary, booktabs = TRUE,
       caption = "Podsumowanie danych") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"))
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"), stripe_color = "gray!10")
 ```
 
 Wierzymy pomiarom i zakładamy że nie ma błędów. Braki danych `r if (sum(is.na(dane)) == 0) "nie" else ""` występują.
@@ -113,7 +121,7 @@ plot(jitter(dane$Petal.Length), jitter(dane$Petal.Width),
      ylab = "szerokość płatka (cm)",
      main = "Płatek")
 legend("bottomright", legend = names(kolory_gatunkow),
-       col = kolory_gatunkow, pch = 16, bg = "azure",
+       col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
        text.col = kolory_gatunkow, text.font = 3)
 
 plot(jitter(dane$Sepal.Length), jitter(dane$Sepal.Width),
@@ -122,11 +130,11 @@ plot(jitter(dane$Sepal.Length), jitter(dane$Sepal.Width),
      ylab = "szerokość działki kielicha (cm)",
      main = "Działka kielicha")
 legend("topright", legend = names(kolory_gatunkow),
-       col = kolory_gatunkow, pch = 16, bg = "azure",
+       col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
        text.col = kolory_gatunkow, text.font = 3)
 ```
 
-Jako cechę najlepiej rozróżniającą gatunki wybieramy długość płatka (`Petal.Length`) — wartości dla \textcolor{setosa}{\textit{setosa}} są wyraźnie niższe niż dla pozostałych dwóch gatunków, a \textcolor{versicolor}{\textit{versicolor}} i \textcolor{virginica}{\textit{virginica}} również są od siebie dobrze oddzielone. Jako cechę najgorzej rozróżniającą gatunki wybieramy szerokość działki kielicha (`Sepal.Width`) — rozkłady dla wszystkich trzech gatunków silnie się nakładają.
+Jako cechę najlepiej rozróżniającą gatunki wybieramy długość płatka (`Petal.Length`) – wartości dla \textcolor{setosa}{\textit{Iris setosa}} są wyraźnie niższe niż dla pozostałych dwóch gatunków, a \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}} również są od siebie dobrze oddzielone. Jako cechę najgorzej rozróżniającą gatunki wybieramy szerokość działki kielicha (`Sepal.Width`) – rozkłady dla wszystkich trzech gatunków silnie się nakładają.
 
 ## Porównanie metod dyskretyzacji
 
@@ -136,81 +144,82 @@ Do dokonania dyskretyzacji wykorzystujemy funkcję `discretize` z R–pakietu `a
 discretize(dane$CECHA, method = METODA, breaks = 3)
 ```
 
-W miejsce `CECHA` wpisujemy identyfikator odpowiedniej cechy, a w miejsce `METODA` identyfikator metody – `"interval"` dla metody *equal width*, `"frequency"` dla metody *equal frequency*, `"cluster"` dla metody *k–means clustering* oraz `"fixed"` dla ręcznego podziału.
+W miejsce `CECHA` wpisujemy identyfikator odpowiedniej cechy, a w miejsce `METODA` identyfikator metody:
 
-W przypadku ostatniej metody, zamiast `breaks = 3` piszemy wpisujemy wektor punktów rozdzielających, oraz podajemy dodatkowo wektor ich etykiet w parametrze `labels`, na przykład:
+- `"interval"` dla metody *equal width*,
+- `"frequency"` dla metody *equal frequency*,
+- `"cluster"` dla metody *k–means clustering* oraz
+- `"fixed"` dla ręcznego podziału.
+
+W przypadku ostatniej metody, zamiast `breaks = 3` piszemy wektor punktów rozdzielających, przykładowo:
 
 ```{r dyskretyzacja02, eval=FALSE}
 discretize(
-  dane$Sepal.Width,  
-  method = "fixed", 
-  breaks = c(-Inf, 2.9, 3.2, Inf), 
-  labels = c("wąska", "średna", "szeroka")
+  dane$Sepal.Width,
+  method = "fixed",
+  breaks = c(2.0, 2.9, 3.2, 4.4)
 )
 ```
 
 
 
 ```{r dyskretyzacja, echo=FALSE}
-# kolor linii granic przedziałów (używany w plot_podzialy)
-kolor_granic <- "#b22d57"
-
-# equal width (interval)
-podzial_11 <- discretize(dane$Sepal.Width,   method = "interval",  breaks = 3)
-podzial_12 <- discretize(dane$Petal.Length,  method = "interval",  breaks = 3)
+# equal width
+podzial_1a <- discretize(dane$Sepal.Width,   method = "interval",  breaks = 3)
+podzial_1b <- discretize(dane$Petal.Length,  method = "interval",  breaks = 3)
 
 # equal frequency
-podzial_21 <- discretize(dane$Sepal.Width,   method = "frequency", breaks = 3)
-podzial_22 <- discretize(dane$Petal.Length,  method = "frequency", breaks = 3)
+podzial_2a <- discretize(dane$Sepal.Width,   method = "frequency", breaks = 3)
+podzial_2b <- discretize(dane$Petal.Length,  method = "frequency", breaks = 3)
 
-# k-means clustering
-podzial_31 <- discretize(dane$Sepal.Width,   method = "cluster",   breaks = 3)
-podzial_32 <- discretize(dane$Petal.Length,  method = "cluster",   breaks = 3)
+# k–means clustering
+podzial_3a <- discretize(dane$Sepal.Width,   method = "cluster",   breaks = 3)
+podzial_3b <- discretize(dane$Petal.Length,  method = "cluster",   breaks = 3)
 
-# fixed (zadane przez nas)
-podzial_41 <- discretize(dane$Sepal.Width,  method = "fixed",
-      breaks = c(-Inf, 2.9, 3.2, Inf), labels = c("wąska", "średna", "szeroka"))
-podzial_42 <- discretize(dane$Petal.Length, method = "fixed",
-      breaks = c(-Inf, 2.5, 5.0, Inf), labels = c("krótka", "średna", "długa"))
+# ręczne
+podzial_4a <- discretize(dane$Sepal.Width,  method = "fixed",
+      breaks = c(2.0, 2.9, 3.2, 4.4))
+podzial_4b <- discretize(dane$Petal.Length, method = "fixed",
+      breaks = c(1.0, 2.5, 4.8, 6.9))
 ```
 
 ```{r helper-tabela-licznosci, echo=FALSE}
-# pomocnicza funkcja do tabel liczności obok siebie (Sepal.Width | Petal.Length)
-tabela_licznosci <- function(podzial_sw, podzial_pl, caption = NULL) {
-  t1 <- as.data.frame(table(podzial_sw))
-  t2 <- as.data.frame(table(podzial_pl))
-  colnames(t1) <- c("Przedział", "Liczność")
-  colnames(t2) <- c("Przedział", "Liczność")
-  k1 <- kable(t1, booktabs = TRUE, format = "latex", linesep = "") %>%
-        kable_styling(latex_options = c("striped", "hold_position"), full_width = TRUE)
-  k2 <- kable(t2, booktabs = TRUE, format = "latex", linesep = "") %>%
-        kable_styling(latex_options = c("striped", "hold_position"), full_width = TRUE)
+# pomocnicza funkcja do tabel liczności
+tabela_licznosci <- function(podzial_pl, podzial_sw, caption = NULL) {
+  t_pl <- as.data.frame(table(podzial_pl))
+  t_sw <- as.data.frame(table(podzial_sw))
+  colnames(t_pl) <- c("Przedział", "Liczność")
+  colnames(t_sw) <- c("Przedział", "Liczność")
+  k_pl <- kable(t_pl, booktabs = TRUE, format = "latex", linesep = "") %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  k_sw <- kable(t_sw, booktabs = TRUE, format = "latex", linesep = "") %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
   cat(sprintf(
 '\\begin{center}
-\\begin{minipage}{.48\\linewidth}\\centering
+\\begin{minipage}[t]{.35\\linewidth}\\centering
 %s
 \\captionof{table}{Przedziały dla naszej „dobrej” cechy – długości płatka}
-\\end{minipage}\\hfill
-\\begin{minipage}{.48\\linewidth}\\centering
+\\end{minipage}\\hspace{1cm}
+\\begin{minipage}[t]{.35\\linewidth}\\centering
 %s
 \\captionof{table}{Przedziały dla naszej „złej” cechy – szerokości działki kielicha}
 \\end{minipage}
-\\end{center}', k2, k1))
+\\end{center}', k_pl, k_sw))
 }
 ```
 
 ```{r helper-plot-podzialow, echo=FALSE}
-# pomocnicza funkcja do rysowania wykresów podziałów
-plot_podzialy <- function(podzial_sw, podzial_pl) {
-  granice_sw <- attributes(podzial_sw)$"discretized:breaks"
+# pomocnicza funkcja do wykresów podziałów
+plot_podzialy <- function(podzial_pl, podzial_sw) {
   granice_pl <- attributes(podzial_pl)$"discretized:breaks"
+  granice_sw <- attributes(podzial_sw)$"discretized:breaks"
 
   plot(dane$Petal.Length, runif(nrow(dane)),
        col = kolory_gatunkow[dane$Species], pch = 16,
        xlab = "długość płatka (cm)", ylab = "")
   abline(v = granice_pl, col = kolor_granic, lwd = 1.5, lty = 2)
   legend("topright", legend = levels(dane$Species),
-         col = kolory_gatunkow, pch = 16, bg = "azure",
+         col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
          text.col = kolory_gatunkow, text.font = 3)
 
   plot(dane$Sepal.Width, runif(nrow(dane)),
@@ -218,8 +227,37 @@ plot_podzialy <- function(podzial_sw, podzial_pl) {
        xlab = "szerokość działki kielicha (cm)", ylab = "")
   abline(v = granice_sw, col = kolor_granic, lwd = 1.5, lty = 2)
   legend("topright", legend = levels(dane$Species),
-         col = kolory_gatunkow, pch = 16, bg = "azure",
+         col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
          text.col = kolory_gatunkow, text.font = 3)
+}
+```
+
+
+```{r helper-tabela-dyskretyzacji, echo=FALSE}
+# pomocnicza funkcja do tabel wyników dyskretyzacji
+tabela_dyskretyzacji <- function(podzial_pl, podzial_sw) {
+  t_pl <- as.data.frame.matrix(table(dane$Species, podzial_pl))
+  t_sw <- as.data.frame.matrix(table(dane$Species, podzial_sw))
+  formatuj_gatunki <- function(x) paste0("\\textcolor{", x, "}{\\textit{", x, "}}")
+  t_pl <- cbind(Gatunek = formatuj_gatunki(rownames(t_pl)), t_pl)
+  t_sw <- cbind(Gatunek = formatuj_gatunki(rownames(t_sw)), t_sw)
+  rownames(t_pl) <- NULL
+  rownames(t_sw) <- NULL
+  k_pl <- kable(t_pl, booktabs = TRUE, format = "latex", linesep = "", escape = FALSE, row.names = FALSE) %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  k_sw <- kable(t_sw, booktabs = TRUE, format = "latex", linesep = "", escape = FALSE, row.names = FALSE) %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  cat(sprintf(
+'\\begin{center}
+\\begin{minipage}[t]{.45\\linewidth}\\centering
+%s
+\\captionof{table}{Wynik podziału dla długości płatka}
+\\end{minipage}\\hspace{0.5cm}
+\\begin{minipage}[t]{.45\\linewidth}\\centering
+%s
+\\captionof{table}{Wynik podziału dla szerokości działki kielicha}
+\\end{minipage}
+\\end{center}', k_pl, k_sw))
 }
 ```
 
@@ -227,85 +265,142 @@ plot_podzialy <- function(podzial_sw, podzial_pl) {
 
 Metoda *equal width* daje nam następujące przedziały:
 
-```{r, echo=FALSE, results='asis'}
-tabela_licznosci(podzial_11, podzial_12, caption = "Liczności klas dla metody equal width")
+```{r tabele-licznosci-1, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_1b, podzial_1a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody equal width naniesione na wartości cech"}
-plot_podzialy(podzial_11, podzial_12)
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-1, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{equal width} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_1b, podzial_1a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda equal width)"}
-plot(dane$Species ~ podzial_12, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "") #
-plot(dane$Species ~ podzial_11, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "") # jak nie ma reverse to są źle kolory !!!
+```{r rozklad-1, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{equal width}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_1b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_1a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
 ```
 
-> **TODO tekst:** skomentować mosaic ploty – czy klasy dyskretyzacji pokrywają się z gatunkami. Dla Petal.Length powinno być prawie idealnie, dla Sepal.Width fatalnie.
+```{r dyskretyzacja-1, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_1b, podzial_1a)
+```
+
+Dzieląc cechę długości płatka (`Petal.Length`) na równe przedziały z bardzo dobrą skutecznością rozdzielamy irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od pozostałych. Wszystkie kwiaty tego gatunku wpadają w przedział najkrótszej długości oraz nie wpadają do tego przedziału żadne irysy innego gatunku. 
+
+W miarę skutecznie rozróżniamy też gatunki \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}, które wpadają zazwyczaj odpowiednio w przedział o średniej długości i przedział o najdłuższej długości. W niektórych przypadkach \textcolor{versicolor}{\textit{Iris versicolor}} trafia jednak do przedziału o najdłuższej długości, a \textcolor{virginica}{\textit{Iris virginica}} do przedziału o średniej długości. Więcej razy występuje ten pierwszy przypadek niż drugi.
+
+Jeżeli podzielimy zamiast tego na równe przedziały cechę szerokości działki kielicha (`Sepal.Width`), nie otrzymamy żadnych zadowalających nas rezultatów. 
 
 ### Metoda equal frequency
 
-> **INFO:** równa liczność przedziałów. Granice wybiera się tak, żeby w każdej klasie była ~1/3 obserwacji (kwantyle). Plus: zawsze zbalansowane. Minus: granice mogą wypaść w dziwnych miejscach względem rozkładu.
+Używając metody *equal frequency*, otrzymujemy przedziały:
 
-> **TODO tekst:** porównać z equal width – tutaj liczności mają być bliskie 50/50/50.
-
-```{r, echo=FALSE, results='asis'}
-tabela_licznosci(podzial_21, podzial_22, caption = "Liczności klas dla metody equal frequency")
+```{r tabele-licznosci-2, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_2b, podzial_2a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody equal frequency naniesione na wartości cech"}
-plot_podzialy(podzial_21, podzial_22)
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-2, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{equal frequency} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_2b, podzial_2a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda equal frequency)"}
-plot(dane$Species ~ podzial_22, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "") #
-plot(dane$Species ~ podzial_21, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "") # jak nie ma reverse to są źle kolory !!!
+```{r rozklad-2, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{equal frequency}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_2b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_2a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
 ```
 
-### Metoda k-means clustering
-
-> **INFO:** granice wyznacza algorytm k-means na 1D. Algorytm próbuje znaleźć skupiska w danych. Plus: granice idą tam gdzie są przerwy w danych. Minus: zależy od inicjalizacji, może dawać różne wyniki przy różnych uruchomieniach.
-
-> **TODO tekst:** skomentować, czy granice trafiły w naturalne przerwy między gatunkami (zwłaszcza dla Petal.Length, gdzie jest oczywista przerwa setosa vs reszta).
-
-```{r, echo=FALSE, results='asis'}
-tabela_licznosci(podzial_31, podzial_32, caption = "Liczności klas dla metody k-means clustering")
+```{r dyskretyzacja-2, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_2b, podzial_2a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody k-means clustering naniesione na wartości cech"}
-plot_podzialy(podzial_31, podzial_32)
+Przedziały dla długości płatka (`Petal.Length`) wychodzą niemal jednakowe jak w przypadku metody *equal width*, w związku z tym wyniki również wychodzą takie same. Skuteczność też się względem nich nie zmienia.
+
+Zauważalną różnicą jest mniejsza różnica między liczbą przedstawicieli \textcolor{versicolor}{\textit{Iris versicolor}} trafiających jednak do przedziału o najdłuższej długości, a \textcolor{virginica}{\textit{Iris virginica}} trafiających do przedziału o średniej długości. W pewien sposób można więc uznać te wyniki za lepsze.
+
+Dzieląc szerokość działki kielicha (`Sepal.Width`) uzyskujemy inne przedziały, lecz równie (jak nie bardziej) niesatysfakcjonujące wyniki jak przy metodzie przedziałów równej długości.
+
+### Metoda k–means clustering
+
+Metodą *k–means clustering* otrzymujemy takie przedziały:
+
+```{r tabele-licznosci-3, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_3b, podzial_3a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda k-means clustering)"}
-plot(dane$Species ~ podzial_32, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "") #
-plot(dane$Species ~ podzial_31, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "") # jak nie ma reverse to są źle kolory !!!
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-3, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{k–means clustering} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_3b, podzial_3a)
 ```
+
+```{r rozklad-3, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{k–means clustering}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_3b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_3a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-3, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_3b, podzial_3a)
+```
+
+Dla długości płatka (`Petal.Length`) wyniki wychodzą dokładnie takie same jak w metodzie `equal frequency`.
+
+W przypadku i tej metody, podział po szerokości działki kielicha (`Sepal.Width`) również nie daje zbyt wartościowych wyników.
 
 ### Podział ręczny
 
-> **INFO:** granice wybrane przez nas ręcznie:
-> Sepal.Width: c(-Inf, 2.9, 3.2, Inf) — próba podziału na "wąskie/średnie/szerokie" działki.
-> Petal.Length: c(-Inf, 2.5, 5.0, Inf) — granice tak dobrane, żeby możliwie oddzielić setosa | versicolor | virginica.
-> Etykiety klas to "wąski/średni/szeroki" (Sepal.Width) i "krótki/średni/długi" (Petal.Length) zamiast nazw przedziałów.
+Popatrzmy na rozkład wartości rozważanych cech dla każdego z gatunków:
 
-> **TODO tekst:** uzasadnić wybór granic, porównać efekt z metodami automatycznymi. Dla Petal.Length nasz podział pewnie wypadnie najlepiej (bo wybraliśmy go pod gatunki), dla Sepal.Width i tak słabo (cecha jest zła do rozróżniania).
-
-```{r, echo=FALSE, results='asis'}
-tabela_licznosci(podzial_41, podzial_42, caption = "Liczności klas dla podziału ręcznego")
+```{r rozklad-gatunkow, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład wartości cech w podziale na gatunki"}
+boxplot(Petal.Length ~ Species, data = dane, horizontal = TRUE,
+        col = kolory_gatunkow, xlab = "długość płatka (cm)", ylab = "", yaxt = "n")
+boxplot(Sepal.Width ~ Species, data = dane, horizontal = TRUE,
+        col = kolory_gatunkow, xlab = "szerokość działki kielicha (cm)", ylab = "", yaxt = "n")
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla podziału ręcznego naniesione na wartości cech"}
-plot_podzialy(podzial_41, podzial_42)
+Na oko wybieramy dla długości płatka (`Petal.Length`) przedziały $[1, 2.5)$, $[2.5, 4.8)$ oraz $[4.8, 6.9]$.
+
+Dla szerokości działki kielicha (`Sepal.Width`) – choć to ciężkie – wybieramy przedziały $[2, 2.9)$, $[2.9, 3.2)$ i $[3.2, 4.4]$.
+
+Wybrane przedziały dzielą nam zbiór danych na klasy o następującej liczności:
+
+```{r tabele-licznosci-4, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_4b, podzial_4a)
 ```
 
-```{r, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (podział ręczny)"}
-plot(dane$Species ~ podzial_42, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "") #
-plot(dane$Species ~ podzial_41, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "") # jak nie ma reverse to są źle kolory !!!
+Wyniki dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-4, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla podziału ręcznego naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_4b, podzial_4a)
 ```
+
+```{r rozklad-4, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (podział ręczny). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_4b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_4a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-4, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_4b, podzial_4a)
+```
+
+W podziale długości płatka (`Petal.Length`) wybrane przez nas przedziały nie przewyższają skutecznością wcześniejszych metod. Liczba ,,pomyłek'' jest mniej więcej taka sama.
+
+W podziale szerokości działki kielicha (`Sepal.Width`) – w przeciwieństwie do poprzednich metod – udało nam się uzyskać jakikolwiek wartościowy efekt, a mianowicie udało nam się rozdzielić \textcolor{setosa}{\textit{Iris setosa}} od pozostałych gatunków – zdecydowana większość przedstawicieli tego gatunku trafia do trzeciego przedziału.
+
+Pozostałe dwa gatunki zbyt się jednak pokrywają tą cechą aby można je było rozróżnić.
 
 ### Podsumowanie
 
-> **TODO tekst:** porównać 4 metody w 2-3 zdaniach. Spodziewamy się że dla Petal.Length wszystkie metody radzą sobie dobrze (cecha sama dobrze rozdziela gatunki), a dla Sepal.Width żadna nie pomoże (overlap rozkładów jest z natury duży). Można wskazać która metoda dała najbardziej zbalansowane klasy a która najlepsze pokrycie z gatunkami.
+Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku  \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
 
+Żadna metoda nie pozwoliła na rozróżnienie gatunków na podstawie cechy szerokości działki kielicha (`Sepal.Width`). Pokazuje to że ograniczając zbiór danych możemy stracić informacje których żadnym algorytmem nie będziemy w stanie odzyskać.
 
 
 # Część 2
