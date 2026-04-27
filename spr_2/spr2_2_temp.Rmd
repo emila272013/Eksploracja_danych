@@ -1,0 +1,374 @@
+---
+title: "Sprawozdanie 2 -- Część 2 (tymczasowe)"
+subtitle: "Eksploracja danych"
+author: "Emilia Porczyńska, Michał Szostak"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    toc: true
+    fig_caption: yes
+    fig_width: 5
+    fig_height: 4
+    number_sections: true
+    keep_tex: false
+header-includes:
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[polish]{babel}
+  - \usepackage{graphicx}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{floatrow}
+  - \floatsetup[table]{capposition=bottom}
+  - \usepackage{caption}
+  - \definecolor{setosa}{HTML}{833FE7}
+  - \definecolor{versicolor}{HTML}{5D00BE}
+  - \definecolor{virginica}{HTML}{A68DE5}
+fontsize: 12pt
+---
+
+\newpage
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(plot3D)
+library(ggplot2)
+library(factoextra)
+library(corrplot)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(showtext) # żeby były polskie znaki na wykresach
+showtext_auto()   #
+
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
+```
+
+```{r setup2, echo=FALSE, warning=FALSE, message=FALSE}
+dane_2 <- read.csv("uaScoresDataFrame.csv", stringsAsFactors = TRUE)
+
+# kolory kontynentów (dla wykresów PCA)
+kolory_kontynentow <- c(
+  "Africa"        = "#E69F00",
+  "Asia"          = "#D55E00",
+  "Europe"        = "#009E73",
+  "North America" = "#0072B2",
+  "Oceania"       = "#56B4E9",
+  "South America" = "#CC79A7"
+)
+
+# kolor tła legend
+kolor_tla_legendy <- "#F5FDFF"
+```
+
+# Część 2 - Analiza składowych głownych
+
+## Wstęp
+
+W części drugiej bedzięmy pracowac na zbiorze danych pobranych na stronie Kaagle (tu link). Baza danych W Kaggle zosatła pobrana ze strony Teleport.org zawiera infomacjie o jakości życia najbardziej kreatywnych miast na całym świecie, co pozwala osobom znalezc odpowiednie dla nich miasto do życia. Naszym celem będzie redukcja wymiaru cech ... (tu nwm co jeszcze)
+
+## Opis danych
+
+Dane zaweriaja `r ncol(dane_2)` zmiennych oraz `r nrow(dane_2)` wystapien. Zbiór danych zawiera wska¹niki opisuj¡ce jako±¢ »ycia w wybranych miastach, w tym m.in. takie charakterystyki jak: warunki mieszkaniowe, koszty utrzymania, bezpiecze«stwo, opieka zdrowotna, edukacja itp. Wszystkie cechy ilościowe przyjmuja wartosci w zakresie 0 - 10, im wyzsza wartosc tym lepszy wynik. Zbior danych zawiera również zmienne jakościowe takie jak Naza miasta, kraju oraz kontynatu na jakim sie znajdują posłuza nam do lepszej interpretacji wyników.
+
+## Przygotowanie danych
+
+Zmienna Id zpsatła usunięta jakos nie istotna do dalszej analizy również w celu wyznaczenia składowych głownych użyto tylko zmiennych ilościowych.
+
+```{r summary-ilo, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+dane_2$X <- NULL
+dane_2_ilo <- dane_2[, sapply(dane_2, is.numeric)]
+
+# Przygotowanie tabeli
+tab_summary_2 <- summary(dane_2_ilo)
+tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+tab_summary_2 <- gsub("\\s*:\\s*", ": ", tab_summary_2) # naprawienie zepsutych dwukropków
+
+# Tabela jest szeroka więc ją łamiemy na kawałki i wyświetlamy w tej szatańskiej pętli
+kawalki = list(1:5, 6:9, 10:13, 14:17)
+
+# pierwszy kawałek (osobno żeby był caption)
+kawalek_tabeli = tab_summary_2[, kawalki[[1]]]
+kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
+kable(kawalek_tabeli, booktabs = TRUE,
+      caption = "Podsumowanie cech ilościowych") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
+                stripe_color = "gray!10")
+
+# pozostałe kawałki
+for (i in 2:length(kawalki)) {
+  kawalek_tabeli = tab_summary_2[, kawalki[[i]]]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
+
+  tabela = kable(kawalek_tabeli, booktabs = TRUE) %>%
+    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
+                  stripe_color = "gray!10")
+
+  print(tabela) # kabele z pętli się same nie printują więc musimy to zrobić sami
+}
+```
+
+Powyzeszj tabeli znajdują sie sattystyki opisowe danych iloścowych (tu zastanawiam sie czy dawac wszystkie czy tylko czesc) zbór danych nie zawiera żadnych braków danych po jest widoczne na poniższej tabeli.
+
+```{r tab-braki-2, echo=FALSE}
+braki_2 <- data.frame(
+  Cecha = names(dane_2_ilo),
+  "Liczba braków" = as.integer(colSums(is.na(dane_2_ilo))),
+  check.names = FALSE
+)
+rownames(braki_2) <- NULL
+
+kable(braki_2, booktabs = TRUE,
+      caption = "Liczba braków danych w cechach ilościowych",
+      align = "lr") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10",
+                full_width = FALSE)
+```
+
+```{r tab-licznosci-jako, echo=FALSE}
+dane_2_jako <- dane_2[, sapply(dane_2, is.factor)]
+
+licznosc_kontynentow <- as.data.frame(table(dane_2_jako$UA_Continent))
+colnames(licznosc_kontynentow) <- c("Kontynent", "Liczba miast")
+licznosc_kontynentow <- licznosc_kontynentow[order(-licznosc_kontynentow$"Liczba miast"), ]
+rownames(licznosc_kontynentow) <- NULL
+
+kable(licznosc_kontynentow, booktabs = TRUE,
+      caption = "Liczba miast w podziale na kontynenty",
+      align = "lr") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10",
+                full_width = FALSE)
+```
+
+Następnie analizując dane jakosciowe można ze mamy informacje o miastach znjadujacych sie na 6 kontynetach bez Antarktydy (gdzie m=nie ma miast (chyba)). Powyzsza tabela wskazała nam ze najwiecej miast mamy z Eurpoy nastepnie z Ameryki Połnocem. Łącznie mamy informacjie o `r length(unique(dane_2_jako$UA_Name))` miastach oraz o `r length(unique(dane_2_jako$UA_Country))` Panstwach co świadzczy o dużej róznos=rodnosci .
+
+Następnie w celu poprawnego wzynaczenia składowych głwonych musimy sprawdzic zmiennosc poszczególnych cech tzn. czy wariancja naszych cech ilościowych jest podobna. Warotsci wariancji znajduje sie na wykresie poniżej.
+
+```{r box-plot-war, echo=FALSE, fig.width=6.5, fig.height=4.5, out.width="100%", fig.cap="Rozkład wartości poszczególnych cech ilościowych przed standaryzacją"}
+par(mar = c(8, 4, 1, 1))
+boxplot(dane_2_ilo,
+        col = rainbow(ncol(dane_2_ilo)),
+        las = 2,
+        ylab = "wartość cechy")
+```
+
+Widzimy, że wariancja dla róznych cech jest inna, przez co konieczna jest standaryzacja. Wynik tego działania znajduje sie na poniższym wykresie.
+
+```{r box-plot-war-po-stand, echo=FALSE, fig.width=6.5, fig.height=4.5, out.width="100%", fig.cap="Rozkład wartości poszczególnych cech ilościowych po standaryzacji"}
+dane_2_ilo_stand <- scale(dane_2_ilo)
+par(mar = c(8, 4, 1, 1))
+boxplot(dane_2_ilo_stand,
+        col = rainbow(ncol(dane_2_ilo_stand)),
+        las = 2,
+        ylab = "wartość po standaryzacji")
+```
+
+## Wyznaczanie składowych głownych
+
+ANstępnie wzynaczymy składowe głowne naszych zmiennych, używając funkcji prcomp().
+
+tu z czatu definicja
+
+Celem wyznaczenia składowych głównych (PCA, Principal Component Analysis) jest redukcja wymiarowości danych przy jednoczesnym zachowaniu jak największej części informacji zawartej w zmiennych pierwotnych. Metoda ta polega na przekształceniu oryginalnych, często skorelowanych zmiennych w nowy zestaw nieskorelowanych zmiennych (składowych głównych), które są liniowymi kombinacjami zmiennych wejściowych.
+
+Pierwsza składowa główna wyjaśnia największą możliwą część wariancji danych, a każda kolejna maksymalizuje wyjaśnianą wariancję przy założeniu ortogonalności względem poprzednich. Dzięki temu możliwe jest uproszczenie struktury danych oraz identyfikacja głównych wzorców i zależności w zbiorze danych.
+
+```{r pca-3, echo=FALSE}
+pca_dane <- prcomp(dane_2_ilo, scale.=TRUE, center=TRUE, retx=TRUE)
+
+kable(round(pca_dane$rotation[, 1:3], 3),
+      booktabs = TRUE,
+      caption = "Współczynniki (loadings) trzech pierwszych składowych głównych") %>%
+  kable_styling(latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10",
+                full_width = FALSE)
+```
+
+Najwyzszy wskaznik dla PC1 ma Housing i Cost.of livig wiec mmozemy interpretowac ta zmienna jako koszty zycia i poziom rozwoju. Nastepnie PC2 najwyzszy wskaznik dla safety i health care i enviromental quality i tolerance wiec mozemy interpretowac ta zmienna jako innowacynjosc . Natomiast PC3 najwyze wartosci loading maja ecomony wiec mozemy interpretowac ta zmienna jako frastruktura i dostępność / mobilność.
+
+PC1 reprezentuje ogólny poziom rozwoju społeczno-gospodarczego oraz jakości życia, gdzie przeciwstawione są koszty życia (np. housing) i rozwój instytucjonalny (np. edukacja, środowisko, gospodarka).
+
+PC2 odzwierciedla kontrast między innowacyjnością gospodarczą a jakością życia i czynnikami społecznymi (bezpieczeństwo, tolerancja, kultura).
+
+PC3 można interpretować jako komponent związany z mobilnością, kosztami życia oraz dostępnością infrastruktury, z pewnym udziałem czynnika gospodarczego.
+
+## Zmienność odpowiadająca poszczególnym składowym
+
+Następnie naszym celem bezie sprawdzenie jaki procent waraincji odpowida poszczególnycm składowym.
+
+NA ponizszym wykresie znjaduje sie wariancja poszczególnych składowych. Zgodnie z oczekiwaniami wariancje maleja wraz z dalchz składowa głowna.
+
+```{r wykres-war-pca, echo=FALSE, fig.cap="Wariancje poszczególnych składowych głównych"}
+plot(pca_dane,
+     main = "",
+     xaxt = "n")
+
+axis(1,
+     at = 1:length(pca_dane$sdev),
+     labels = paste0("PC", 1:length(pca_dane$sdev)),
+     las = 2)
+```
+
+```{r wykres-war-skumulowany, echo=FALSE, fig.cap="Skumulowana wariancja (w \\%) wyjaśniana przez kolejne składowe główne"}
+variance <- 100*(pca_dane$sdev^2)/sum(pca_dane$sdev^2)
+barplot(cumsum(variance),
+        main = "",
+        ylab = "skumulowana wariancja (%)",
+        names.arg = paste0("PC", 1:length(variance)), las = 2)
+abline(h = 80, col = "green", lty = 2, lwd = 2)
+abline(h = 90, col = "red",   lty = 2, lwd = 2)
+legend("right", legend = c("80%", "90%"), lwd = 2, lty = 2,
+       col = c("green", "red"), bg = kolor_tla_legendy)
+```
+
+Aby móc odpowiedziec na pytanie, ile składowych głównych jest potrzebnych do wyjaśnienia 80% oraz 90% całkowitej zmiennosci. Wykonano wykres powyzej z zanzaczonymi pozniomai odpowiednio 80 % i 90%. Na podstwie tego wykresu można wyznaczyc liczbe skąłdowych potrzebnych do wyjasnienja opowidnich wartośc porcentowej wariancji.
+
+Do wyjasnienia 80% skal=dowych potrzebne jest 7 zmiennych, natomiast do wyjaśnienia 90% składowych potrezbne jest 10 zmiennych.
+
+### Wizualizacja danych wielowymiarowych
+
+```{r 2d-kontynenty-pca, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne, kolory wg kontynentu"}
+kontynenty <- as.factor(dane_2$UA_Continent)
+plot(pca_dane$x[, 1], pca_dane$x[, 2],
+     col = kolory_kontynentow[as.character(kontynenty)],
+     pch = 16,
+     xlab = "PC1",
+     ylab = "PC2",
+     main = "")
+
+legend("topright",
+       legend = names(kolory_kontynentow),
+       col = kolory_kontynentow,
+       pch = 16,
+       cex = 0.7,
+       bg = kolor_tla_legendy)
+```
+
+Widzimy, że dane są szeroko rozpięte na osi poziomej, co sugeruje ogromne różnice w poziomie rozwoju miast:
+
+-   **Europa (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji.
+
+-   **Afryka (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie.
+
+### 2. Zróżnicowanie wzdłuż osi PC2 (Innowacyjność vs. Bezpieczeństwo i Kultura)
+
+Oś pionowa pokazuje kontrast między miastami stawiającymi na "twardą" gospodarkę a tymi, które oferują wyższą jakość życia społecznego:
+
+-   **Ameryka Północna (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (loadings).
+
+-   **Europa (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego.
+
+### 3. Skupiska i "Outliery"
+
+-   **Azja (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia.
+
+-   **Oceania (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem.
+
+```{r 2d-europa-vs-reszta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- Afryka na tle pozostałych kontynentów"}
+kolory_afryka <- ifelse(dane_2$UA_Continent == "Africa",
+                        kolory_kontynentow["Africa"], "lightgray")
+
+plot(pca_dane$x[, 1], pca_dane$x[, 2],
+     col = kolory_afryka,
+     pch = 16,
+     xlab = "PC1",
+     ylab = "PC2",
+     main = "")
+
+legend("topright",
+       legend = c("Afryka", "Pozostałe"),
+       col = c(kolory_kontynentow["Africa"], "lightgray"),
+       pch = 16,
+       bg = kolor_tla_legendy)
+```
+
+```{r 3d-europa-i-usa, echo=FALSE, fig.width=6, fig.height=5, out.width="100%", fig.cap="Rzut danych na trzy pierwsze składowe główne -- wyróżnione: Europa i Ameryka Północna"}
+
+# Zakładana kolejność poziomów czynnika (levels(dane_2$UA_Continent))
+# 1. Africa, 2. Asia, 3. Europe, 4. North America, 5. Oceania, 6. South America
+
+# Definiujemy wyraziste kolory dla wybranych kontynentów (czerwony i zielony jak w oryginale)
+# i szary dla pozostałych.
+nowe_kolory <- c(
+  "grey80",                            # 1. Africa - wygaszony
+  "grey80",                            # 2. Asia - wygaszony
+  kolory_kontynentow["Europe"],        # 3. Europe - wyraźny
+  kolory_kontynentow["North America"], # 4. North America - wyraźny
+  "grey80",                            # 5. Oceania - wygaszony
+  "grey80"                             # 6. South America - wygaszony
+)
+
+# Zwiększ marginesy na legendę
+par(mar = c(2, 2, 2, 6))
+
+scatter3D(pca_dane$x[, 1], pca_dane$x[, 2], pca_dane$x[, 3],
+          xlab = "PC1", ylab = "PC2", zlab = "PC3",
+          colvar = as.numeric(dane_2$UA_Continent),
+          col = nowe_kolory,        # <-- UŻYWAMY NOWEJ PALETY
+          pch = 16,
+          cex = 1.3,                # Powiększenie punktów dla czytelności
+          bty = "g",                # Dodaje "siatkę" (grid)
+          theta = 45, phi = 15,     # Zmieniony kąt dla lepszej separacji
+          colkey = FALSE,
+          main = "")
+
+# Legenda poza obszarem wykresu
+legend("topright", inset = c(-0.25, 0), xpd = TRUE,
+       legend = levels(dane_2$UA_Continent),
+       col = nowe_kolory,           # <-- UŻYWAMY NOWEJ PALETY
+       pch = 16,
+       bg = kolor_tla_legendy,
+       title = "Kontynenty")
+```
+
+## Korelacja zmiennych
+
+wykres korelacji tak o
+
+```{r corr-pca-vars, echo=FALSE, fig.cap="Korelacje cech ze składowymi głównymi"}
+variables <- get_pca_var(pca_dane)
+corrplot(variables$cor)
+```
+
+```{r corr-cech, echo=FALSE, fig.cap="Macierz korelacji cech ilościowych"}
+correlation.matrix <- cor(dane_2_ilo)
+corrplot(correlation.matrix)
+```
+
+```{r biplot-1, echo=FALSE, fig.cap="Biplot PCA -- 10 cech o największym wkładzie"}
+fviz_pca_biplot(pca_dane,
+                geom.ind = "point",   # tylko punkty
+                col.ind = "grey70",   # jasne punkty
+                col.var = "blue",
+                repel = TRUE,
+                select.var = list(contrib = 10), # tutaj ile cech chcemy
+                title = "")
+```
+
+```{r biplot-2, echo=FALSE, fig.cap="Biplot PCA z podziałem obserwacji wg kontynentu"}
+fviz_pca_biplot(pca_dane,
+                label = "var",
+                habillage = dane_2$UA_Continent,
+                repel = TRUE,
+                select.var = list(contrib = 10),
+                col.var = "black",
+                pointsize = 1.5,
+                title = "")
+```
+
+```{r biplot-3, echo=FALSE, fig.cap="Biplot PCA z elipsami ufności (95\\%) dla kontynentów"}
+fviz_pca_biplot(pca_dane,
+                label = "var",
+                habillage = dane_2$UA_Continent,
+                addEllipses = TRUE,
+                ellipse.level = 0.95,
+                repel = TRUE,
+                select.var = list(contrib = 10),
+                col.ind = "grey50",
+                pointsize = 2,
+                col.var = "black",
+                title = "")
+```
+
+## Końcowe wyniki
+
