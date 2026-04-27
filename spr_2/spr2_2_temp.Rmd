@@ -23,6 +23,14 @@ header-includes:
   - \definecolor{setosa}{HTML}{833FE7}
   - \definecolor{versicolor}{HTML}{5D00BE}
   - \definecolor{virginica}{HTML}{A68DE5}
+  # kolory kontynentów do tekstu -- przyciemnione warianty palety wykresów
+  # wg OKLCH (taki sam odcień, niższe L dla czytelności na białym tle)
+  - \definecolor{afryka}{HTML}{AC7800}
+  - \definecolor{azja}{HTML}{AB4400}
+  - \definecolor{europa}{HTML}{007552}
+  - \definecolor{amerykan}{HTML}{005C92}
+  - \definecolor{oceania}{HTML}{2C7DA8}
+  - \definecolor{amerykas}{HTML}{98506E}
 fontsize: 12pt
 ---
 
@@ -63,7 +71,7 @@ kolor_tla_legendy <- "#F5FDFF"
 
 ## Wstęp
 
-W części drugiej bedzięmy pracowac na zbiorze danych pobranych na stronie Kaagle (tu link). Baza danych W Kaggle zosatła pobrana ze strony Teleport.org zawiera infomacjie o jakości życia najbardziej kreatywnych miast na całym świecie, co pozwala osobom znalezc odpowiednie dla nich miasto do życia. Naszym celem będzie redukcja wymiaru cech ... (tu nwm co jeszcze)
+W części drugiej bedzięmy pracowac na zbiorze danych pobranych na stronie [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/orhankaramancode/city-quality-of-life-dataset). Baza danych W Kaggle zosatła pobrana ze strony Teleport.org zawiera infomacjie o jakości życia najbardziej kreatywnych miast na całym świecie, co pozwala osobom znalezc odpowiednie dla nich miasto do życia. Naszym celem będzie redukcja wymiaru cech ... (tu nwm co jeszcze)
 
 ## Opis danych
 
@@ -76,6 +84,10 @@ Zmienna Id zpsatła usunięta jakos nie istotna do dalszej analizy również w c
 ```{r summary-ilo, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
 dane_2$X <- NULL
 dane_2_ilo <- dane_2[, sapply(dane_2, is.numeric)]
+
+# wyczyszczenie nazw cech: "..." (oryg. " & ") -> " & ", pojedyncze "." -> spacja
+names(dane_2_ilo) <- gsub("\\.\\.\\.", " & ", names(dane_2_ilo))
+names(dane_2_ilo) <- gsub("\\.", " ", names(dane_2_ilo))
 
 # Przygotowanie tabeli
 tab_summary_2 <- summary(dane_2_ilo)
@@ -140,7 +152,7 @@ kable(licznosc_kontynentow, booktabs = TRUE,
                 full_width = FALSE)
 ```
 
-Następnie analizując dane jakosciowe można ze mamy informacje o miastach znjadujacych sie na 6 kontynetach bez Antarktydy (gdzie m=nie ma miast (chyba)). Powyzsza tabela wskazała nam ze najwiecej miast mamy z Eurpoy nastepnie z Ameryki Połnocem. Łącznie mamy informacjie o `r length(unique(dane_2_jako$UA_Name))` miastach oraz o `r length(unique(dane_2_jako$UA_Country))` Panstwach co świadzczy o dużej róznos=rodnosci .
+Następnie analizując dane jakosciowe można ze mamy informacje o miastach znjadujacych sie na 6 kontynetach bez Antarktydy (gdzie m=nie ma miast (chyba)). Powyzsza tabela wskazała nam ze najwiecej miast mamy z \textcolor{europa}{Europy} nastepnie z \textcolor{amerykan}{Ameryki Północnej}. Łącznie mamy informacjie o `r length(unique(dane_2_jako$UA_Name))` miastach oraz o `r length(unique(dane_2_jako$UA_Country))` Panstwach co świadzczy o dużej róznos=rodnosci .
 
 Następnie w celu poprawnego wzynaczenia składowych głwonych musimy sprawdzic zmiennosc poszczególnych cech tzn. czy wariancja naszych cech ilościowych jest podobna. Warotsci wariancji znajduje sie na wykresie poniżej.
 
@@ -169,7 +181,7 @@ ANstępnie wzynaczymy składowe głowne naszych zmiennych, używając funkcji pr
 
 tu z czatu definicja
 
-Celem wyznaczenia składowych głównych (PCA, Principal Component Analysis) jest redukcja wymiarowości danych przy jednoczesnym zachowaniu jak największej części informacji zawartej w zmiennych pierwotnych. Metoda ta polega na przekształceniu oryginalnych, często skorelowanych zmiennych w nowy zestaw nieskorelowanych zmiennych (składowych głównych), które są liniowymi kombinacjami zmiennych wejściowych.
+Celem wyznaczenia składowych głównych (PCA, *Principal Component Analysis*) jest redukcja wymiarowości danych przy jednoczesnym zachowaniu jak największej części informacji zawartej w zmiennych pierwotnych. Metoda ta polega na przekształceniu oryginalnych, często skorelowanych zmiennych w nowy zestaw nieskorelowanych zmiennych (składowych głównych), które są liniowymi kombinacjami zmiennych wejściowych.
 
 Pierwsza składowa główna wyjaśnia największą możliwą część wariancji danych, a każda kolejna maksymalizuje wyjaśnianą wariancję przy założeniu ortogonalności względem poprzednich. Dzięki temu możliwe jest uproszczenie struktury danych oraz identyfikacja głównych wzorców i zależności w zbiorze danych.
 
@@ -184,9 +196,9 @@ kable(round(pca_dane$rotation[, 1:3], 3),
                 full_width = FALSE)
 ```
 
-Najwyzszy wskaznik dla PC1 ma Housing i Cost.of livig wiec mmozemy interpretowac ta zmienna jako koszty zycia i poziom rozwoju. Nastepnie PC2 najwyzszy wskaznik dla safety i health care i enviromental quality i tolerance wiec mozemy interpretowac ta zmienna jako innowacynjosc . Natomiast PC3 najwyze wartosci loading maja ecomony wiec mozemy interpretowac ta zmienna jako frastruktura i dostępność / mobilność.
+Najwyzszy wskaznik dla PC1 ma `Housing` i `Cost of Living` wiec mmozemy interpretowac ta zmienna jako koszty zycia i poziom rozwoju. Nastepnie PC2 najwyzszy wskaznik dla `Safety` i `Healthcare` i `Environmental Quality` i `Tolerance` wiec mozemy interpretowac ta zmienna jako innowacynjosc . Natomiast PC3 najwyze wartosci *loading* maja `Economy` wiec mozemy interpretowac ta zmienna jako frastruktura i dostępność / mobilność.
 
-PC1 reprezentuje ogólny poziom rozwoju społeczno-gospodarczego oraz jakości życia, gdzie przeciwstawione są koszty życia (np. housing) i rozwój instytucjonalny (np. edukacja, środowisko, gospodarka).
+PC1 reprezentuje ogólny poziom rozwoju społeczno-gospodarczego oraz jakości życia, gdzie przeciwstawione są koszty życia (np. `Housing`) i rozwój instytucjonalny (np. edukacja, środowisko, gospodarka).
 
 PC2 odzwierciedla kontrast między innowacyjnością gospodarczą a jakością życia i czynnikami społecznymi (bezpieczeństwo, tolerancja, kultura).
 
@@ -246,23 +258,23 @@ legend("topright",
 
 Widzimy, że dane są szeroko rozpięte na osi poziomej, co sugeruje ogromne różnice w poziomie rozwoju miast:
 
--   **Europa (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji.
+-   **\textcolor{europa}{Europa} (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji.
 
--   **Afryka (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie.
+-   **\textcolor{afryka}{Afryka} (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie.
 
 ### 2. Zróżnicowanie wzdłuż osi PC2 (Innowacyjność vs. Bezpieczeństwo i Kultura)
 
 Oś pionowa pokazuje kontrast między miastami stawiającymi na "twardą" gospodarkę a tymi, które oferują wyższą jakość życia społecznego:
 
--   **Ameryka Północna (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (loadings).
+-   **\textcolor{amerykan}{Ameryka Północna} (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (*loadings*).
 
--   **Europa (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego.
+-   **\textcolor{europa}{Europa} (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego.
 
 ### 3. Skupiska i "Outliery"
 
--   **Azja (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia.
+-   **\textcolor{azja}{Azja} (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia.
 
--   **Oceania (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem.
+-   **\textcolor{oceania}{Oceania} (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem.
 
 ```{r 2d-europa-vs-reszta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- Afryka na tle pozostałych kontynentów"}
 kolory_afryka <- ifelse(dane_2$UA_Continent == "Africa",
