@@ -39,7 +39,15 @@ library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
 showtext_auto()   #
 
-knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
+
+# kolor tła legend (jak w części 2)
+kolor_tla_legendy <- "#F5FDFF"
+
+# palety dla wykresów MDS (część 3)
+kolory_survived <- c("0" = "#de2d26", "1" = "#2ca25f")
+kolory_sex      <- c("female" = "#C6478F", "male" = "#3B82B6")
+kolory_pclass   <- c("1" = "#1B7837", "2" = "#E08214", "3" = "#762A83")
 ```
 
 \newpage
@@ -104,12 +112,13 @@ tab_cechy <- data.frame(
 )
 
 
-kable(tab_cechy, 
-      caption = "Typy oraz opisy cech", 
+kable(tab_cechy,
+      caption = "Typy oraz opisy cech",
       booktabs = TRUE,
       align = "l") %>%
-  kable_styling(full_width = FALSE, 
-                latex_options = c("striped", "scale_down", "hold_position"))
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "scale_down", "HOLD_position"),
+                stripe_color = "gray!10")
 
 dane_3$Name <- NULL
 dane_3$PassengerId <- NULL
@@ -129,12 +138,13 @@ kable(tab_braki,
       booktabs = TRUE,
       align = "l") %>%
   kable_styling(full_width = FALSE,
-                latex_options = c("striped", "hold_position"))
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
 
 Zmienna cabin zaweira az 687 braków w dancyhh, wiec nie bedizmey jej uwzgledniac w dalszej analizie, rózwniez z tego powodu ze pełniła funkcjei identyfikatora. Natomiast zmienna Age zawiera 177 braków w tym przypadku nie bedziemy sie decydowac na usunieniecei tej zmiennej tylko zastapimy te braki mediana z pozostałych wartosci Age, równiez nie decydujemy sie na opcje usuniecia wierszy z tymi brakmi, ponieważ stanowią one prawie 20% danych. Natomiast braki w zmiennej Embark, ktora oznaczła port w którym wsiadł psazaer, błedy uzpełnimy najczestszą opsca jak pojawai sie w dancyh.
 
-```{r podsumowanie-danych-3, echo=FALSE}
+```{r podsumowanie-danych-3, echo=FALSE, results='asis'}
 
 dane_3$Embarked[dane_3$Embarked == ""] <- NA
 mode_embarked <- names(sort(table(dane_3$Embarked), decreasing = TRUE))[1]
@@ -143,7 +153,33 @@ dane_3$Embarked <- factor(dane_3$Embarked)
 
 dane_3$Cabin <- NULL
 dane_3$Age[is.na(dane_3$Age)] <- median(dane_3$Age, na.rm = TRUE)
-summary(dane_3)
+
+# Przygotowanie tabeli podsumowania
+tab_summary_3 <- summary(dane_3)
+tab_summary_3[is.na(tab_summary_3)] <- ""
+tab_summary_3 <- gsub("\\s*:\\s*", ": ", tab_summary_3)
+
+# łamiemy szeroką tabelę na kawałki
+kawalki = list(1:4, 5:ncol(tab_summary_3))
+
+# pierwszy kawałek (z caption)
+kawalek_tabeli = tab_summary_3[, kawalki[[1]]]
+kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ]
+kable(kawalek_tabeli, booktabs = TRUE,
+      caption = "Podsumowanie danych po uzupełnieniu braków") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
+                stripe_color = "gray!10")
+
+# pozostałe kawałki
+for (i in 2:length(kawalki)) {
+  kawalek_tabeli = tab_summary_3[, kawalki[[i]]]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ]
+
+  tabela = kable(kawalek_tabeli, booktabs = TRUE) %>%
+    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
+                  stripe_color = "gray!10")
+  print(tabela)
+}
 ```
 
 W tabeli powyzej znajdują sie statystyki opisowe zmienych oraz licznosci wstapien poszczegolnych katergii w zmiennych jakosciwoych.
@@ -157,14 +193,14 @@ y <- dane_3$Survived        # jedna kolumna (np. wynik)
 X <- dane_3[, !names(dane_3) %in% "Survived"]   # reszta danych
 ```
 
-```{r macierz-odmiennosci, echo=FALSE}
+```{r macierz-odmiennosci, echo=FALSE, dev="png", dpi=150, fig.width=6.5, fig.height=5.5, out.width="100%", fig.cap="Heatmapa macierzy odmienności (Gower)"}
 library(cluster)
 
 dissimilarities <- daisy(X, metric = "gower", stand = TRUE)
 
 dis.matrix <- as.matrix(dissimilarities)
 # image(dis.matrix, main = "Macierz odmienności")
-heatmap(dis.matrix, 
+heatmap(dis.matrix,
         Rowv = TRUE, Colv = TRUE, # Grupowanie obu osi
         symm = TRUE,              # Podkreślenie symetrii macierzy
         col = rev(heat.colors(256)), # Odwrócenie kolorów dla lepszego kontrastu
@@ -173,17 +209,20 @@ heatmap(dis.matrix,
 
 po wyej znajduje sie heatmapa, ktroa przedstawia macierz odmiennosci obliczona przy pomoscy matryki gowera. Rozniez do heatmapy dodano denrogram, dzieki któremu mozemy zobaczyc hierarhiczna strukture podobienstwa pomiedzy obserwacjami. na podstawie heat mapy mozemy zauwazyc ze pasazerowie na status titanic byli bardzo podzielini na rózne grupy społeczne. Wzdłuz przekątnej zauwazamy jasen pola, które świadczą o bardzo duzym podobienstwie osb wsrod tych samych grup społecznych np klasa 3 i kalsa 1. Na samej górze i po lewej stronie znajdują sie drzewa widizmy wyrazny podział na dwie czesci, co moze swiadczy o podziale pasazerów na mezczycn klasy 3 i kobiety z dzicmi klasy 1. Dendrogram sugereuje ze roznice miedzy tymi dwoma klasmay sa bardziej zanczace niz jakiekolwiek inne cechy indywidualne. Czerwone elemnty na heatmapie sa to wartosci odstajace np pasazerrowie ktorzy mimio bycia w 1 kalsie mieli drogi bilet.
 
-```{r mds, echo=FALSE}
+```{r mds, echo=FALSE, dev="png", dpi=150, fig.cap="Diagram Sheparda dla MDS (k=3)"}
 mds <- cmdscale(dis.matrix, k = 3)
 
-dist.mds.k2 <- dist(mds, method="euclidean")
+dist.mds.k2 <- dist(mds, method = "euclidean")
 dist.mds.k2 <- as.matrix(dist.mds.k2)
 
 STRESS <- sqrt(sum((dis.matrix - dist.mds.k2)^2) / sum(dis.matrix^2))
-print(paste("Stress value:", STRESS))
-plot(dis.matrix, dist.mds.k2, main="Shepard diagram", cex=0.5, xlab="original distance", ylab="distance after MDS mapping")
-abline(coef=c(0,1), col="red", lty=2, lwd=2)
 
+plot(dis.matrix, dist.mds.k2,
+     cex = 0.5,
+     xlab = "odległość oryginalna",
+     ylab = "odległość po MDS",
+     main = "")
+abline(coef = c(0, 1), col = "red", lty = 2, lwd = 2)
 ```
 
 Następnie zastosowano algorytm mds dla wymirau 3 (tu mozna dodac na pocztku zorbiłam dla k=2 i ten stress wyszedl jako 0.26 co sugorwało ze nalez wkieszyc wymiar) z metryka euklidesowa. Analizujas wykres Shepreda możemy zauważyc ze punkty układaja sie wzdłuz lini y=x, świdczy to o poprawnosci relacji podobienstwa. Mamy potweirdzenie z heatmapy, na wykresie powyzej widzmy schody, ktore swiadcza o wystepowaniu grup wsrod osob o podobnych cechac oraz granic miedzy grupami. Nie wsytepuja wartosci odstajace co siwadczy o niskeij wartosci funkcji sters ktora wyniosla 0.16 co potwredza popranosc uzytego wymiau ?.
@@ -192,49 +231,55 @@ Następnie zastosowano algorytm mds dla wymirau 3 (tu mozna dodac na pocztku zor
 
 pojebało mi sie i tu jest ta wizulalicajca ja ja dałam wyzej ... aaaaaaaaaaaa ale to nic jest SUPER
 
-```{r wykresy-mds, echo=FALSE}
-kolory <- ifelse(dane_3$Survived == 1, "#2ca25f", "#de2d26") # Zielony i Czerwony
+```{r wykresy-mds, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D z przestrzeni 3D), kolory wg Survived"}
+kolory <- kolory_survived[as.character(dane_3$Survived)]
 
-plot(mds[,1], mds[,2], 
-     col = kolory, 
-     pch = 19, # Pełne kółka wyglądają lepiej
+plot(mds[,1], mds[,2],
+     col = kolory,
+     pch = 19,
      cex = 0.8,
-     main = "Wizualizacja MDS (rzut 2D z przestrzeni 3D)",
-     xlab = "Wymiar 1", ylab = "Wymiar 2")
+     xlab = "Wymiar 1", ylab = "Wymiar 2",
+     main = "")
 
-legend("topright", legend = c("Zginął", "Ocalał"), 
-       col = c("#de2d26", "#2ca25f"), pch = 19, bty = "n")
-
+legend("topright", legend = c("Zginął", "Ocalał"),
+       col = c(kolory_survived["0"], kolory_survived["1"]),
+       pch = 19,
+       bg = kolor_tla_legendy)
 ```
 
 W celu wizualcizaci wynków działania algorytmu mds utworzono wyres 2d. Na wykresie mozmey zauwazyc bardzo wyrażny podziął na grupy kazdde skupiskow punktów to podziął pasazerów ze zwgledu na konretne cechy odleglosc miedzy dwoma duzymi skuoisakmi, moze świadczy o duzej ónicy miedzy grupami dla pasazerów kalsy 1 i 3. Dziłanie algorytmu jest poprawne, poniewaz górne skpuiska ponków sa to w większosciosby oclałe czyli np obiety i dziebi z klasy 1, nasz algorym dobre poradził sobie z klasyfikacja czy kots przyzyl czy zgniła tylkona podstawie inorfmaoci o klasi płci czy wieku. Ciekawym zjawiskiem sa wartosci odstające czy np osoby krte zgineły mimo wyskiego statusu społecznego ekonomiczego czy cos tam.
 
-```{r mds-wyk-plec, echo=FALSE}
+```{r mds-wyk-plec, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory wg Sex"}
 plot(mds,
-     col = as.numeric(dane_3$Sex),
+     col = kolory_sex[as.character(dane_3$Sex)],
      pch = 19,
-     main = "MDS - kolor wg Sex",
-     xlab = "Wymiar 1", ylab = "Wymiar 2")
+     cex = 0.8,
+     xlab = "Wymiar 1", ylab = "Wymiar 2",
+     main = "")
 
 legend("topright",
-       legend = levels(dane_3$Sex),
-       col = 1:length(levels(dane_3$Sex)),
-       pch = 19)
+       legend = names(kolory_sex),
+       col = kolory_sex,
+       pch = 19,
+       bg = kolor_tla_legendy)
 ```
 
 Na nateonym wykrsie widzmy podziła ze wzgledu na płec osob mozemy stwrrdzic płec w naszym zbiorze danych jest bardzo wazna cecha ona jest podastwa w szukaniu poobienstw meidzy pasazerami, porównując w ykresm przezyc widizmy ze wsrod osobe ktroe przezyly katasfotre sa głownie kobiety. jest grupa kkobiet ktora zgineła wykres wyzej sa to prawdopowdnie koeity z najnizeszj klasy ktor nie mialy sznsy na łodz ratnkow (szalupa nwm jak to było) .
 
-```{r wyk-mds-klasy, echo=FALSE}
+```{r wyk-mds-klasy, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory wg Pclass"}
 plot(mds,
-     col = as.numeric(dane_3$Pclass),
+     col = kolory_pclass[as.character(dane_3$Pclass)],
      pch = 19,
-     main = "MDS - kolor wg Pclass",
-     xlab = "Wymiar 1", ylab = "Wymiar 2")
+     cex = 0.8,
+     xlab = "Wymiar 1", ylab = "Wymiar 2",
+     main = "")
 
 legend("topright",
-       legend = levels(dane_3$Pclass),
-       col = 1:length(levels(dane_3$Pclass)),
-       pch = 19)
+       legend = names(kolory_pclass),
+       col = kolory_pclass,
+       pch = 19,
+       bg = kolor_tla_legendy,
+       title = "Pclass")
 ```
 
 Ostani wykres przestawia podzila pasazerów po mds ze wzgledu na klasy. tak jak zakaldalismy wczesniej kobiety kotre zgiineły w atoastdoriwe sa to kobiety z klasy 3. natomisat dolen skupiska mezczyzni nie zaleznie od klasy w kazdej gri[ie znajlazaly sie jednoski ktorym udało sie przezyc.

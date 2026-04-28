@@ -47,7 +47,7 @@ library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
 showtext_auto()   #
 
-knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
 ```
 
 ```{r setup2, echo=FALSE, warning=FALSE, message=FALSE}
@@ -71,54 +71,92 @@ kolor_tla_legendy <- "#F5FDFF"
 
 ## Wstęp
 
-W części drugiej bedzięmy pracowac na zbiorze danych pobranych na stronie [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/orhankaramancode/city-quality-of-life-dataset). Baza danych W Kaggle zosatła pobrana ze strony Teleport.org zawiera infomacjie o jakości życia najbardziej kreatywnych miast na całym świecie, co pozwala osobom znalezc odpowiednie dla nich miasto do życia. Naszym celem będzie redukcja wymiaru cech ... (tu nwm co jeszcze)
-
-## Opis danych
-
-Dane zaweriaja `r ncol(dane_2)` zmiennych oraz `r nrow(dane_2)` wystapien. Zbiór danych zawiera wska¹niki opisuj¡ce jako±¢ »ycia w wybranych miastach, w tym m.in. takie charakterystyki jak: warunki mieszkaniowe, koszty utrzymania, bezpiecze«stwo, opieka zdrowotna, edukacja itp. Wszystkie cechy ilościowe przyjmuja wartosci w zakresie 0 - 10, im wyzsza wartosc tym lepszy wynik. Zbior danych zawiera również zmienne jakościowe takie jak Naza miasta, kraju oraz kontynatu na jakim sie znajdują posłuza nam do lepszej interpretacji wyników.
+W części drugiej będziemy pracować na zbiorze danych pobranych ze strony [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/datasets/orhankaramancode/city-quality-of-life-dataset), pochodzącym oryginalnie z nieistniejącej już (przynajmniej pod tą domeną) strony `Teleport.org`. Zbiór zawiera wskaźniki dotyczące jakości życia z `r nrow(dane_2)` „najbardziej kreatywnych” miast na całym świecie zebranych w celu pozwolenia osobom znalezć odpowiedniego miasta do życia według ich preferencji. Naszym celem będzie przeprowadzenie analizy składowych głównych (PCA, ang. *Principal Component Analysis*) wskaźników zawartych w zbiorze.
 
 ## Przygotowanie danych
 
+Dane zawierają informacje o `r nrow(dane_2)` miastach. Dla każdego z nich mamy `r ncol(dane_2)` cech.
+
+```{r tabela-cech-2, echo=FALSE, warning=FALSE, message=FALSE}
+tab_cechy_2 <- data.frame(
+  Typ = sapply(dane_2, function(x) paste(class(x), collapse = ", ")),
+  Opis = c(
+    "identyfikator obserwacji",
+    "nazwa obszaru miejskiego (UA -- ang. \\textit{urban area})",
+    "kraj",
+    "kontynent",
+    "warunki mieszkaniowe",
+    "koszty utrzymania",
+    "ekosystem startupów",
+    "dostępność kapitału inwestycyjnego",
+    "połączenia komunikacyjne (transport międzymiastowy i międzynarodowy)",
+    "codzienne dojazdy",
+    "swoboda prowadzenia biznesu",
+    "bezpieczeństwo",
+    "opieka zdrowotna",
+    "edukacja",
+    "jakość środowiska",
+    "kondycja gospodarki",
+    "obciążenia podatkowe",
+    "dostęp do internetu",
+    "oferta rozrywkowa i kulturalna",
+    "tolerancja społeczna",
+    "możliwości spędzania czasu na świeżym powietrzu"
+  )
+)
+
+# escape=FALSE -- żeby \textit zadziałał -- wymaga ręcznego escape'u podkreśleń w nazwach
+rownames(tab_cechy_2) <- gsub("_", "\\\\_", rownames(tab_cechy_2))
+
+kable(tab_cechy_2,
+      caption = "Typy oraz opisy cech",
+      booktabs = TRUE,
+      escape = FALSE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "hold_position"),
+                stripe_color = "gray!10") %>%
+  column_spec(3, width = "9cm")
+```
+
+```{r podsumowanie-danych2, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+# Przygotowanie tabeli
+tab_summary_2 <- summary(dane_2)
+tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+tab_summary_2 <- gsub("\\s*:\\s*", ": ", tab_summary_2) # naprawienie zepsutych dwukropków
+tab_summary_2 <- gsub("\\(Other\\)", "\\(Inne\\)", tab_summary_2) # Inne zamiast Other
+
+# Tabela jest szeroka więc ją łamiemy na kawałki po max 5 kolumn
+n_kol <- ncol(tab_summary_2)
+kawalki <- split(seq_len(n_kol), ceiling(seq_len(n_kol) / 5))
+
+for (i in seq_along(kawalki)) {
+  kawalek_tabeli = tab_summary_2[, kawalki[[i]], drop = FALSE]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, , drop = FALSE] # usunięcie pustych wierszy
+
+  caption_i = if (i == length(kawalki)) "Podsumowanie danych" else NULL # caption tylko pod ostatnim kawałkiem
+  tabela = kable(kawalek_tabeli, booktabs = TRUE, caption = caption_i) %>%
+    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
+                  stripe_color = "gray!10")
+
+  print(tabela) # kabele w pętlach się same nie printują więc musimy to zrobić sami
+}
+```
+
+ zawiera wartości wskaźników opisujących jakość życia w wybranych miastach, w tym m.in. takie charakterystyki jak: warunki mieszkaniowe, koszty utrzymania, bezpiecze«stwo, opieka zdrowotna, edukacja itp. Wszystkie cechy ilościowe przyjmuja wartosci w zakresie 0 - 10, im wyzsza wartosc tym lepszy wynik. Zbior danych zawiera również zmienne jakościowe takie jak Naza miasta, kraju oraz kontynatu na jakim sie znajdują posłuza nam do lepszej interpretacji wyników.
+
+Powyzeszj tabeli znajdują sie sattystyki opisowe danych iloścowych (tu zastanawiam sie czy dawac wszystkie czy tylko czesc) zbór danych nie zawiera żadnych braków danych po jest widoczne na poniższej tabeli.
+
 Zmienna Id zpsatła usunięta jakos nie istotna do dalszej analizy również w celu wyznaczenia składowych głownych użyto tylko zmiennych ilościowych.
 
-```{r summary-ilo, echo=FALSE, warning=FALSE, message=FALSE, results='asis'}
+```{r oczyszczanie-danych, echo=FALSE}
 dane_2$X <- NULL
 dane_2_ilo <- dane_2[, sapply(dane_2, is.numeric)]
 
 # wyczyszczenie nazw cech: "..." (oryg. " & ") -> " & ", pojedyncze "." -> spacja
 names(dane_2_ilo) <- gsub("\\.\\.\\.", " & ", names(dane_2_ilo))
 names(dane_2_ilo) <- gsub("\\.", " ", names(dane_2_ilo))
-
-# Przygotowanie tabeli
-tab_summary_2 <- summary(dane_2_ilo)
-tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
-tab_summary_2 <- gsub("\\s*:\\s*", ": ", tab_summary_2) # naprawienie zepsutych dwukropków
-
-# Tabela jest szeroka więc ją łamiemy na kawałki i wyświetlamy w tej szatańskiej pętli
-kawalki = list(1:5, 6:9, 10:13, 14:17)
-
-# pierwszy kawałek (osobno żeby był caption)
-kawalek_tabeli = tab_summary_2[, kawalki[[1]]]
-kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
-kable(kawalek_tabeli, booktabs = TRUE,
-      caption = "Podsumowanie cech ilościowych") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
-                stripe_color = "gray!10")
-
-# pozostałe kawałki
-for (i in 2:length(kawalki)) {
-  kawalek_tabeli = tab_summary_2[, kawalki[[i]]]
-  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ] # usunięcie pustych wierszy
-
-  tabela = kable(kawalek_tabeli, booktabs = TRUE) %>%
-    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
-                  stripe_color = "gray!10")
-
-  print(tabela) # kabele z pętli się same nie printują więc musimy to zrobić sami
-}
 ```
-
-Powyzeszj tabeli znajdują sie sattystyki opisowe danych iloścowych (tu zastanawiam sie czy dawac wszystkie czy tylko czesc) zbór danych nie zawiera żadnych braków danych po jest widoczne na poniższej tabeli.
 
 ```{r tab-braki-2, echo=FALSE}
 braki_2 <- data.frame(

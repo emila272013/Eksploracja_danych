@@ -44,7 +44,7 @@ knitr::opts_chunk$set(fig.pos = "H", out.extra = "")
 ```{r setup1, echo=FALSE, warning=FALSE, message=FALSE}
 dane <- iris
 
-# kolory gatunków (takie same jak w tekście)
+# kolory gatunków (do wykresów)
 kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
 # kolor linii granic przedziałów
 kolor_granic <- "#AB0046"
@@ -114,22 +114,24 @@ kable(tab_summary, booktabs = TRUE,
 Wierzymy pomiarom i zakładamy że nie ma błędów. Braki danych `r if (sum(is.na(dane)) == 0) "nie" else ""` występują.
 
 ```{r wykresy-rozrzutu, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Pomiary działki kielicha i płatka w zależności od gatunku. W celu polepszenia widoczności, punkty zostały odrobinę losowo rozrzucone."}
+ksztalty_gatunkow <- c(setosa = 16, versicolor = 17, virginica = 15) # 16 – kółko, 17 – trójkąt , 15 – kwadrat
+
 plot(jitter(dane$Petal.Length), jitter(dane$Petal.Width),
-     col = kolory_gatunkow[dane$Species], pch = 16,
+     col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
      xlab = "długość płatka (cm)",
      ylab = "szerokość płatka (cm)",
      main = "Płatek")
 legend("bottomright", legend = names(kolory_gatunkow),
-       col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
+       col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
        text.col = kolory_gatunkow, text.font = 3)
 
 plot(jitter(dane$Sepal.Length), jitter(dane$Sepal.Width),
-     col = kolory_gatunkow[dane$Species], pch = 16,
+     col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
      xlab = "długość działki kielicha (cm)",
      ylab = "szerokość działki kielicha (cm)",
      main = "Działka kielicha")
 legend("topright", legend = names(kolory_gatunkow),
-       col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
+       col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
        text.col = kolory_gatunkow, text.font = 3)
 ```
 
@@ -208,23 +210,25 @@ tabela_licznosci <- function(podzial_pl, podzial_sw, caption = NULL) {
 ```{r helper-plot-podzialow, echo=FALSE}
 # pomocnicza funkcja do wykresów podziałów
 plot_podzialy <- function(podzial_pl, podzial_sw) {
+  ksztalty_gatunkow <- c(setosa = 16, versicolor = 17, virginica = 15) # 16 – kółko, 17 – trójkąt , 15 – kwadrat
+
   granice_pl <- attributes(podzial_pl)$"discretized:breaks"
   granice_sw <- attributes(podzial_sw)$"discretized:breaks"
 
   plot(dane$Petal.Length, runif(nrow(dane)),
-       col = kolory_gatunkow[dane$Species], pch = 16,
+       col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
        xlab = "długość płatka (cm)", ylab = "")
   abline(v = granice_pl, col = kolor_granic, lwd = 1.5, lty = 2)
   legend("topright", legend = levels(dane$Species),
-         col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
+         col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
          text.col = kolory_gatunkow, text.font = 3)
 
   plot(dane$Sepal.Width, runif(nrow(dane)),
-       col = kolory_gatunkow[dane$Species], pch = 16,
+       col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
        xlab = "szerokość działki kielicha (cm)", ylab = "")
   abline(v = granice_sw, col = kolor_granic, lwd = 1.5, lty = 2)
   legend("topright", legend = levels(dane$Species),
-         col = kolory_gatunkow, pch = 16, bg = kolor_tla_legendy,
+         col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
          text.col = kolory_gatunkow, text.font = 3)
 }
 ```
@@ -345,7 +349,7 @@ axis(2, at = seq(0, 1, 0.2), las = 1)
 tabela_dyskretyzacji(podzial_3b, podzial_3a)
 ```
 
-Dla długości płatka (`Petal.Length`) wyniki wychodzą dokładnie takie same jak w metodzie `equal frequency`.
+Dla długości płatka (`Petal.Length`) wyniki wychodzą dokładnie takie same jak w metodzie *equal frequency*.
 
 W przypadku i tej metody, podział po szerokości działki kielicha (`Sepal.Width`) również nie daje zbyt wartościowych wyników.
 
