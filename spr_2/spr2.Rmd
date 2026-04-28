@@ -135,11 +135,12 @@ kable(tab_braki,
 Zmienna cabin zaweira az 687 braków w dancyhh, wiec nie bedizmey jej uwzgledniac w dalszej analizie, rózwniez z tego powodu ze pełniła funkcjei identyfikatora. Natomiast zmienna Age zawiera 177 braków w tym przypadku nie bedziemy sie decydowac na usunieniecei tej zmiennej tylko zastapimy te braki mediana z pozostałych wartosci Age, równiez nie decydujemy sie na opcje usuniecia wierszy z tymi brakmi, ponieważ stanowią one prawie 20% danych. Natomiast braki w zmiennej Embark, ktora oznaczła port w którym wsiadł psazaer, błedy uzpełnimy najczestszą opsca jak pojawai sie w dancyh.
 
 ```{r podsumowanie-danych-3, echo=FALSE}
-dane_3$Embarked <- as.character(dane_3$Embarked)
-mode_embarked <- names(sort(table(dane_3$Embarked[dane_3$Embarked != "0"]), decreasing = TRUE))[1]
 
-dane_3$Embarked[dane_3$Embarked == "0"] <- mode_embarked
-dane_3$Embarked <- as.factor(dane_3$Embarked)
+dane_3$Embarked[dane_3$Embarked == ""] <- NA
+mode_embarked <- names(sort(table(dane_3$Embarked), decreasing = TRUE))[1]
+dane_3$Embarked[is.na(dane_3$Embarked)] <- mode_embarked
+dane_3$Embarked <- factor(dane_3$Embarked)
+
 dane_3$Cabin <- NULL
 dane_3$Age[is.na(dane_3$Age)] <- median(dane_3$Age, na.rm = TRUE)
 summary(dane_3)
@@ -149,6 +150,95 @@ W tabeli powyzej znajdują sie statystyki opisowe zmienych oraz licznosci wstapi
 
 ## Redukcja wymiaru na bazie MDS
 
+Następnie w celu poprawnej redukcji wymairu na poczatku podizlimy nsza zbio na zmiennea surived i reszte zmienneych. Macierz odmiennosci zosatła wyznaczona za pomoca metryki Gowera , poniewaz w naszych danych znjaduja sie zarówno dane ilosciowe jak i jakościowe. Zastosowano róznierz standaryzacje do zmiennych ilosciowych w celu poprawnego wyliczenia odległosci.
+
+```{r rodzial-zmiennych, echo=FALSE}
+y <- dane_3$Survived        # jedna kolumna (np. wynik)
+X <- dane_3[, !names(dane_3) %in% "Survived"]   # reszta danych
+```
+
+```{r macierz-odmiennosci, echo=FALSE}
+library(cluster)
+
+dissimilarities <- daisy(X, metric = "gower", stand = TRUE)
+
+dis.matrix <- as.matrix(dissimilarities)
+# image(dis.matrix, main = "Macierz odmienności")
+heatmap(dis.matrix, 
+        Rowv = TRUE, Colv = TRUE, # Grupowanie obu osi
+        symm = TRUE,              # Podkreślenie symetrii macierzy
+        col = rev(heat.colors(256)), # Odwrócenie kolorów dla lepszego kontrastu
+        labRow = FALSE, labCol = FALSE)
+```
+
+po wyej znajduje sie heatmapa, ktroa przedstawia macierz odmiennosci obliczona przy pomoscy matryki gowera. Rozniez do heatmapy dodano denrogram, dzieki któremu mozemy zobaczyc hierarhiczna strukture podobienstwa pomiedzy obserwacjami. na podstawie heat mapy mozemy zauwazyc ze pasazerowie na status titanic byli bardzo podzielini na rózne grupy społeczne. Wzdłuz przekątnej zauwazamy jasen pola, które świadczą o bardzo duzym podobienstwie osb wsrod tych samych grup społecznych np klasa 3 i kalsa 1. Na samej górze i po lewej stronie znajdują sie drzewa widizmy wyrazny podział na dwie czesci, co moze swiadczy o podziale pasazerów na mezczycn klasy 3 i kobiety z dzicmi klasy 1. Dendrogram sugereuje ze roznice miedzy tymi dwoma klasmay sa bardziej zanczace niz jakiekolwiek inne cechy indywidualne. Czerwone elemnty na heatmapie sa to wartosci odstajace np pasazerrowie ktorzy mimio bycia w 1 kalsie mieli drogi bilet.
+
+```{r mds, echo=FALSE}
+mds <- cmdscale(dis.matrix, k = 3)
+
+dist.mds.k2 <- dist(mds, method="euclidean")
+dist.mds.k2 <- as.matrix(dist.mds.k2)
+
+STRESS <- sqrt(sum((dis.matrix - dist.mds.k2)^2) / sum(dis.matrix^2))
+print(paste("Stress value:", STRESS))
+plot(dis.matrix, dist.mds.k2, main="Shepard diagram", cex=0.5, xlab="original distance", ylab="distance after MDS mapping")
+abline(coef=c(0,1), col="red", lty=2, lwd=2)
+
+```
+
+Następnie zastosowano algorytm mds dla wymirau 3 (tu mozna dodac na pocztku zorbiłam dla k=2 i ten stress wyszedl jako 0.26 co sugorwało ze nalez wkieszyc wymiar) z metryka euklidesowa. Analizujas wykres Shepreda możemy zauważyc ze punkty układaja sie wzdłuz lini y=x, świdczy to o poprawnosci relacji podobienstwa. Mamy potweirdzenie z heatmapy, na wykresie powyzej widzmy schody, ktore swiadcza o wystepowaniu grup wsrod osob o podobnych cechac oraz granic miedzy grupami. Nie wsytepuja wartosci odstajace co siwadczy o niskeij wartosci funkcji sters ktora wyniosla 0.16 co potwredza popranosc uzytego wymiau ?.
+
 ## Wizualizajca dancyh
 
+pojebało mi sie i tu jest ta wizulalicajca ja ja dałam wyzej ... aaaaaaaaaaaa ale to nic jest SUPER
+
+```{r wykresy-mds, echo=FALSE}
+kolory <- ifelse(dane_3$Survived == 1, "#2ca25f", "#de2d26") # Zielony i Czerwony
+
+plot(mds[,1], mds[,2], 
+     col = kolory, 
+     pch = 19, # Pełne kółka wyglądają lepiej
+     cex = 0.8,
+     main = "Wizualizacja MDS (rzut 2D z przestrzeni 3D)",
+     xlab = "Wymiar 1", ylab = "Wymiar 2")
+
+legend("topright", legend = c("Zginął", "Ocalał"), 
+       col = c("#de2d26", "#2ca25f"), pch = 19, bty = "n")
+
+```
+
+W celu wizualcizaci wynków działania algorytmu mds utworzono wyres 2d. Na wykresie mozmey zauwazyc bardzo wyrażny podziął na grupy kazdde skupiskow punktów to podziął pasazerów ze zwgledu na konretne cechy odleglosc miedzy dwoma duzymi skuoisakmi, moze świadczy o duzej ónicy miedzy grupami dla pasazerów kalsy 1 i 3. Dziłanie algorytmu jest poprawne, poniewaz górne skpuiska ponków sa to w większosciosby oclałe czyli np obiety i dziebi z klasy 1, nasz algorym dobre poradził sobie z klasyfikacja czy kots przyzyl czy zgniła tylkona podstawie inorfmaoci o klasi płci czy wieku. Ciekawym zjawiskiem sa wartosci odstające czy np osoby krte zgineły mimo wyskiego statusu społecznego ekonomiczego czy cos tam.
+
+```{r mds-wyk-plec, echo=FALSE}
+plot(mds,
+     col = as.numeric(dane_3$Sex),
+     pch = 19,
+     main = "MDS - kolor wg Sex",
+     xlab = "Wymiar 1", ylab = "Wymiar 2")
+
+legend("topright",
+       legend = levels(dane_3$Sex),
+       col = 1:length(levels(dane_3$Sex)),
+       pch = 19)
+```
+
+Na nateonym wykrsie widzmy podziła ze wzgledu na płec osob mozemy stwrrdzic płec w naszym zbiorze danych jest bardzo wazna cecha ona jest podastwa w szukaniu poobienstw meidzy pasazerami, porównując w ykresm przezyc widizmy ze wsrod osobe ktroe przezyly katasfotre sa głownie kobiety. jest grupa kkobiet ktora zgineła wykres wyzej sa to prawdopowdnie koeity z najnizeszj klasy ktor nie mialy sznsy na łodz ratnkow (szalupa nwm jak to było) .
+
+```{r wyk-mds-klasy, echo=FALSE}
+plot(mds,
+     col = as.numeric(dane_3$Pclass),
+     pch = 19,
+     main = "MDS - kolor wg Pclass",
+     xlab = "Wymiar 1", ylab = "Wymiar 2")
+
+legend("topright",
+       legend = levels(dane_3$Pclass),
+       col = 1:length(levels(dane_3$Pclass)),
+       pch = 19)
+```
+
+Ostani wykres przestawia podzila pasazerów po mds ze wzgledu na klasy. tak jak zakaldalismy wczesniej kobiety kotre zgiineły w atoastdoriwe sa to kobiety z klasy 3. natomisat dolen skupiska mezczyzni nie zaleznie od klasy w kazdej gri[ie znajlazaly sie jednoski ktorym udało sie przezyc.
+
 ## Podsumowanie
+
+Analizujas heatmape i dendrogram zalaozylism ze beda istneic dwie głowne grupy rózniaca sie miedzy soaba co ponieszej analizie okazało sie poprawnym załozeniem. Dzikei mapie shepreda mozemy miec pewnosc ze mapa 2d jest wirygodna, wikszosc punktow lezy wzdłuz lini y=x, co siwdzczy o rzetelnosci naszych wniosow. Co dodatkow potwerdza niska wartosc funkcji stress, zapenia nas o poprawniscu wyików dla pasazerów titanic. Wykresy Mds pokazały, zę pasazerowi naturlanie grupują sie w skupisak, co swiadczy o sinych zaleznosciach co do przynaleznosci do danej grupy. najwieksze róznice występuja miedzy kobietamy i mezczyznmi i pasazerami kalsy 1 i 3. Algorytm mds bardzo dobre wykryl osoby ktre przezyły mimo ze jie miał dostepy do tej zmiennej.
