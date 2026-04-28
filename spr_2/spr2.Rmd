@@ -94,7 +94,7 @@ Typy zmiennych ktore po wczytaniu danych byly wczytanie jako characet zmienilism
 
 ```{r tabela-typy-i-opisy, echo=FALSE}
 tab_cechy <- data.frame(
-  Typ = sapply(dane_3, function(x) paste(class(x), collapse = ", ")),
+  Typ = sapply(dane_3, class),
   Opis = c(
     "ID pasażera",
     "Czy przeżył",
