@@ -45,7 +45,11 @@ library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
 showtext_auto()   #
 
-knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
+knitr::opts_chunk$set(
+	fig.pos = "H",
+	cache = TRUE,
+	out.extra = ""
+)
 ```
 
 ```{r setup-2, echo=FALSE, warning=FALSE, message=FALSE}
@@ -249,7 +253,7 @@ Następnie naszym celem będzie sprawdzenie jaki procent wariancji odpowiada pos
 Na poniższym wykresie znjaduje się wariancja poszczególnych składowych.
 
 
----- dotąd zrobiłem
+---- dotąd zrobiłem bla bla bla bla :000 POWODZENIA !!!!
 
 ```{r wykres-war-pca, echo=FALSE, fig.cap="Wariancje poszczególnych składowych głównych"}
 plot(pca_dane,
@@ -301,44 +305,61 @@ legend("topright",
        bg = kolor_tla_legendy)
 ```
 
-to z czatu do wyjebania
+to z czatu do wyjebania :(( to byl geminik 
 
-Widzimy, że dane są szeroko rozpięte na osi poziomej, co sugeruje ogromne różnice w poziomie rozwoju miast:
+Na powzyszym wykresie widzimy rozklad obserwacji rozmieszczonych w zaleznosci kosztów życia od pozomu rozowju.
 
--   **\textcolor{europa}{Europa} (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji.
+Miasta są grupowane na wykresie względem kontynentów.
 
--   **\textcolor{afryka}{Afryka} (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie.
+Widzimy, że dane są szeroko rozpięte na osi poziomej, co sugeruje ogromne różnice w poziomie rozwoju miast. Możemy wywnisokować, że maista znjdujące się w europie są dośc rozproszone na wykresie, lecz ic głowna koncentracja znajduje sie w przywszyzy poziomie pc2 co swiadczy o wysokim poziomie rozwoju tych miast. Znajdują sie w obrepie ujemnych wartosciach pc1 jaki i 0 co oznacza koszty zycia nizsze koszty zycia wraz z co moze ozancza tansze bardziej dostepne mieszkania. 
 
-### Zróżnicowanie wzdłuż osi PC2 (Innowacyjność vs. Bezpieczeństwo i Kultura)
+Miasta znajdujace sie w Ameryce Polnocnej są rozłozone na całej długości pc2 oraz wystepuja głownie na ujemnych wartosciach pc1. Co świadzczy o duzym rozznicowaniu co do poziomu rozwoju tych miast i dosc niskich kosztów zycia.
 
-Oś pionowa pokazuje kontrast między miastami stawiającymi na "twardą" gospodarkę a tymi, które oferują wyższą jakość życia społecznego:
+Natomiast miasta w Azji sa mocno rozproszone po calym wykresie czego mogliśmy sie spoodziewac po wilkosci i jak orgomnym zroznicowaniem cechuje sie ten kontynet. np od rozinientej Japoni po ubogie indie czy jakis bangladesz nwm. 
 
--   **\textcolor{amerykapn}{Ameryka Północna} (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (*loadings*).
+Z koleji maista Afryki znjdują sie przy ujemych wartoscioac pc2 oraz dodatnich wartoscich pc1, co świadczy o niskim poziomie rozwoju tych panstw oraz niszkich kosztac zcyia. Co jest spoedzanym wynikiem.
 
--   **\textcolor{europa}{Europa} (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego.
+<!-- -   **\textcolor{europa}{Europa} (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji. -->
 
-### Skupiska i „Outliery”
+<!-- -   **\textcolor{afryka}{Afryka} (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie. -->
 
--   **\textcolor{azja}{Azja} (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia.
+<!-- ### Zróżnicowanie wzdłuż osi PC2 (Innowacyjność vs. Bezpieczeństwo i Kultura) -->
 
--   **\textcolor{oceania}{Oceania} (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem.
+<!-- Oś pionowa pokazuje kontrast między miastami stawiającymi na "twardą" gospodarkę a tymi, które oferują wyższą jakość życia społecznego: -->
+
+<!-- -   **\textcolor{amerykapn}{Ameryka Północna} (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (*loadings*). -->
+
+<!-- -   **\textcolor{europa}{Europa} (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego. -->
+
+<!-- ### Skupiska i „Outliery” -->
+
+<!-- -   **\textcolor{azja}{Azja} (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia. -->
+
+<!-- -   **\textcolor{oceania}{Oceania} (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem. -->
+
+
 
 ```{r 2d-europa-vs-reszta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- Afryka na tle pozostałych kontynentów"}
-kolory_afryka <- ifelse(dane2$Continent == "Africa",
-                        kolory_kontynentow["Africa"], "lightgray")
-
-plot(pca_dane$x[, 1], pca_dane$x[, 2],
-     col = kolory_afryka,
-     pch = 16,
-     xlab = "PC1",
-     ylab = "PC2",
-     main = "")
-
-legend("topright",
-       legend = c("Afryka", "Pozostałe"),
-       col = c(kolory_kontynentow["Africa"], "lightgray"),
-       pch = 16,
-       bg = kolor_tla_legendy)
+# # 1. Znajdź indeksy wierszy, które są z Polski
+# indeksy_polska <- which(dane2$Country == "Poland")
+# 
+# # 2. Wyciągnij nazwy miast i wyniki PCA używając tych samych indeksów
+# miasta_polska <- dane2$UrbanArea[indeksy_polska]
+# pca_polska <- pca_dane$x[indeksy_polska, 1:2] # Bierzemy PC1 i PC2
+# 
+# # 3. Rysuj wykres
+# plot(pca_polska[, 1], pca_polska[, 2],
+#      col = "red",
+#      pch = 16,
+#      xlab = "PC1",
+#      ylab = "PC2",
+#      main = "PCA – miasta w Polsce")
+# 
+# # 4. Dodaj napisy
+# text(pca_polska[, 1], pca_polska[, 2],
+#      labels = miasta_polska,
+#      pos = 3,
+#      cex = 0.8)
 ```
 
 ```{r 3d-europa-i-usa, echo=FALSE, fig.width=6, fig.height=5, out.width="100%", fig.cap="Rzut danych na trzy pierwsze składowe główne -- wyróżnione: Europa i Ameryka Północna"}
@@ -379,19 +400,25 @@ legend("topright", inset = c(-0.25, 0), xpd = TRUE,
        bg = kolor_tla_legendy,
        title = "Kontynenty")
 ```
+Na powyzszym wykresie 3d widzimy rozdklad miast wzgledem 3 zmiennych pc1 koszty zycia, pc2 poziom rzowoju oraz pc3 jako sytucja gosporacza na wykresie znajdują sie miasta Europy oraz ameryki Połnoscnej. teraz mozemy dodac do porzedniej analizy zmienna odpowiddziana za sytiuacje gospodarcza. Mozemy zauwazyc ze miasta ameryki polnocnej cechuja sie lepsza sytuacja gospodarcza niz maista europy.
 
 ## Korelacja zmiennych
 
-wykres korelacji tak o
+nastepnie w celu prownania korelacji wyspeujacej w zmiennych pc storzylismy dwuwykres.
 
 ```{r corr-pca-vars, echo=FALSE, fig.cap="Korelacje cech ze składowymi głównymi"}
+
 variables <- get_pca_var(pca_dane)
 corrplot(variables$cor)
-```
 
-```{r corr-cech, echo=FALSE, fig.cap="Macierz korelacji cech ilościowych"}
 correlation.matrix <- cor(dane2_ilo)
 corrplot(correlation.matrix)
+```
+Na pierwszym wykresie widzimy korelacjie nowych zmiennych ze starymi (?) widzimy ze pc1 jest mocno skorelowana z kosztami zycia oraz dostepnoscia zycia co poterdza nasze wszesniejsze przypuszczenia odnoscie znaczenia tej zmiennej. Nastepnie zmienna pc2 wystepuje dodatnia korelacja miedzy zmiennymi bezpieczensto, opieki zdrowotnej oraz tolerancji co dobrze wynisokowalismy ze zmienna ta odpowida za pozom rozoju.  
+
+```{r corr-cech, echo=FALSE, fig.cap="Macierz korelacji cech ilościowych"}
+# correlation.matrix <- cor(dane2_ilo)
+# corrplot(correlation.matrix)
 ```
 
 ```{r biplot-1, echo=FALSE, fig.cap="Biplot PCA -- 10 cech o największym wkładzie"}

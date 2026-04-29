@@ -1,0 +1,10 @@
+plot3D
+ggplot2
+factoextra
+corrplot
+knitr
+kableExtra
+dplyr
+sysfonts
+showtextdb
+showtext
