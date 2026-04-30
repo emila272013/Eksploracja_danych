@@ -155,10 +155,10 @@ discretize(dane$CECHA, method = METODA, breaks = 3)
 
 W miejsce `CECHA` wpisujemy identyfikator odpowiedniej cechy, a w miejsce `METODA` identyfikator metody:
 
-- `"interval"` dla metody *equal width*,
-- `"frequency"` dla metody *equal frequency*,
-- `"cluster"` dla metody *k-means clustering* oraz
-- `"fixed"` dla ręcznego podziału.
+-   `"interval"` dla metody *equal width*,
+-   `"frequency"` dla metody *equal frequency*,
+-   `"cluster"` dla metody *k-means clustering* oraz
+-   `"fixed"` dla ręcznego podziału.
 
 W przypadku ostatniej metody, zamiast `breaks = 3` piszemy wektor punktów rozdzielających, przykładowo:
 
@@ -240,7 +240,6 @@ plot_podzialy <- function(podzial_pl, podzial_sw) {
          text.col = kolory_gatunkow, text.font = 3)
 }
 ```
-
 
 ```{r helper-tabela-dyskretyzacji, echo=FALSE}
 # pomocnicza funkcja do tabel wyników dyskretyzacji
@@ -407,7 +406,7 @@ Pozostałe dwa gatunki zbyt się jednak pokrywają tą cechą aby można je był
 
 ### Podsumowanie
 
-Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku  \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
+Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
 
 Żadna metoda nie pozwoliła na rozróżnienie gatunków na podstawie cechy szerokości działki kielicha (`Sepal.Width`). Pokazuje to że ograniczając zbiór danych możemy stracić informacje których żadnym algorytmem nie będziemy w stanie odzyskać.
 
@@ -591,23 +590,17 @@ kable(loadings_3,
 
 Największy wpływ na interpretację składowych głównych mają zmienne o najwyższych wartościach bezwzględnych ładunków.
 
-Najwyższe dodatnie wartości dla pierwszej składowej głównej (PC1) osiągają zmienne `Housing` oraz `CostOfLiving`, czyli wskaźniki dostępności mieszkań i przystępności kosztów utrzymania.
-Z kolei najniższe (ujemne) wartości przyjmują zmienne `Education`, `BusinessFreedom` oraz `EnvironmentalQuality`.
-Oznacza to, że PC1 można interpretować jako wymiar kontrastu pomiędzy przystępnością życia a poziomem rozwoju społeczno-gospodarczego.
+Najwyższe dodatnie wartości dla pierwszej składowej głównej (PC1) osiągają zmienne `Housing` oraz `CostOfLiving`, czyli wskaźniki dostępności mieszkań i przystępności kosztów utrzymania. Z kolei najniższe (ujemne) wartości przyjmują zmienne `Education`, `BusinessFreedom` oraz `EnvironmentalQuality`. Oznacza to, że PC1 można interpretować jako wymiar kontrastu pomiędzy przystępnością życia a poziomem rozwoju społeczno-gospodarczego.
 
-W przypadku drugiej składowej głównej (PC2) najwyższe dodatnie wartości osiągają zmienne `Safety`, `Healthcare`, `EnvironmentalQuality` oraz `Tolerance`, które opisują szeroko rozumianą jakość życia.
-Najniższe wartości przyjmują natomiast zmienne `Startups`, `VentureCapital` oraz `LeisureAndCulture`, związane z aktywnością innowacyjną i gospodarczą.
-W związku z tym PC2 można interpretować jako wymiar przeciwstawiający wysoką jakość życia dynamice innowacyjno-gospodarczej.
+W przypadku drugiej składowej głównej (PC2) najwyższe dodatnie wartości osiągają zmienne `Safety`, `Healthcare`, `EnvironmentalQuality` oraz `Tolerance`, które opisują szeroko rozumianą jakość życia. Najniższe wartości przyjmują natomiast zmienne `Startups`, `VentureCapital` oraz `LeisureAndCulture`, związane z aktywnością innowacyjną i gospodarczą. W związku z tym PC2 można interpretować jako wymiar przeciwstawiający wysoką jakość życia dynamice innowacyjno-gospodarczej.
 
-Dla trzeciej składowej głównej (PC3) najwyższą dodatnią wartość przyjmuje zmienna `Economy`, natomiast niskie (ujemne) wartości obserwujemy m.in. dla zmiennych `Commute`, `TravelConnectivity`, `CostOfLiving` oraz `Safety`.
-Oznacza to, że PC3 można interpretować jako wymiar odzwierciedlający sytuację gospodarczą w zestawieniu z wybranymi aspektami komfortu życia. Wyższe wartości tej składowej mogą wskazywać na lepsze warunki ekonomiczne, ale jednocześnie mniej korzystne warunki codziennego funkcjonowania.
+Dla trzeciej składowej głównej (PC3) najwyższą dodatnią wartość przyjmuje zmienna `Economy`, natomiast niskie (ujemne) wartości obserwujemy m.in. dla zmiennych `Commute`, `TravelConnectivity`, `CostOfLiving` oraz `Safety`. Oznacza to, że PC3 można interpretować jako wymiar odzwierciedlający sytuację gospodarczą w zestawieniu z wybranymi aspektami komfortu życia. Wyższe wartości tej składowej mogą wskazywać na lepsze warunki ekonomiczne, ale jednocześnie mniej korzystne warunki codziennego funkcjonowania.
 
 ## Zmienność odpowiadająca poszczególnym składowym
 
 W kolejnym etapie analizy zbadaliśmy, jaki procent całkowitej zmienności (wariancji) danych jest wyjaśniany przez poszczególne składowe główne.
 
 Na pierwszym wykresie przedstawiono wariancję poszczególnych składowych. Zgodnie z założeniami metody PCA, wartości wariancji maleją wraz z kolejnymi składowymi, co potwierdza, że pierwsze z nich zawierają najistotniejszą informację o strukturze zbioru danych.
-
 
 ```{r wykres-war-pca, echo=FALSE, fig.cap="Wariancje poszczególnych składowych głównych"}
 variance_pca <- pca_dane$sdev^2
@@ -681,11 +674,10 @@ fviz_pca_biplot(pca_dane,
                 title = "") +
   ggplot2::labs(color = "Kontynent", shape = "Kontynent", fill = "Kontynent")
 ```
+
 Na wykresie biplot przedstawiono podział miast według kontynentów wraz z naniesionymi wektorami zmiennych opisujących ich charakterystyki. Strzałki reprezentują kierunek i siłę wpływu poszczególnych zmiennych na składowe główne, co umożliwia jednoczesną analizę zależności między miastami oraz badanymi cechami.
 
-Miasta Europy oraz Ameryki Północnej znajdują się po stronie ujemnych wartości Dim1, gdzie wskaźniki rozwoju społeczno-gospodarczego (`Education`, `BusinessFreedom`, `EnvironmentalQuality`) przyjmują wyższe wartości. Miasta z Afryki, Ameryki Południowej oraz części Azji sytuują się po przeciwnej stronie osi Dim1 – tam, gdzie dominują wektory `Housing` i `CostOfLiving`, czyli niższe koszty utrzymania, ale też niższe wskaźniki rozwoju.
-Widoczna separacja regionów pokazuje, że PCA dobrze odzwierciedla różnice w profilach miast między tymi grupami.
-
+Miasta Europy oraz Ameryki Północnej znajdują się po stronie ujemnych wartości Dim1, gdzie wskaźniki rozwoju społeczno-gospodarczego (`Education`, `BusinessFreedom`, `EnvironmentalQuality`) przyjmują wyższe wartości. Miasta z Afryki, Ameryki Południowej oraz części Azji sytuują się po przeciwnej stronie osi Dim1 – tam, gdzie dominują wektory `Housing` i `CostOfLiving`, czyli niższe koszty utrzymania, ale też niższe wskaźniki rozwoju. Widoczna separacja regionów pokazuje, że PCA dobrze odzwierciedla różnice w profilach miast między tymi grupami.
 
 ```{r 2d-skrajne-miasta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- wyróżnione cztery miasta najbardziej oddalone od środka przestrzeni PCA"}
 dist <- sqrt(pca_dane$x[,1]^2 + pca_dane$x[,2]^2)
@@ -706,7 +698,8 @@ points(pca_dane$x[idx, 1], pca_dane$x[idx, 2], col = kolory_outliers, pch = 19, 
 legend("topright", legend = dane2$UrbanArea[idx], col = kolory_outliers, pch = 19,
        title = "Miasta skrajne", bg = kolor_tla_legendy)
 ```
-Na wykresie PCA widzimy, że miasta zlokalizowane w lewym dolnym rogu przestrzeni (niskie wartości PC1 i PC2) tworzą grupę o szczególnych cechach strukturalnych. Są to głównie metropolie z Europy i Ameryki Północnej (Nowy Jork, Londyn, San Francisco Bay Area), które charakteryzują się wysokimi kosztami życia oraz ograniczoną dostępnością mieszkań. Ich niskie wartości PC2 oznaczają silną dynamikę innowacyjno-gospodarczą i bogatą ofertę kulturalną, kosztem niższych wskaźników bezpieczeństwa, opieki zdrowotnej i jakości środowiska.
+
+Na wykresie PCA widzimy, że miasta zlokalizowane w lewym dolnym rogu (niskie wartości PC1 i PC2) tworzą grupę o szczególnych cechach strukturalnych. Są to głównie metropolie z Europy i Ameryki Północnej (Nowy Jork, Londyn, San Francisco Bay Area), które charakteryzują się wysokimi kosztami życia oraz ograniczoną dostępnością mieszkań. Ich niskie wartości PC2 oznaczają silną dynamikę innowacyjno-gospodarczą i bogatą ofertę kulturalną, kosztem niższych wskaźników bezpieczeństwa, opieki zdrowotnej i jakości środowiska.
 
 Lagos, położone w Nigerii (Afryka Zachodnia), znajduje się na przeciwległym biegunie osi PC1 względem tych miast zachodnich, co czyni je jednym z najbardziej oddalonych punktów w tym wymiarze. Miasto to reprezentuje dynamicznie rozwijającą się metropolię Globalnego Południa, zmagającą się z wyzwaniami gwałtownej urbanizacji, presją demograficzną oraz ograniczeniami infrastrukturalnymi. Jego wysoka wartość PC1 wynika z niskich kosztów utrzymania, a niska wartość PC2 wskazuje na ograniczoną dostępność usług publicznych (edukacja, opieka zdrowotna) i niższą jakość środowiska, co wyraźnie odróżnia je od metropolii Europy i Ameryki Północnej.
 
@@ -767,6 +760,7 @@ fviz_pca_biplot(pca_dane,
                 select.var = list(contrib = 10), # tutaj ile cech chcemy
                 title = "")
 ```
+
 Analiza macierzy korelacji wykazała istotne zależności pomiędzy zmiennymi. W szczególności zaobserwowano silną dodatnią korelację między `Housing` a `CostOfLiving` – w tańszych miastach mieszkania są przeciętnie łatwiej dostępne. Ujemne zależności występują między tymi zmiennymi a wskaźnikami jakości środowiska oraz rozwoju społeczno-gospodarczego, co oznacza, że miasta o lepiej rozwiniętej edukacji, biznesie i jakości środowiska są zwykle droższe.
 
 Wykres biplot PCA potwierdza te zależności w ujęciu geometrycznym. Zmienne silnie dodatnio skorelowane są reprezentowane przez wektory skierowane w podobnym kierunku, natomiast zmienne o korelacji ujemnej znajdują się po przeciwnych stronach wykresu względem siebie. Dodatkowo biplot umożliwia analizę zależności pomiędzy samymi zmiennymi – małe kąty między wektorami (np. `Housing` i `CostOfLiving`) wskazują na silną korelację dodatnią, natomiast przeciwne kierunki wektorów (np. `Housing` i `Education`) świadczą o korelacji ujemnej.
@@ -777,10 +771,9 @@ Wnioski uzyskane z obu metod są spójne i wzajemnie się uzupełniają. Macierz
 
 W przeprowadzonych analizach PCA udało się zaobserwować wyraźną strukturę danych, w której pierwsze dwie składowe główne opisują najważniejsze wymiary zróżnicowania miast: przystępność życia kontra poziom rozwoju społeczno-gospodarczego (PC1) oraz jakość życia (PC2). Dodatkowo trzecia składowa (PC3) wnosi informację o sytuacji gospodarczej, jednak jej znaczenie jest mniejsze niż dwóch pierwszych komponentów.
 
-Z analizy wynika, że już dwie składowe główne są wystarczające do uzyskania dobrej, czytelnej reprezentacji danych, ponieważ wyjaśniają one znaczną część całkowitej wariancji i pozwalają na wyraźne rozróżnienie grup miast. Dodanie trzeciej składowej poprawia szczegółowość interpretacji, ale nie jest kluczowe dla ogólnego obrazu struktury danych.
+Z analizy wynika, że dwie pierwsze składowe główne wyjaśniają łącznie około 45% wariancji, co oznacza umiarkowanie dobrą reprezentację danych. Pozwala to na uchwycenie głównych trendów oraz wyraźne rozróżnienie grup miast, jednak część informacji zawarta jest również w kolejnych składowych. Dodanie trzeciej składowej zwiększa szczegółowość analizy, ale nie zmienia istotnie ogólnej struktury danych.
 
 Standaryzacja danych miała istotny wpływ na wyniki analizy. Dzięki niej wszystkie zmienne zostały sprowadzone do porównywalnej skali, co zapobiegło dominacji cech o dużych wartościach liczbowych (np. kosztów życia). W efekcie PCA lepiej odzwierciedla rzeczywiste relacje między zmiennymi, a uzyskane składowe są bardziej zrównoważone.
-
 
 # Część 3 - Skalowanie wielowymiarowe (MDS)
 
