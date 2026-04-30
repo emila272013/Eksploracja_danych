@@ -240,20 +240,25 @@ kable(loadings_kolorowe,
                 full_width = FALSE)
 ```
 
-Najwyzszy wskaźnik dla `PC1` ma `Housing` i `CostOfLiving`. Dostępność mieszkań jest powiązana z kosztami życia, więc możemy interpretować tą zmienną po prostu jako koszty życia.
+Największy wpływ na interpretację składowych głównych mają zmienne o najwyższych wartościach bezwzględnych ładunków.
 
-Następnie, dla `PC2` najwyższy wskaźnik ma `Safety`, `Healthcare`, `EnvironmentalQuality` i `Tolerance`. Możemy więc interpretować tą zmienną jako poziom rozwoju.
+Najwyższe dodatnie wartości dla pierwszej składowej głównej (PC1) osiągają zmienne Housing oraz CostOfLiving, co wskazuje na silny związek tej składowej z kosztami życia i dostępnością mieszkań.
+Z kolei najniższe (ujemne) wartości przyjmują zmienne Education, BusinessFreedom oraz EnvironmentalQuality.
+Oznacza to, że PC1 można interpretować jako wymiar kontrastu pomiędzy wysokimi kosztami życia a poziomem rozwoju społeczno-gospodarczego.
 
-Dla `PC3`, najwyższą wartość maja `Economy`, więc możemy interpretować tą zmienną jako sytuację gospodarczą.
+W przypadku drugiej składowej głównej (PC2) najwyższe dodatnie wartości osiągają zmienne Safety, Healthcare, EnvironmentalQuality oraz Tolerance, które opisują szeroko rozumianą jakość życia.
+Najniższe wartości przyjmują natomiast zmienne Startups, VentureCapital oraz LeisureAndCulture, związane z aktywnością innowacyjną i gospodarczą.
+W związku z tym PC2 można interpretować jako wymiar przeciwstawiający wysoką jakość życia dynamice innowacyjno-gospodarczej.
+
+Dla trzeciej składowej głównej (PC3) najwyższą dodatnią wartość przyjmuje zmienna Economy, natomiast niskie (ujemne) wartości obserwujemy m.in. dla zmiennych Commute, TravelConnectivity, CostOfLiving oraz Safety.
+Oznacza to, że PC3 można interpretować jako wymiar odzwierciedlający sytuację gospodarczą w zestawieniu z wybranymi aspektami komfortu życia. Wyższe wartości tej składowej mogą wskazywać na lepsze warunki ekonomiczne, ale jednocześnie mniej korzystne warunki codziennego funkcjonowania.
 
 ## Zmienność odpowiadająca poszczególnym składowym
 
-Następnie naszym celem będzie sprawdzenie jaki procent wariancji odpowiada poszczególnym składowym głównym.
+W kolejnym etapie analizy zbadaliśmy, jaki procent całkowitej zmienności (wariancji) danych jest wyjaśniany przez poszczególne składowe główne.
 
-Na poniższym wykresie znjaduje się wariancja poszczególnych składowych.
+Na pierwszym wykresie przedstawiono wariancję poszczególnych składowych. Zgodnie z założeniami metody PCA, wartości wariancji maleją wraz z kolejnymi składowymi, co potwierdza, że pierwsze z nich zawierają najistotniejszą informację o strukturze zbioru danych.
 
-
----- dotąd zrobiłem bla bla bla bla :000 POWODZENIA !!!!
 
 ```{r wykres-war-pca, echo=FALSE, fig.cap="Wariancje poszczególnych składowych głównych"}
 plot(pca_dane,
@@ -280,8 +285,6 @@ legend("right", legend = c("80%", "90%"), lwd = 2, lty = 2,
        col = c(kolor_80, kolor_90), bg = kolor_tla_legendy)
 ```
 
-Zgodnie z oczekiwaniami, wariancje maleją wraz z dalszą składową głowną.
-
 Aby móc odpowiedzieć na pytanie, ile składowych głównych jest potrzebnych do wyjaśnienia 80% oraz 90% całkowitej zmienności, na powyższym wykresie zaznaczamy odpowiednio poziomy 80% i 90%. Na podstawie tego wykresu możemy wyznaczyć liczbę składowych potrzebnych do wyjaśnienia odpowiednich wartości procentowych wariancji.
 
 Do wyjaśnienia 80% wariancji potrzebnych jest 7 składowych głównych, natomiast do wyjaśnienia 90% wariancji potrzebnych jest 10 składowych głównych.
@@ -305,70 +308,63 @@ legend("topright",
        bg = kolor_tla_legendy)
 ```
 
-to z czatu do wyjebania :(( to byl geminik 
+Na powyższym wykresie przedstawiono rozkład miast w przestrzeni dwóch pierwszych składowych głównych, które można interpretować odpowiednio jako koszty życia (PC1) oraz poziom rozwoju i jakość życia (PC2).
 
-Na powzyszym wykresie widzimy rozklad obserwacji rozmieszczonych w zaleznosci kosztów życia od pozomu rozowju.
+Punkty na wykresie są pogrupowane według kontynentów, co pozwala na analizę zróżnicowania geograficznego.
 
-Miasta są grupowane na wykresie względem kontynentów.
+Miasta europejskie koncentrują się głównie w lewej górnej części wykresu. Oznacza to, że wiele z nich charakteryzuje się relatywnie niższymi kosztami życia (ujemne wartości PC1) przy jednocześnie wysokim poziomie rozwoju oraz jakości życia (wysokie wartości PC2), obejmującej m.in. bezpieczeństwo, opiekę zdrowotną oraz jakość środowiska.
 
-Widzimy, że dane są szeroko rozpięte na osi poziomej, co sugeruje ogromne różnice w poziomie rozwoju miast. Możemy wywnisokować, że maista znjdujące się w europie są dośc rozproszone na wykresie, lecz ic głowna koncentracja znajduje sie w przywszyzy poziomie pc2 co swiadczy o wysokim poziomie rozwoju tych miast. Znajdują sie w obrepie ujemnych wartosciach pc1 jaki i 0 co oznacza koszty zycia nizsze koszty zycia wraz z co moze ozancza tansze bardziej dostepne mieszkania. 
+Miasta Ameryki Północnej wykazują większe zróżnicowanie i są bardziej rozproszone na wykresie, z widoczną tendencją do niższych wartości PC2. Może to sugerować, że część tych miast w większym stopniu charakteryzuje się dynamiką innowacyjną oraz aktywnością gospodarczą (np. rozwój startupów), kosztem niektórych aspektów jakości życia.
 
-Miasta znajdujace sie w Ameryce Polnocnej są rozłozone na całej długości pc2 oraz wystepuja głownie na ujemnych wartosciach pc1. Co świadzczy o duzym rozznicowaniu co do poziomu rozwoju tych miast i dosc niskich kosztów zycia.
+Miasta azjatyckie cechują się największym rozproszeniem na wykresie, co odzwierciedla dużą różnorodność gospodarczą i społeczną tego kontynentu. Obejmuje ona zarówno wysoko rozwinięte metropolie (np. Singapur czy Tokio), jak i miasta o niższym poziomie rozwoju, co przekłada się na szeroki zakres wartości obu składowych.
 
-Natomiast miasta w Azji sa mocno rozproszone po calym wykresie czego mogliśmy sie spoodziewac po wilkosci i jak orgomnym zroznicowaniem cechuje sie ten kontynet. np od rozinientej Japoni po ubogie indie czy jakis bangladesz nwm. 
+Miasta afrykańskie w analizowanej próbie koncentrują się częściej w obszarach o wyższych wartościach PC1. W kontekście przyjętej interpretacji oznacza to, że czynniki związane z kosztami życia i dostępnością mieszkań odgrywają w ich przypadku istotniejszą rolę, przy jednocześnie niższych wartościach wskaźników związanych z jakością życia.
 
-Z koleji maista Afryki znjdują sie przy ujemych wartoscioac pc2 oraz dodatnich wartoscich pc1, co świadczy o niskim poziomie rozwoju tych panstw oraz niszkich kosztac zcyia. Co jest spoedzanym wynikiem.
-
-<!-- -   **\textcolor{europa}{Europa} (kolor zielony):** Miasta europejskie są rozproszone, ale znacząca ich część koncentruje się w lewej i centralnej części wykresu (wartości ujemne i bliskie zeru na PC1). Jeśli PC1 reprezentuje wysoki koszt życia skorelowany z wysokim rozwojem, to te miasta stanowią "główny nurt" rozwiniętych aglomeracji. -->
-
-<!-- -   **\textcolor{afryka}{Afryka} (kolor czerwony):** Są to najbardziej skrajne punkty po prawej stronie osi PC1 (wartości dodatnie). Oznacza to, że miasta afrykańskie znacząco odstają od reszty świata pod względem ogólnego poziomu rozwoju instytucjonalnego i gospodarczego ujętego w tym komponencie. -->
-
-<!-- ### Zróżnicowanie wzdłuż osi PC2 (Innowacyjność vs. Bezpieczeństwo i Kultura) -->
-
-<!-- Oś pionowa pokazuje kontrast między miastami stawiającymi na "twardą" gospodarkę a tymi, które oferują wyższą jakość życia społecznego: -->
-
-<!-- -   **\textcolor{amerykapn}{Ameryka Północna} (kolor jasnoniebieski):** Większość punktów znajduje się w dolnej części wykresu (wartości ujemne PC2). Sugeruje to, że miasta te charakteryzują się specyficznym profilem, gdzie czynniki społeczne (bezpieczeństwo, tolerancja) mogą wypadać relatywnie słabiej w stosunku do innowacyjności gospodarczej, lub odwrotnie – zależy to od dokładnego kierunku wektorów cech (*loadings*). -->
-
-<!-- -   **\textcolor{europa}{Europa} (kolor zielony):** Wiele miast europejskich znajduje się w górnej części osi PC2. Może to świadczyć o ich wysokich wynikach w kategoriach bezpieczeństwa, kultury i tolerancji w porównaniu do miast z innych kontynentów o podobnym poziomie rozwoju gospodarczego. -->
-
-<!-- ### Skupiska i „Outliery” -->
-
-<!-- -   **\textcolor{azja}{Azja} (kolor żółty):** Wykazuje bardzo duży rozrzut na obu osiach. Oznacza to, że azjatyckie miasta są skrajnie niejednorodne – mamy tam zarówno potężne, rozwinięte centra, jak i miasta o znacznie niższym standardzie życia. -->
-
-<!-- -   **\textcolor{oceania}{Oceania} (kolor ciemnoniebieski):** Tworzy dość zwartą grupę w lewym górnym kwadrancie (niskie/średnie PC1, wysokie PC2), co sugeruje, że miasta te łączą stabilny rozwój gospodarczy z bardzo wysoką jakością życia i bezpieczeństwem. -->
-
-
-
-```{r 2d-europa-vs-reszta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- Afryka na tle pozostałych kontynentów"}
-# # 1. Znajdź indeksy wierszy, które są z Polski
-# indeksy_polska <- which(dane2$Country == "Poland")
-# 
-# # 2. Wyciągnij nazwy miast i wyniki PCA używając tych samych indeksów
-# miasta_polska <- dane2$UrbanArea[indeksy_polska]
-# pca_polska <- pca_dane$x[indeksy_polska, 1:2] # Bierzemy PC1 i PC2
-# 
-# # 3. Rysuj wykres
-# plot(pca_polska[, 1], pca_polska[, 2],
-#      col = "red",
-#      pch = 16,
-#      xlab = "PC1",
-#      ylab = "PC2",
-#      main = "PCA – miasta w Polsce")
-# 
-# # 4. Dodaj napisy
-# text(pca_polska[, 1], pca_polska[, 2],
-#      labels = miasta_polska,
-#      pos = 3,
-#      cex = 0.8)
+```{r biplot-3, echo=FALSE, fig.cap="Biplot PCA z elipsami ufności (95\\%) dla kontynentów"}
+fviz_pca_biplot(pca_dane,
+                label = "var",
+                habillage = dane2$Continent,
+                addEllipses = TRUE,
+                ellipse.level = 0.95,
+                repel = TRUE,
+                select.var = list(contrib = 10),
+                col.ind = "grey50",
+                pointsize = 2,
+                col.var = "black",
+                title = "")
 ```
+Na wykresie biplot przedstawiono podział miast według kontynentów wraz z naniesionymi wektorami zmiennych opisujących ich charakterystyki. Strzałki reprezentują kierunek i siłę wpływu poszczególnych zmiennych na składowe główne, co umożliwia jednoczesną analizę zależności między miastami oraz badanymi cechami.
+
+Miasta Europy oraz Ameryki Północnej znajdują się po stronie odpowiadającej wyższym wartościom zmiennych związanych z poziomem rozwoju społeczno-gospodarczego. Z kolei miasta z Afryki, Ameryki Południowej oraz części Azji sytuują się po przeciwnej stronie osi Dim1, co sugeruje niższe wartości tych wskaźników w analizowanym zbiorze danych.
+Widoczna separacja regionów potwierdza, że PCA skutecznie identyfikuje globalne różnice w poziomie rozwoju miast.
+
+
+```{r 2d-skrajne-miasta, echo=FALSE, fig.cap="Rzut danych na dwie pierwsze składowe główne -- Afryka na tle pozostałych kontynentów"}
+dist <- sqrt(pca_dane$x[,1]^2 + pca_dane$x[,2]^2)
+
+idx <- order(dist, decreasing = TRUE)[1:4]
+kolory_outliers <- c("red", "blue", "green", "purple", "orange")
+
+moje_pozycje <- c(1, 2, 4, 3) 
+
+plot(pca_dane$x[, 1], pca_dane$x[, 2], col = "lightgray", pch = 16, 
+     main = "PCA – miasta skrajne", xlab = "PC1", ylab = "PC2")
+
+points(pca_dane$x[idx, 1], pca_dane$x[idx, 2], col = kolory_outliers, pch = 19, cex = 1.5)
+# text(pca_dane$x[idx, 1], pca_dane$x[idx, 2],
+#      labels = dane2$UrbanArea[idx], # Zmieniono na dane2
+#      pos = moje_pozycje, 
+#      col = kolory_outliers,
+#      cex = 0.8)
+
+legend("topright", legend = dane2$UrbanArea[idx], col = kolory_outliers, pch = 19, title = "Miasta skrajne")
+```
+Na wykresie PCA widzimy, że miasta zlokalizowane w lewym dolnym rogu przestrzeni (niskie wartości PC1 i PC2) tworzą grupę o szczególnych cechach strukturalnych. Są to głównie metropolie z Europy i Ameryki Północnej, które charakteryzują się wysokimi kosztami życia oraz rozwiniętym rynkiem nieruchomości. Jednocześnie ich relatywnie niskie wartości PC2 sugerują, że mimo wysokiego poziomu bezpieczeństwa i jakości usług publicznych, mogą one cechować się mniejszą dynamiką innowacyjno-gospodarczą lub ograniczoną dostępnością pewnych aspektów życia miejskiego, takich jak przystępność kultury czy elastyczność rynku.
+
+Lagos, położone w Nigerii (Afryka Zachodnia), znajduje się na przeciwległym biegunie osi PC1 względem wielu miast zachodnich, co czyni je jednym z najbardziej oddalonych punktów w tym wymiarze. Miasto to reprezentuje dynamicznie rozwijającą się metropolię Globalnego Południa, zmagającą się z wyzwaniami gwałtownej urbanizacji, presją demograficzną oraz ograniczeniami infrastrukturalnymi. Jego pozycja w przestrzeni PCA sugeruje, że czynniki takie jak nierówności społeczne, ograniczona dostępność usług publicznych (edukacja, opieka zdrowotna) oraz jakość środowiska w istotny sposób odróżniają je od metropolii Europy i Ameryki Północnej.
 
 ```{r 3d-europa-i-usa, echo=FALSE, fig.width=6, fig.height=5, out.width="100%", fig.cap="Rzut danych na trzy pierwsze składowe główne -- wyróżnione: Europa i Ameryka Północna"}
 
-# Zakładana kolejność poziomów czynnika (levels(dane2$Continent))
-# 1. Africa, 2. Asia, 3. Europe, 4. North America, 5. Oceania, 6. South America
-
-# Definiujemy wyraziste kolory dla wybranych kontynentów (czerwony i zielony jak w oryginale)
-# i szary dla pozostałych.
 nowe_kolory <- c(
   "grey80",                            # 1. Africa - wygaszony
   "grey80",                            # 2. Asia - wygaszony
@@ -400,21 +396,19 @@ legend("topright", inset = c(-0.25, 0), xpd = TRUE,
        bg = kolor_tla_legendy,
        title = "Kontynenty")
 ```
-Na powyzszym wykresie 3d widzimy rozdklad miast wzgledem 3 zmiennych pc1 koszty zycia, pc2 poziom rzowoju oraz pc3 jako sytucja gosporacza na wykresie znajdują sie miasta Europy oraz ameryki Połnoscnej. teraz mozemy dodac do porzedniej analizy zmienna odpowiddziana za sytiuacje gospodarcza. Mozemy zauwazyc ze miasta ameryki polnocnej cechuja sie lepsza sytuacja gospodarcza niz maista europy.
+
+Na trójwymiarowym wykresie PCA przedstawiono rozmieszczenie miast względem trzech głównych składowych: PC1, PC2 oraz PC3, ograniczając analizę do miast Europy i Ameryki Północnej. Każda z osi reprezentuje odmienny wymiar jakości życia i rozwoju społeczno-gospodarczego.
+
+Analiza rozmieszczenia miast w tej przestrzeni pokazuje wyraźne różnice regionalne. Miasta Ameryki Północnej częściej lokują się w obszarach wyższych wartości PC3, co sugeruje relatywnie silniejszą sytuację gospodarczą w porównaniu do miast europejskich. Jednocześnie miasta europejskie częściej osiągają wyższe wartości w wymiarach jakości życia (PC2), co wskazuje na większy nacisk na bezpieczeństwo, ochronę zdrowia i jakość środowiska. W rezultacie obie grupy miast różnią się profilem rozwoju: Ameryka Północna jest bardziej zorientowana na dynamikę gospodarczą, natomiast Europa na zrównoważoną jakość życia.
 
 ## Korelacja zmiennych
 
-nastepnie w celu prownania korelacji wyspeujacej w zmiennych pc storzylismy dwuwykres.
+Następnie, w celu porównania zależności między zmiennymi opisanymi przez składowe PCA, zrobiliśmy dwuwykres obejmujący macierz korelacji oraz biplot PCA.
 
 ```{r corr-pca-vars, echo=FALSE, fig.cap="Korelacje cech ze składowymi głównymi"}
-
-variables <- get_pca_var(pca_dane)
-corrplot(variables$cor)
-
 correlation.matrix <- cor(dane2_ilo)
 corrplot(correlation.matrix)
 ```
-Na pierwszym wykresie widzimy korelacjie nowych zmiennych ze starymi (?) widzimy ze pc1 jest mocno skorelowana z kosztami zycia oraz dostepnoscia zycia co poterdza nasze wszesniejsze przypuszczenia odnoscie znaczenia tej zmiennej. Nastepnie zmienna pc2 wystepuje dodatnia korelacja miedzy zmiennymi bezpieczensto, opieki zdrowotnej oraz tolerancji co dobrze wynisokowalismy ze zmienna ta odpowida za pozom rozoju.  
 
 ```{r corr-cech, echo=FALSE, fig.cap="Macierz korelacji cech ilościowych"}
 # correlation.matrix <- cor(dane2_ilo)
@@ -430,31 +424,17 @@ fviz_pca_biplot(pca_dane,
                 select.var = list(contrib = 10), # tutaj ile cech chcemy
                 title = "")
 ```
+Analiza macierzy korelacji wykazała istotne zależności pomiędzy zmiennymi. W szczególności zaobserwowano silną dodatnią korelację między kosztami życia a dostępnością mieszkań, natomiast ujemne zależności występują między kosztami życia a wskaźnikami jakości środowiska oraz poziomu rozwoju społeczno-gospodarczego.
 
-```{r biplot-2, echo=FALSE, fig.cap="Biplot PCA z podziałem obserwacji wg kontynentu"}
-fviz_pca_biplot(pca_dane,
-                label = "var",
-                habillage = dane2$Continent,
-                repel = TRUE,
-                select.var = list(contrib = 10),
-                col.var = "black",
-                pointsize = 1.5,
-                title = "")
-```
+Wykres biplot PCA potwierdza te zależności w ujęciu geometrycznym. Zmienne silnie dodatnio skorelowane są reprezentowane przez wektory skierowane w podobnym kierunku, natomiast zmienne o korelacji ujemnej znajdują się po przeciwnych stronach wykresu względem siebie. Dodatkowo biplot umożliwia analizę zależności pomiędzy samymi zmiennymi — małe kąty między wektorami (np. Housing i CostOfLiving) wskazują na silną korelację dodatnią, natomiast przeciwne kierunki wektorów (np. Housing i Education) świadczą o korelacji ujemnej.
 
-```{r biplot-3, echo=FALSE, fig.cap="Biplot PCA z elipsami ufności (95\\%) dla kontynentów"}
-fviz_pca_biplot(pca_dane,
-                label = "var",
-                habillage = dane2$Continent,
-                addEllipses = TRUE,
-                ellipse.level = 0.95,
-                repel = TRUE,
-                select.var = list(contrib = 10),
-                col.ind = "grey50",
-                pointsize = 2,
-                col.var = "black",
-                title = "")
-```
+Wnioski uzyskane z obu metod są spójne i wzajemnie się uzupełniają. Macierz korelacji dostarcza precyzyjnych wartości liczbowych opisujących siłę zależności, natomiast biplot PCA pozwala na ich intuicyjną interpretację geometryczną, umożliwiając jednoczesną analizę relacji między zmiennymi oraz ich projekcji w przestrzeni składowych głównych.
 
 ## Końcowe wyniki
+
+W przeprowadzonych analizach PCA udało się zaobserwować wyraźną strukturę danych, w której pierwsze dwie składowe główne opisują najważniejsze wymiary zróżnicowania miast: poziom kosztów życia (PC1) oraz jakość życia i rozwój społeczno-gospodarczy (PC2). Dodatkowo trzecia składowa (PC3) wnosi informację o sytuacji gospodarczej, jednak jej znaczenie jest mniejsze niż dwóch pierwszych komponentów.
+
+Z analizy wynika, że już dwie składowe główne są wystarczające do uzyskania dobrej, czytelnej reprezentacji danych, ponieważ wyjaśniają one znaczną część całkowitej wariancji i pozwalają na wyraźne rozróżnienie grup miast. Dodanie trzeciej składowej poprawia szczegółowość interpretacji, ale nie jest kluczowe dla ogólnego obrazu struktury danych.
+
+Standaryzacja danych miała istotny wpływ na wyniki analizy. Dzięki niej wszystkie zmienne zostały sprowadzone do porównywalnej skali, co zapobiegło dominacji cech o dużych wartościach liczbowych (np. kosztów życia). W efekcie PCA lepiej odzwierciedla rzeczywiste relacje między zmiennymi, a uzyskane składowe są bardziej zrównoważone.
 
