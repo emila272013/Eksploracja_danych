@@ -172,7 +172,7 @@ Jak widać, wszystkie zmienne zawierają wartości zgodne z naszymi oczekiwaniam
 
 Mamy 3 cechy jakościowe reprezentujące nazwę miasta, kraju i kontynentu oraz 17 cech ilościowych zawierających wartości wskaźników jakości życia.
 
-W podsumowaniu danych jakościowych widzimy że mamy informacje o miastach znjadujacych sie na 6 kontynetach (niestety bez \textcolor{antarktyda}{Antarktydy}). Powyższa tabela wskazała nam ze najwiecej miast mamy z \textcolor{europa}{Europy} (`r sum(dane2$Continent == "Europe")`), następnie z \textcolor{amerykapn}{Ameryki Północnej} (`r sum(dane2$Continent == "North America")`). Łącznie mamy informacje o `r length(unique(dane2$UrbanArea))` miastach z `r length(unique(dane2$Country))` państw, co świadczy o dużej różnodrodności.
+W podsumowaniu danych jakościowych widzimy że mamy informacje o miastach znjadujacych sie na 6 kontynetach (niestety bez \textcolor{antarktyda}{Antarktydy}). Powyższa tabela wskazuje nam ze najwiecej miast mamy z \textcolor{europa}{Europy} (`r sum(dane2$Continent == "Europe")`), następnie z \textcolor{amerykapn}{Ameryki Północnej} (`r sum(dane2$Continent == "North America")`). Łącznie mamy informacje o `r length(unique(dane2$UrbanArea))` miastach z `r length(unique(dane2$Country))` państw, co świadczy o dużej różnodrodności.
 
 W tabeli widzimy też, że nie wszystkie cechy ilościowe przyjmują wartości skrajne – 0 oraz 10. Może to sugerować, że ich rozkłady się znacząco różnią.
 
@@ -278,9 +278,9 @@ legend("right", legend = c("80%", "90%"), lwd = 2, lty = 2,
 
 Zgodnie z oczekiwaniami, wariancje maleją wraz z dalszą składową głowną.
 
-Aby móc odpowiedziec na pytanie, ile składowych głównych jest potrzebnych do wyjaśnienia 80% oraz 90% całkowitej zmiennosci. Wykonano wykres powyzej z zanzaczonymi pozniomai odpowiednio 80 % i 90%. Na podstwie tego wykresu można wyznaczyc liczbe skąłdowych potrzebnych do wyjasnienja opowidnich wartośc porcentowej wariancji.
+Aby móc odpowiedzieć na pytanie, ile składowych głównych jest potrzebnych do wyjaśnienia 80% oraz 90% całkowitej zmienności, na powyższym wykresie zaznaczamy odpowiednio poziomy 80% i 90%. Na podstawie tego wykresu możemy wyznaczyć liczbę składowych potrzebnych do wyjaśnienia odpowiednich wartości procentowych wariancji.
 
-Do wyjasnienia 80% skal=dowych potrzebne jest 7 zmiennych, natomiast do wyjaśnienia 90% składowych potrezbne jest 10 zmiennych.
+Do wyjaśnienia 80% wariancji potrzebnych jest 7 składowych głównych, natomiast do wyjaśnienia 90% wariancji potrzebnych jest 10 składowych głównych.
 
 ### Wizualizacja danych wielowymiarowych
 

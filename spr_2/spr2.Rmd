@@ -41,20 +41,367 @@ showtext_auto()   #
 
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
 
-# kolor tła legend (jak w części 2)
+# kolor tła legend
 kolor_tla_legendy <- "#F5FDFF"
-
-# palety dla wykresów MDS (część 3)
-kolory_survived <- c("0" = "#de2d26", "1" = "#2ca25f")
-kolory_sex      <- c("female" = "#C6478F", "male" = "#3B82B6")
-kolory_pclass   <- c("1" = "#1B7837", "2" = "#E08214", "3" = "#762A83")
 ```
 
 \newpage
 
 # Część 1 – dyskretyzacja cech ciągłych
 
-Tymczasowo w osobnym pliku żeby się szybciej kompilowało.
+```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
+dane <- iris
+kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
+kolor_granic <- "#AB0046"
+```
+
+## Wstęp
+
+Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*).
+
+```{r irysy, echo=FALSE, out.width="32%", fig.show="hold", fig.align="center", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
+
+knitr::include_graphics(c("iris_setosa.jpg", "iris_versicolor.jpg", "iris_virginica.jpg"))
+```
+
+Zbiór danych został udostępniony przez Ronalda Fishera w 1936 roku. Pobieramy go z zestawu gotowych zbiorów dostępnych w pakiecie `datasets` w R.
+
+Naszym pierwszym zadaniem będzie przeanalizowanie własności cech oraz wybranie jednej cechy, która najlepiej rozróżni gatunki kwiatu oraz jednej, która zrobi to najgorzej.
+
+Następnym naszym zadaniem będzie przeprowadzenie dyskretyzacji wybranych cech na trzy klasy przy użyciu różnych metod dyskretyzacji nienadzorowanej oraz porównanie ich wyników. Będziemy porównywać metody *equal width*, *equal frequency*, *k-means clustering* oraz dyskretyzację na bazie przedziałów zadanych przez użytkownika (przez nas).
+
+## Opis danych i wybór cech
+
+W naszych danych znajdują się pomiary `r nrow(dane)` irysów`r if (length(unique(table(dane$Species))) == 1) paste0(", po ", unique(table(dane$Species)), " z każdego gatunku") else ""`. Dla każdego z nich mamy wyniki czterech pomiarów, oraz informację o tym do którego gatunku należy:
+
+```{r tabela-cech, echo=FALSE, warning=FALSE, message=FALSE}
+tab_cechy <- data.frame(
+  Typ = sapply(dane, class),
+  Opis = c(
+    "długość działki kielicha (w cm)",
+    "szerokość działki kielicha (w cm)",
+    "długość płatka (w cm)",
+    "szerokość płatka (w cm)",
+    "gatunek irysa (\\textcolor{setosa}{\\textit{setosa}}/\\textcolor{versicolor}{\\textit{versicolor}}/\\textcolor{virginica}{\\textit{virginica}})"
+  )
+)
+
+
+kable(tab_cechy,
+      caption = "Typy oraz opisy cech",
+      booktabs = TRUE,
+      escape = FALSE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "scale_down", "hold_position"),
+                stripe_color = "gray!10"
+)
+```
+
+Wartości pomiarów prezentują się następująco:
+
+```{r podsumowanie-danych, echo=FALSE, warning=FALSE, message=FALSE}
+tab_summary <- summary(dane[, setdiff(names(dane), "Species")]) # Species nie pokazujemy bo już znamy
+tab_summary[is.na(tab_summary)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+tab_summary <- gsub("\\s*:\\s*", ": ", tab_summary) # naprawienie zepsutych dwukropków
+tab_summary <- tab_summary[rowSums(tab_summary != "") > 0, ] # usunięcie pustych wierszy
+
+kable(tab_summary, booktabs = TRUE,
+      caption = "Podsumowanie danych") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"), stripe_color = "gray!10")
+```
+
+Wierzymy pomiarom i zakładamy że nie ma błędów. Braki danych `r if (sum(is.na(dane)) == 0) "nie" else ""` występują.
+
+```{r wykresy-rozrzutu, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Pomiary działki kielicha i płatka w zależności od gatunku. W celu polepszenia widoczności, punkty zostały odrobinę losowo rozrzucone."}
+ksztalty_gatunkow <- c(setosa = 16, versicolor = 17, virginica = 15) # 16 – kółko, 17 – trójkąt , 15 – kwadrat
+
+plot(jitter(dane$Petal.Length), jitter(dane$Petal.Width),
+     col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
+     xlab = "długość płatka (cm)",
+     ylab = "szerokość płatka (cm)",
+     main = "Płatek")
+legend("bottomright", legend = names(kolory_gatunkow),
+       col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
+       text.col = kolory_gatunkow, text.font = 3)
+
+plot(jitter(dane$Sepal.Length), jitter(dane$Sepal.Width),
+     col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
+     xlab = "długość działki kielicha (cm)",
+     ylab = "szerokość działki kielicha (cm)",
+     main = "Działka kielicha")
+legend("topright", legend = names(kolory_gatunkow),
+       col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
+       text.col = kolory_gatunkow, text.font = 3)
+```
+
+Jako cechę najlepiej rozróżniającą gatunki wybieramy długość płatka (`Petal.Length`) – wartości dla \textcolor{setosa}{\textit{Iris setosa}} są wyraźnie niższe niż dla pozostałych dwóch gatunków, a \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}} również są od siebie dobrze oddzielone. Jako cechę najgorzej rozróżniającą gatunki wybieramy szerokość działki kielicha (`Sepal.Width`) – rozkłady dla wszystkich trzech gatunków silnie się nakładają.
+
+## Porównanie metod dyskretyzacji
+
+Do dokonania dyskretyzacji wykorzystujemy funkcję `discretize` z R-pakietu `arules`. Używamy jej w następujący sposób:
+
+```{r dyskretyzacja01, eval=FALSE}
+discretize(dane$CECHA, method = METODA, breaks = 3)
+```
+
+W miejsce `CECHA` wpisujemy identyfikator odpowiedniej cechy, a w miejsce `METODA` identyfikator metody:
+
+- `"interval"` dla metody *equal width*,
+- `"frequency"` dla metody *equal frequency*,
+- `"cluster"` dla metody *k-means clustering* oraz
+- `"fixed"` dla ręcznego podziału.
+
+W przypadku ostatniej metody, zamiast `breaks = 3` piszemy wektor punktów rozdzielających, przykładowo:
+
+```{r dyskretyzacja02, eval=FALSE}
+discretize(
+  dane$Sepal.Width,
+  method = "fixed",
+  breaks = c(2.0, 2.9, 3.2, 4.4)
+)
+```
+
+```{r dyskretyzacja, echo=FALSE}
+# equal width
+podzial_1a <- discretize(dane$Sepal.Width,   method = "interval",  breaks = 3)
+podzial_1b <- discretize(dane$Petal.Length,  method = "interval",  breaks = 3)
+
+# equal frequency
+podzial_2a <- discretize(dane$Sepal.Width,   method = "frequency", breaks = 3)
+podzial_2b <- discretize(dane$Petal.Length,  method = "frequency", breaks = 3)
+
+# k-means clustering
+podzial_3a <- discretize(dane$Sepal.Width,   method = "cluster",   breaks = 3)
+podzial_3b <- discretize(dane$Petal.Length,  method = "cluster",   breaks = 3)
+
+# ręczne
+podzial_4a <- discretize(dane$Sepal.Width,  method = "fixed",
+      breaks = c(2.0, 2.9, 3.2, 4.4))
+podzial_4b <- discretize(dane$Petal.Length, method = "fixed",
+      breaks = c(1.0, 2.5, 4.8, 6.9))
+```
+
+```{r helper-tabela-licznosci, echo=FALSE}
+# pomocnicza funkcja do tabel liczności
+tabela_licznosci <- function(podzial_pl, podzial_sw, caption = NULL) {
+  t_pl <- as.data.frame(table(podzial_pl))
+  t_sw <- as.data.frame(table(podzial_sw))
+  colnames(t_pl) <- c("Przedział", "Liczność")
+  colnames(t_sw) <- c("Przedział", "Liczność")
+  k_pl <- kable(t_pl, booktabs = TRUE, format = "latex", linesep = "") %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  k_sw <- kable(t_sw, booktabs = TRUE, format = "latex", linesep = "") %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  cat(sprintf(
+'\\begin{center}
+\\begin{minipage}[t]{.35\\linewidth}\\centering
+%s
+\\captionof{table}{Przedziały dla naszej „dobrej” cechy – długości płatka}
+\\end{minipage}\\hspace{1cm}
+\\begin{minipage}[t]{.35\\linewidth}\\centering
+%s
+\\captionof{table}{Przedziały dla naszej „złej” cechy – szerokości działki kielicha}
+\\end{minipage}
+\\end{center}', k_pl, k_sw))
+}
+```
+
+```{r helper-plot-podzialow, echo=FALSE}
+# pomocnicza funkcja do wykresów podziałów
+plot_podzialy <- function(podzial_pl, podzial_sw) {
+  ksztalty_gatunkow <- c(setosa = 16, versicolor = 17, virginica = 15) # 16 – kółko, 17 – trójkąt , 15 – kwadrat
+
+  granice_pl <- attributes(podzial_pl)$"discretized:breaks"
+  granice_sw <- attributes(podzial_sw)$"discretized:breaks"
+
+  plot(dane$Petal.Length, runif(nrow(dane)),
+       col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
+       xlab = "długość płatka (cm)", ylab = "")
+  abline(v = granice_pl, col = kolor_granic, lwd = 1.5, lty = 2)
+  legend("topright", legend = levels(dane$Species),
+         col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
+         text.col = kolory_gatunkow, text.font = 3)
+
+  plot(dane$Sepal.Width, runif(nrow(dane)),
+       col = kolory_gatunkow[dane$Species], pch = ksztalty_gatunkow[dane$Species],
+       xlab = "szerokość działki kielicha (cm)", ylab = "")
+  abline(v = granice_sw, col = kolor_granic, lwd = 1.5, lty = 2)
+  legend("topright", legend = levels(dane$Species),
+         col = kolory_gatunkow, pch = ksztalty_gatunkow, bg = kolor_tla_legendy,
+         text.col = kolory_gatunkow, text.font = 3)
+}
+```
+
+
+```{r helper-tabela-dyskretyzacji, echo=FALSE}
+# pomocnicza funkcja do tabel wyników dyskretyzacji
+tabela_dyskretyzacji <- function(podzial_pl, podzial_sw) {
+  t_pl <- as.data.frame.matrix(table(dane$Species, podzial_pl))
+  t_sw <- as.data.frame.matrix(table(dane$Species, podzial_sw))
+  formatuj_gatunki <- function(x) paste0("\\textcolor{", x, "}{\\textit{", x, "}}")
+  t_pl <- cbind(Gatunek = formatuj_gatunki(rownames(t_pl)), t_pl)
+  t_sw <- cbind(Gatunek = formatuj_gatunki(rownames(t_sw)), t_sw)
+  rownames(t_pl) <- NULL
+  rownames(t_sw) <- NULL
+  k_pl <- kable(t_pl, booktabs = TRUE, format = "latex", linesep = "", escape = FALSE, row.names = FALSE) %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  k_sw <- kable(t_sw, booktabs = TRUE, format = "latex", linesep = "", escape = FALSE, row.names = FALSE) %>%
+        kable_styling(latex_options = "hold_position", full_width = TRUE)
+  cat(sprintf(
+'\\begin{center}
+\\begin{minipage}[t]{.45\\linewidth}\\centering
+%s
+\\captionof{table}{Wynik podziału dla długości płatka}
+\\end{minipage}\\hspace{0.5cm}
+\\begin{minipage}[t]{.45\\linewidth}\\centering
+%s
+\\captionof{table}{Wynik podziału dla szerokości działki kielicha}
+\\end{minipage}
+\\end{center}', k_pl, k_sw))
+}
+```
+
+### Metoda equal width
+
+Metoda *equal width* daje nam następujące przedziały:
+
+```{r tabele-licznosci-1, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_1b, podzial_1a)
+```
+
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-1, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{equal width} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_1b, podzial_1a)
+```
+
+```{r rozklad-1, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{equal width}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_1b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_1a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-1, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_1b, podzial_1a)
+```
+
+Dzieląc cechę długości płatka (`Petal.Length`) na równe przedziały z bardzo dobrą skutecznością rozdzielamy irysy gatunku \textcolor{setosa}{\textit{Iris setosa}} od pozostałych. Wszystkie kwiaty tego gatunku wpadają w przedział najkrótszej długości oraz nie wpadają do tego przedziału żadne irysy innego gatunku.
+
+W miarę skutecznie rozróżniamy też gatunki \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}, które wpadają zazwyczaj odpowiednio w przedział o średniej długości i przedział o najdłuższej długości. W niektórych przypadkach \textcolor{versicolor}{\textit{Iris versicolor}} trafia jednak do przedziału o najdłuższej długości, a \textcolor{virginica}{\textit{Iris virginica}} do przedziału o średniej długości. Więcej razy występuje ten pierwszy przypadek niż drugi.
+
+Jeżeli podzielimy zamiast tego na równe przedziały cechę szerokości działki kielicha (`Sepal.Width`), nie otrzymamy żadnych zadowalających nas rezultatów.
+
+### Metoda equal frequency
+
+Używając metody *equal frequency*, otrzymujemy przedziały:
+
+```{r tabele-licznosci-2, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_2b, podzial_2a)
+```
+
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-2, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{equal frequency} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_2b, podzial_2a)
+```
+
+```{r rozklad-2, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{equal frequency}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_2b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_2a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-2, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_2b, podzial_2a)
+```
+
+Przedziały dla długości płatka (`Petal.Length`) wychodzą niemal jednakowe jak w przypadku metody *equal width*, w związku z tym wyniki również wychodzą takie same. Skuteczność też się względem nich nie zmienia.
+
+Zauważalną różnicą jest mniejsza różnica między liczbą przedstawicieli \textcolor{versicolor}{\textit{Iris versicolor}} trafiających jednak do przedziału o najdłuższej długości, a \textcolor{virginica}{\textit{Iris virginica}} trafiających do przedziału o średniej długości. W pewien sposób można więc uznać te wyniki za lepsze.
+
+Dzieląc szerokość działki kielicha (`Sepal.Width`) uzyskujemy inne przedziały, lecz równie (jak nie bardziej) niesatysfakcjonujące wyniki jak przy metodzie przedziałów równej długości.
+
+### Metoda k-means clustering
+
+Metodą *k-means clustering* otrzymujemy takie przedziały:
+
+```{r tabele-licznosci-3, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_3b, podzial_3a)
+```
+
+Wyniki naszej dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-3, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla metody \\textit{k-means clustering} naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_3b, podzial_3a)
+```
+
+```{r rozklad-3, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (metoda \\textit{k-means clustering}). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_3b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_3a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-3, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_3b, podzial_3a)
+```
+
+Dla długości płatka (`Petal.Length`) wyniki wychodzą dokładnie takie same jak w metodzie *equal frequency*.
+
+W przypadku i tej metody, podział po szerokości działki kielicha (`Sepal.Width`) również nie daje zbyt wartościowych wyników.
+
+### Podział ręczny
+
+Popatrzmy na rozkład wartości rozważanych cech dla każdego z gatunków:
+
+```{r rozklad-gatunkow, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład wartości cech w podziale na gatunki"}
+boxplot(Petal.Length ~ Species, data = dane, horizontal = TRUE,
+        col = kolory_gatunkow, xlab = "długość płatka (cm)", ylab = "", yaxt = "n")
+boxplot(Sepal.Width ~ Species, data = dane, horizontal = TRUE,
+        col = kolory_gatunkow, xlab = "szerokość działki kielicha (cm)", ylab = "", yaxt = "n")
+```
+
+Na oko wybieramy dla długości płatka (`Petal.Length`) przedziały $[1, 2.5)$, $[2.5, 4.8)$ oraz $[4.8, 6.9]$.
+
+Dla szerokości działki kielicha (`Sepal.Width`) – choć to ciężkie – wybieramy przedziały $[2, 2.9)$, $[2.9, 3.2)$ i $[3.2, 4.4]$.
+
+Wybrane przedziały dzielą nam zbiór danych na klasy o następującej liczności:
+
+```{r tabele-licznosci-4, echo=FALSE, results='asis'}
+tabela_licznosci(podzial_4b, podzial_4a)
+```
+
+Wyniki dyskretyzacji prezentują się tak:
+
+```{r granice-przedzialow-4, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Granice przedziałów dla podziału ręcznego naniesione na wartości cech. Oś pionowa przedstawia losowe wartości z przedziału [0, 1] w celu rozróżnienia punktów o tej samej wartości cechy"}
+plot_podzialy(podzial_4b, podzial_4a)
+```
+
+```{r rozklad-4, echo=FALSE, fig.show="hold", out.width="49%", fig.cap="Rozkład gatunków w klasach dyskretyzacji (podział ręczny). Szerokość słupków na wykresach jest proporcjonalna do liczby elementów w przedziałach"}
+plot(dane$Species ~ podzial_4b, col = rev(kolory_gatunkow), xlab = "klasa długości płatka", ylab = "", yaxlabels = rep("", 3)) # jak nie ma reverse to są źle kolory !!!
+axis(2, at = seq(0, 1, 0.2), las = 1)
+plot(dane$Species ~ podzial_4a, col = rev(kolory_gatunkow), xlab = "klasa szerokości działki kielicha", ylab = "", yaxlabels = rep("", 3)) #
+axis(2, at = seq(0, 1, 0.2), las = 1)
+```
+
+```{r dyskretyzacja-4, echo=FALSE, results='asis'}
+tabela_dyskretyzacji(podzial_4b, podzial_4a)
+```
+
+W podziale długości płatka (`Petal.Length`) wybrane przez nas przedziały nie przewyższają skutecznością wcześniejszych metod. Liczba ,,pomyłek'' jest mniej więcej taka sama.
+
+W podziale szerokości działki kielicha (`Sepal.Width`) – w przeciwieństwie do poprzednich metod – udało nam się uzyskać jakikolwiek wartościowy efekt, a mianowicie udało nam się rozdzielić \textcolor{setosa}{\textit{Iris setosa}} od pozostałych gatunków – zdecydowana większość przedstawicieli tego gatunku trafia do trzeciego przedziału.
+
+Pozostałe dwa gatunki zbyt się jednak pokrywają tą cechą aby można je było rozróżnić.
+
+### Podsumowanie
+
+Cecha długości płatka (`Petal.Length`) na tyle dobrze rozróżnia rozważane gatunki kwiatów, że niezależnie od wyboru metody otrzymamy bardzo dobry wynik. Za pomocą większości metod jesteśmy w stanie z pełną skutecznością rozdzielić irysy gatunku  \textcolor{setosa}{\textit{Iris setosa}} od \textcolor{versicolor}{\textit{Iris versicolor}} i \textcolor{virginica}{\textit{Iris virginica}}. Żadna metoda nie pozwala nam jednak na całkowite rozdzielenie dwóch ostatnich gatunków. Być może dyskretyzacja w oparciu na cechę będącą jakąś funkcją od bazowych cech pozwoliłaby na lepszy wynik.
+
+Żadna metoda nie pozwoliła na rozróżnienie gatunków na podstawie cechy szerokości działki kielicha (`Sepal.Width`). Pokazuje to że ograniczając zbiór danych możemy stracić informacje których żadnym algorytmem nie będziemy w stanie odzyskać.
 
 # Część 2 - Analiza składowych głownych
 
@@ -62,35 +409,24 @@ Tymczasowo w osobnym pliku żeby się szybciej kompilowało.
 
 # Część 3 - Skalowanie wielowymiarowe (MDS)
 
-## Wstep
-
-W ostatniej częsci raportu wykonaliśmy saklowanie wielowymairowe na danych, które zawierja wybrane charakterystyki opisujące pasażerów Titanica.
-
-tuatj opis tego czym jest to skalownaie mds
-
-## Opis danych
-
-```{r wczyt-dane-3, echo=FALSE}
+```{r setup-3, echo=FALSE, warning=FALSE, message=FALSE}
 dane_3 <- read.csv("train.csv")
+
+# kolorki
+kolory_survived <- c("0" = "#de2d26", "1" = "#2ca25f")
+kolory_plci      <- c("female" = "#C6478F", "male" = "#3B82B6")
+kolory_pclass   <- c("1" = "#1B7837", "2" = "#E08214", "3" = "#762A83")
 ```
 
-Zbiór danych zawiera informacjie o pasażerach Titanica miedzy innymi takie jak: wiek, płeć, miejsce rozpocząecia podrózy oraz klasa pasażerska. Ważna zmienna występujaca w bazie dancyh jest checha Survived, która informuje nas czy dana osoba przeżyła katastrofę czy nie. Dane zawierją `r nrow(dane_3)` informacji o róznych pasażerach oraz `r ncol(dane_3)` cech które ich opisują.
+## Wstęp
 
-```{r zmiana-typow-3, echo=FALSE}
-#str(dane_3)
-dane_3[] <- lapply(dane_3, function(x) {
-  if (is.character(x)) {
-    as.factor(x)
-  } else {
-    x
-  }
-})
-dane_3$Pclass <- ordered(dane_3$Pclass)
+W ostatniej części raportu mamy zbiór danych zawierających charakterystyki opisujące pasażerów Titanica, wraz z informacją czy dana osoba przeżyła. Zbiór pobieramy z R-pakietu `titanic`, ale jest też on dostępny na [\textcolor{magenta}{Kaggle}](https://www.kaggle.com/c/titanic/).
 
+Naszym zadaniem będzie dokonanie skalowania wielowymiarowego (MDS, ang. *multi-dimensional scaling*).
 
-```
+## Przygotowanie danych
 
-Typy zmiennych ktore po wczytaniu danych byly wczytanie jako characet zmienilismy na factor sa to zmienne takie jak Name , Sex , Ticket, Cabin oraz undefined . Zmienną Pclass zmieniono na zmienną porządkowa.
+Zbiór danych zawiera informacje o pasażerach Titanica. Między innymi takie jak: wiek, płeć, miejsce rozpoczęcia podróży oraz klasa pasażerska. Ważną zmienną występującą w bazie danych jest cecha `Survived`, która informuje nas czy dana osoba przeżyła katastrofę, czy nie. Dane zawierają `r nrow(dane_3)` informacji o różnych pasażerach oraz `r ncol(dane_3)` cech, które ich opisują.
 
 ```{r tabela-typy-i-opisy, echo=FALSE}
 tab_cechy <- data.frame(
@@ -102,8 +438,8 @@ tab_cechy <- data.frame(
     "Imię pasażera",
     "Płeć",
     "Wiek",
-    "Liczba rodzeństwa oraz małżonków podróżujących z pasażerem",
-    "Liczba rodziców oraz dzieci podróżujących z pasażerem",
+    "Liczba rodzeństwa + małżonków podróżujących z pasażerem",
+    "Liczba rodziców + dzieci podróżujących z pasażerem",
     "Numer biletu",
     "Opłata za bilet",
     "Numer kabiny",
@@ -119,13 +455,32 @@ kable(tab_cechy,
   kable_styling(full_width = FALSE,
                 latex_options = c("striped", "scale_down", "HOLD_position"),
                 stripe_color = "gray!10")
+```
 
+Z danych na pewno usuwamy zmienne takie jak `PassengerId`, `Name`, `Ticket` oraz `Cabin`, które nie wniosą nic do naszej analizy. Są to indywidualne dane każdego pasażera, w celu ochrony danych zostaną one usunięte z dalszej analizy.
+
+```{r usun-kolumny-3, echo=FALSE}
 dane_3$Name <- NULL
 dane_3$PassengerId <- NULL
 dane_3$Ticket <- NULL
+dane_3$Cabin <- NULL
 ```
 
-Z danych zosatły usuniete zmienne takei jak PassengerId , Name oraz Ticket, które nie wniosą nic do naszej analiza sa to indywidulane dane kazdego pasazera w celu ochrony danych zostaną one usunięte z dalszej analizy.
+Dodatkowo, typy zmiennych które po wczytaniu danych były wczytane jako typ `character` zmieniamy na typ `factor`. Są to zmienne takie jak płeć oraz port zaokrętowania, które możemy traktować jako zmienne jakościowe. Zmienną `Pclass` reprezentującą numer klasy zmieniamy na zmienną porządkową.
+
+```{r zmiana-typow-3, echo=FALSE}
+dane_3[] <- lapply(dane_3, function(x) {
+  if (is.character(x)) {
+    as.factor(x)
+  } else {
+    x
+  }
+})
+dane_3$Pclass <- ordered(dane_3$Pclass)
+
+```
+
+Sprawdzamy czy mamy jakieś braki danych:
 
 ```{r tabela-brako-dane-3, echo=FALSE}
 tab_braki <- data.frame(
@@ -142,7 +497,9 @@ kable(tab_braki,
                 stripe_color = "gray!10")
 ```
 
-Zmienna cabin zaweira az 687 braków w dancyhh, wiec nie bedizmey jej uwzgledniac w dalszej analizie, rózwniez z tego powodu ze pełniła funkcjei identyfikatora. Natomiast zmienna Age zawiera 177 braków w tym przypadku nie bedziemy sie decydowac na usunieniecei tej zmiennej tylko zastapimy te braki mediana z pozostałych wartosci Age, równiez nie decydujemy sie na opcje usuniecia wierszy z tymi brakmi, ponieważ stanowią one prawie 20% danych. Natomiast braki w zmiennej Embark, ktora oznaczła port w którym wsiadł psazaer, błedy uzpełnimy najczestszą opsca jak pojawai sie w dancyh.
+Zmienna `Age` zawiera `r sum(is.na(dane_3$Age))` braków. W tym przypadku nie usuwamy tej zmiennej, tylko zastępujemy te braki medianą z pozostałych wartości `Age`. Nie usuwamy też wierszy z tymi brakami, ponieważ stanowią one prawie 20% danych. Natomiast braki w zmiennej `Embarked`, która oznacza port w którym wsiadł pasażer, uzupełniamy najczęstszą wartością jaka pojawia się w danych.
+
+W tabeli poniżej znajdują się statystyki opisowe zmiennych oraz liczności wystąpień poszczególnych kategorii w nieusuniętych zmiennych jakościowych.
 
 ```{r podsumowanie-danych-3, echo=FALSE, results='asis'}
 
@@ -151,49 +508,41 @@ mode_embarked <- names(sort(table(dane_3$Embarked), decreasing = TRUE))[1]
 dane_3$Embarked[is.na(dane_3$Embarked)] <- mode_embarked
 dane_3$Embarked <- factor(dane_3$Embarked)
 
-dane_3$Cabin <- NULL
 dane_3$Age[is.na(dane_3$Age)] <- median(dane_3$Age, na.rm = TRUE)
 
-# Przygotowanie tabeli podsumowania
+# Przygotowanie tabeli
 tab_summary_3 <- summary(dane_3)
-tab_summary_3[is.na(tab_summary_3)] <- ""
-tab_summary_3 <- gsub("\\s*:\\s*", ": ", tab_summary_3)
+tab_summary_3[is.na(tab_summary_3)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+tab_summary_3 <- gsub("\\s*:\\s*", ": ", tab_summary_3) # naprawienie zepsutych dwukropków
+tab_summary_3 <- gsub("\\(Other\\)", "\\(Inne\\)", tab_summary_3) # Inne zamiast Other
 
-# łamiemy szeroką tabelę na kawałki
-kawalki = list(1:4, 5:ncol(tab_summary_3))
+# Tabela jest szeroka więc ją łamiemy na 2 kawałki i wyświetlamy w tej szatańskiej pętli
+kawalki <- list(1:4, 5:8)
 
-# pierwszy kawałek (z caption)
-kawalek_tabeli = tab_summary_3[, kawalki[[1]]]
-kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ]
-kable(kawalek_tabeli, booktabs = TRUE,
-      caption = "Podsumowanie danych po uzupełnieniu braków") %>%
-  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
-                stripe_color = "gray!10")
+for (i in seq_along(kawalki)) {
+  kawalek_tabeli = tab_summary_3[, kawalki[[i]], drop = FALSE]
+  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, , drop = FALSE] # usunięcie pustych wierszy
 
-# pozostałe kawałki
-for (i in 2:length(kawalki)) {
-  kawalek_tabeli = tab_summary_3[, kawalki[[i]]]
-  kawalek_tabeli = kawalek_tabeli[rowSums(kawalek_tabeli != "") > 0, ]
+  caption_i = if (i == length(kawalki)) "Podsumowanie danych po uzupełnieniu braków" else NULL # caption tylko pod ostatnim kawałkiem
+  tabela = kable(kawalek_tabeli, booktabs = TRUE, caption = caption_i) %>%
+    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"))
 
-  tabela = kable(kawalek_tabeli, booktabs = TRUE) %>%
-    kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"),
-                  stripe_color = "gray!10")
-  print(tabela)
+  print(tabela) # kabele w pętlach się same nie printują więc musimy to zrobić sami
 }
 ```
 
-W tabeli powyzej znajdują sie statystyki opisowe zmienych oraz licznosci wstapien poszczegolnych katergii w zmiennych jakosciwoych.
-
 ## Redukcja wymiaru na bazie MDS
 
-Następnie w celu poprawnej redukcji wymairu na poczatku podizlimy nsza zbio na zmiennea surived i reszte zmienneych. Macierz odmiennosci zosatła wyznaczona za pomoca metryki Gowera , poniewaz w naszych danych znjaduja sie zarówno dane ilosciowe jak i jakościowe. Zastosowano róznierz standaryzacje do zmiennych ilosciowych w celu poprawnego wyliczenia odległosci.
+Następnie w celu poprawnej redukcji wymiaru dzielimy nasz zbiór na zmienną `Survived` i resztę zmiennych. Macierz odmienności wyznaczamy za pomocą metryki Gowera, ponieważ w naszych danych znajdują się zarówno dane ilościowe, jak i jakościowe. Do zmiennych ilościowych stosujemy również standaryzację w celu poprawnego wyliczenia odległości.
+
+Otrzymaną macierz wizualizujemy poniżej w postaci heatmapy z naniesionym dendrogramem, który pozwala dostrzec hierarchiczną strukturę podobieństwa pomiędzy obserwacjami.
 
 ```{r rodzial-zmiennych, echo=FALSE}
 y <- dane_3$Survived        # jedna kolumna (np. wynik)
 X <- dane_3[, !names(dane_3) %in% "Survived"]   # reszta danych
 ```
 
-```{r macierz-odmiennosci, echo=FALSE, dev="png", dpi=150, fig.width=6.5, fig.height=5.5, out.width="100%", fig.cap="Heatmapa macierzy odmienności (Gower)"}
+```{r macierz-odmiennosci, echo=FALSE, dev="png", dpi=150, fig.width=6.5, fig.height=5.5, out.width="100%", fig.cap="Heatmapa macierzy odmienności (Gower) – jaśniejsze pola oznaczają większe podobieństwo, ciemniejsze mniejszą"}
 library(cluster)
 
 dissimilarities <- daisy(X, metric = "gower", stand = TRUE)
@@ -201,13 +550,19 @@ dissimilarities <- daisy(X, metric = "gower", stand = TRUE)
 dis.matrix <- as.matrix(dissimilarities)
 # image(dis.matrix, main = "Macierz odmienności")
 heatmap(dis.matrix,
-        Rowv = TRUE, Colv = TRUE, # Grupowanie obu osi
-        symm = TRUE,              # Podkreślenie symetrii macierzy
-        col = rev(heat.colors(256)), # Odwrócenie kolorów dla lepszego kontrastu
+        Rowv = TRUE, Colv = TRUE,
+        symm = TRUE,
+        col = hcl.colors(256, "Plasma", rev = TRUE), # lepsze kolory
         labRow = FALSE, labCol = FALSE)
 ```
 
-po wyej znajduje sie heatmapa, ktroa przedstawia macierz odmiennosci obliczona przy pomoscy matryki gowera. Rozniez do heatmapy dodano denrogram, dzieki któremu mozemy zobaczyc hierarhiczna strukture podobienstwa pomiedzy obserwacjami. na podstawie heat mapy mozemy zauwazyc ze pasazerowie na status titanic byli bardzo podzielini na rózne grupy społeczne. Wzdłuz przekątnej zauwazamy jasen pola, które świadczą o bardzo duzym podobienstwie osb wsrod tych samych grup społecznych np klasa 3 i kalsa 1. Na samej górze i po lewej stronie znajdują sie drzewa widizmy wyrazny podział na dwie czesci, co moze swiadczy o podziale pasazerów na mezczycn klasy 3 i kobiety z dzicmi klasy 1. Dendrogram sugereuje ze roznice miedzy tymi dwoma klasmay sa bardziej zanczace niz jakiekolwiek inne cechy indywidualne. Czerwone elemnty na heatmapie sa to wartosci odstajace np pasazerrowie ktorzy mimio bycia w 1 kalsie mieli drogi bilet.
+Na podstawie heatmapy możemy zauważyć, że pasażerowie na statku Titanic byli bardzo podzieleni na różne grupy. Wzdłuż przekątnej zauważamy jasne pola, które świadczą o bardzo dużym podobieństwie osób wśród tych samych grup.
+
+Na samej górze i po lewej stronie znajdują się drzewa – widzimy wyraźny podział na dwie części. Dendrogram sugeruje, że różnice między tymi dwiema grupami są bardziej znaczące niż jakiekolwiek inne cechy indywidualne.
+
+Ciemne elementy na heatmapie są to wartości odstające, na przykład pasażerowie, którzy mimo bycia w 3. klasie mieli drogi bilet.
+
+Następnie stosujemy algorytm MDS w wariancie metrycznym (funkcja `cmdscale`) dla wymiaru $k=3$ z metryką euklidesową (na początku spróbowaliśmy dla $k=2$ i stress wyszedł jako 0.26, co sugerowało, że należy zwiększyć wymiar). Wybieramy wariant metryczny, ponieważ macierz odmienności Gowera daje nam realne wartości odległości, a nie tylko ich kolejność – nie ma więc powodu, żeby rezygnować z tej informacji. Aby ocenić jakość tej redukcji, rysujemy diagram Sheparda.
 
 ```{r mds, echo=FALSE, dev="png", dpi=150, fig.cap="Diagram Sheparda dla MDS (k=3)"}
 mds <- cmdscale(dis.matrix, k = 3)
@@ -218,20 +573,24 @@ dist.mds.k2 <- as.matrix(dist.mds.k2)
 STRESS <- sqrt(sum((dis.matrix - dist.mds.k2)^2) / sum(dis.matrix^2))
 
 plot(dis.matrix, dist.mds.k2,
-     cex = 0.5,
+     pch = 16,
+     cex = 0.3,
+     col = rgb(0.15, 0.2, 0.4, 0.06), # półprzezroczyste żeby zagęszczenie było widoczne
      xlab = "odległość oryginalna",
      ylab = "odległość po MDS",
      main = "")
-abline(coef = c(0, 1), col = "red", lty = 2, lwd = 2)
+abline(coef = c(0, 1), col = "#3FB683", lty = 2, lwd = 2)
 ```
 
-Następnie zastosowano algorytm mds dla wymirau 3 (tu mozna dodac na pocztku zorbiłam dla k=2 i ten stress wyszedl jako 0.26 co sugorwało ze nalez wkieszyc wymiar) z metryka euklidesowa. Analizujas wykres Shepreda możemy zauważyc ze punkty układaja sie wzdłuz lini y=x, świdczy to o poprawnosci relacji podobienstwa. Mamy potweirdzenie z heatmapy, na wykresie powyzej widzmy schody, ktore swiadcza o wystepowaniu grup wsrod osob o podobnych cechac oraz granic miedzy grupami. Nie wsytepuja wartosci odstajace co siwadczy o niskeij wartosci funkcji sters ktora wyniosla 0.16 co potwredza popranosc uzytego wymiau ?.
+Analizując wykres Sheparda możemy zauważyć, że punkty układają się wzdłuż linii $y=x$ – świadczy to o poprawności relacji podobieństwa. Na wykresie widzimy też schody, które świadczą o występowaniu grup wśród osób o podobnych cechach oraz granic między grupami – co jest spójne z tym, co widzieliśmy na heatmapie.
 
-## Wizualizajca dancyh
+Nie występują wartości znacząco odstające od linii $y=x$, co spójne jest z niską wartością funkcji *stress*, która wyniosła `r round(STRESS, 2)` – potwierdza to poprawność użytego wymiaru.
 
-pojebało mi sie i tu jest ta wizulalicajca ja ja dałam wyzej ... aaaaaaaaaaaa ale to nic jest SUPER
+## Wizualizacja danych
 
-```{r wykresy-mds, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D z przestrzeni 3D), kolory wg Survived"}
+Wyniki MDS oglądamy na wykresach 2D, kolorując punkty według różnych zmiennych. Najpierw kolorujemy je według tego, czy pasażer przeżył.
+
+```{r wykresy-mds, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D z przestrzeni 3D), kolory według \\texttt{Survived}"}
 kolory <- kolory_survived[as.character(dane_3$Survived)]
 
 plot(mds[,1], mds[,2],
@@ -247,26 +606,32 @@ legend("topright", legend = c("Zginął", "Ocalał"),
        bg = kolor_tla_legendy)
 ```
 
-W celu wizualcizaci wynków działania algorytmu mds utworzono wyres 2d. Na wykresie mozmey zauwazyc bardzo wyrażny podziął na grupy kazdde skupiskow punktów to podziął pasazerów ze zwgledu na konretne cechy odleglosc miedzy dwoma duzymi skuoisakmi, moze świadczy o duzej ónicy miedzy grupami dla pasazerów kalsy 1 i 3. Dziłanie algorytmu jest poprawne, poniewaz górne skpuiska ponków sa to w większosciosby oclałe czyli np obiety i dziebi z klasy 1, nasz algorym dobre poradził sobie z klasyfikacja czy kots przyzyl czy zgniła tylkona podstawie inorfmaoci o klasi płci czy wieku. Ciekawym zjawiskiem sa wartosci odstające czy np osoby krte zgineły mimo wyskiego statusu społecznego ekonomiczego czy cos tam.
+Na wykresie możemy zauważyć bardzo wyraźny podział na grupy. Każde skupisko to grupa pasażerów podobnych do siebie ze względu na zestaw cech. Duża odległość między dwoma głównymi skupiskami świadczy o znaczącej różnicy między tymi grupami pasażerów.
 
-```{r mds-wyk-plec, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory wg Sex"}
+Co istotne, górne skupiska punktów to w większości osoby ocalałe (czyli np. kobiety i dzieci z 1. klasy), a dolne to w większości ofiary – mimo że zmienna `Survived` nie była używana do redukcji. Cechy które przyjęliśmy (klasa, płeć, wiek) są więc silnie związane z przeżyciem. Ciekawym zjawiskiem są wartości odstające, np. osoby które zginęły mimo wysokiego statusu społeczno-ekonomicznego.
+
+Następnie kolorujemy punkty według płci pasażera.
+
+```{r mds-wyk-plec, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory według płci"}
 plot(mds,
-     col = kolory_sex[as.character(dane_3$Sex)],
+     col = kolory_plci[as.character(dane_3$Sex)],
      pch = 19,
      cex = 0.8,
      xlab = "Wymiar 1", ylab = "Wymiar 2",
      main = "")
 
 legend("topright",
-       legend = names(kolory_sex),
-       col = kolory_sex,
+       legend = names(kolory_plci),
+       col = kolory_plci,
        pch = 19,
        bg = kolor_tla_legendy)
 ```
 
-Na nateonym wykrsie widzmy podziła ze wzgledu na płec osob mozemy stwrrdzic płec w naszym zbiorze danych jest bardzo wazna cecha ona jest podastwa w szukaniu poobienstw meidzy pasazerami, porównując w ykresm przezyc widizmy ze wsrod osobe ktroe przezyly katasfotre sa głownie kobiety. jest grupa kkobiet ktora zgineła wykres wyzej sa to prawdopowdnie koeity z najnizeszj klasy ktor nie mialy sznsy na łodz ratnkow (szalupa nwm jak to było) .
+Na powyższym wykresie widzimy podział ze względu na płeć osób – możemy stwierdzić, że płeć w naszym zbiorze danych jest bardzo ważną cechą i jest podstawą w szukaniu podobieństw między pasażerami. Porównując z wykresem przeżyć widzimy, że wśród osób które przeżyły katastrofę są głównie kobiety. Jest też grupa kobiet, która zginęła (wykres wyżej) – są to prawdopodobnie kobiety z najniższej klasy, które nie miały szansy na łódź ratunkową.
 
-```{r wyk-mds-klasy, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory wg Pclass"}
+Na koniec kolorujemy punkty według klasy pasażerskiej.
+
+```{r wyk-mds-klasy, echo=FALSE, dev="png", dpi=150, fig.cap="Wizualizacja MDS (rzut 2D), kolory według klasy pasażerskiej"}
 plot(mds,
      col = kolory_pclass[as.character(dane_3$Pclass)],
      pch = 19,
@@ -282,8 +647,12 @@ legend("topright",
        title = "Pclass")
 ```
 
-Ostani wykres przestawia podzila pasazerów po mds ze wzgledu na klasy. tak jak zakaldalismy wczesniej kobiety kotre zgiineły w atoastdoriwe sa to kobiety z klasy 3. natomisat dolen skupiska mezczyzni nie zaleznie od klasy w kazdej gri[ie znajlazaly sie jednoski ktorym udało sie przezyc.
+W obu skupiskach widać też podział na klasy, ale dużo słabszy niż ten na płci.
+
+Tak jak zakładaliśmy wcześniej, kobiety które zginęły w katastrofie to kobiety z 3. klasy. Natomiast w dolnym skupisku (mężczyźni) niezależnie od klasy w każdej grupie znajdowały się jednostki, którym udało się przeżyć.
 
 ## Podsumowanie
 
-Analizujas heatmape i dendrogram zalaozylism ze beda istneic dwie głowne grupy rózniaca sie miedzy soaba co ponieszej analizie okazało sie poprawnym załozeniem. Dzikei mapie shepreda mozemy miec pewnosc ze mapa 2d jest wirygodna, wikszosc punktow lezy wzdłuz lini y=x, co siwdzczy o rzetelnosci naszych wniosow. Co dodatkow potwerdza niska wartosc funkcji stress, zapenia nas o poprawniscu wyików dla pasazerów titanic. Wykresy Mds pokazały, zę pasazerowi naturlanie grupują sie w skupisak, co swiadczy o sinych zaleznosciach co do przynaleznosci do danej grupy. najwieksze róznice występuja miedzy kobietamy i mezczyznmi i pasazerami kalsy 1 i 3. Algorytm mds bardzo dobre wykryl osoby ktre przezyły mimo ze jie miał dostepy do tej zmiennej.
+Analizując heatmapę i dendrogram zauważyliśmy, że istnieją dwie główne grupy różniące się między sobą, co potwierdziło się w dalszej analizie. Dzięki diagramowi Sheparda możemy mieć pewność, że redukcja do 3 wymiarów jest wiarygodna – większość punktów leży wzdłuż linii $y=x$, co świadczy o rzetelności naszych wniosków. Dodatkowo potwierdza to niska wartość funkcji stress (`r round(STRESS, 2)`).
+
+Wykresy MDS pokazały, że pasażerowie naturalnie grupują się w skupiska, co świadczy o silnych zależnościach między ich cechami. Największe różnice występują między kobietami i mężczyznami oraz pasażerami 1. i 3. klasy. Osoby ocalałe wyraźnie grupują się w przestrzeni MDS, mimo że zmienna `Survived` nie była używana do redukcji – cechy które przyjęliśmy są więc silnie związane z przeżyciem.
