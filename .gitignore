@@ -2,3 +2,8 @@
 .Rhistory
 .Rproj.user/*
 spr_2/spr2.log
+.Rproj.user
+.positai
+*_cache/
+*_files/
+tmp-pdfcrop-*.tex
