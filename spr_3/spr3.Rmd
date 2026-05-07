@@ -44,8 +44,19 @@ kolor_tla_legendy <- "#F5FDFF"
 
 # Część 1 – klasyfikacja
 
+## Wstęp
+
+Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*).
+
+## Opis danych 
+
 ```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
 dane <- iris
 kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
 #kolor_granic <- "#AB0046"
 ```
+
+
+# Częśc 2 - porównanie metod klasyfikacji
+
+
