@@ -1,0 +1,51 @@
+---
+title: "Sprawozdanie 3"
+subtitle: "Eksploracja danych"
+author: "Emilia Porczyńska, Michał Szostak"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    toc: true
+    fig_caption: yes
+    fig_width: 5
+    fig_height: 4
+    number_sections: true
+    keep_tex: false
+header-includes:
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[polish]{babel}
+  - \usepackage{graphicx}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{floatrow}
+  - \floatsetup[table]{capposition=bottom}
+  - \usepackage{caption}
+  - \definecolor{setosa}{HTML}{833FE7}
+  - \definecolor{versicolor}{HTML}{5D00BE}
+  - \definecolor{virginica}{HTML}{A68DE5}
+fontsize: 12pt
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(datasets)
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(showtext) # żeby były polskie znaki na wykresach
+showtext_auto()   #
+
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
+
+kolor_tla_legendy <- "#F5FDFF"
+```
+
+\newpage
+
+# Część 1 – klasyfikacja
+
+```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
+dane <- iris
+kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
+#kolor_granic <- "#AB0046"
+```
