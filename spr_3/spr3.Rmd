@@ -46,7 +46,7 @@ kolor_tla_legendy <- "#F5FDFF"
 
 ## Wstęp
 
-Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*).
+Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*). Naszym zadaniem będzie klasyfikowanie garunku płatka na podstwie modelu regresji liniowej. Zmiennymi objaśniajacymi beda chechy opisują kawiaty (Pl, Pw, Sl, Sw), naromiast zmienną objasnianą będzie gatunek. Cel dla zbioru testowego dopasowoac gatunek i ocenic jakosc klasyfikatora. Dla 3 klas .
 
 ## Opis danych 
 
@@ -55,6 +55,96 @@ dane <- iris
 kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
 #kolor_granic <- "#AB0046"
 ```
+
+W naszych danych znajdują się pomiary `r nrow(dane)` irysów`r if (length(unique(table(dane$Species))) == 1) paste0(", po ", unique(table(dane$Species)), " z każdego gatunku") else ""`. Dla każdego z nich mamy wyniki czterech pomiarów, oraz informację o tym do którego gatunku należy:
+
+```{r tabela-cech, echo=FALSE, warning=FALSE, message=FALSE}
+tab_cechy <- data.frame(
+  Typ = sapply(dane, class),
+  Opis = c(
+    "długość działki kielicha (w cm)",
+    "szerokość działki kielicha (w cm)",
+    "długość płatka (w cm)",
+    "szerokość płatka (w cm)",
+    "gatunek irysa (\\textcolor{setosa}{\\textit{setosa}}/\\textcolor{versicolor}{\\textit{versicolor}}/\\textcolor{virginica}{\\textit{virginica}})"
+  )
+)
+
+
+kable(tab_cechy,
+      caption = "Typy oraz opisy cech",
+      booktabs = TRUE,
+      escape = FALSE,
+      align = "l") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "scale_down", "hold_position"),
+                stripe_color = "gray!10"
+)
+```
+
+Wartości pomiarów prezentują się następująco:
+
+```{r podsumowanie-danych, echo=FALSE, warning=FALSE, message=FALSE}
+tab_summary <- summary(dane[, setdiff(names(dane), "Species")]) # Species nie pokazujemy bo już znamy
+tab_summary[is.na(tab_summary)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+tab_summary <- gsub("\\s*:\\s*", ": ", tab_summary) # naprawienie zepsutych dwukropków
+tab_summary <- tab_summary[rowSums(tab_summary != "") > 0, ] # usunięcie pustych wierszy
+
+kable(tab_summary, booktabs = TRUE,
+      caption = "Podsumowanie danych") %>%
+  kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"), stripe_color = "gray!10")
+```
+
+### Podział danych na zbiór uczący i testowy 
+
+Następnie w celu oceny jakości dziąłnaia klasyfikatora podzielilismy zbior danych na zbior uczący i zbiro testowy.
+
+```{r podzial-uczacy-testowy, echo=FALSE}
+n <- nrow(dane)
+train_index <- sample(1:n, size = round(2/3 * n))
+
+train_set <- dane[train_index, ]
+test_set <- dane[-train_index, ]
+```
+
+### Konstrukcja klasyfikatora i wyznaczanie prognoz
+
+Na podstawie zbioru tran bedziemy estymowac baramtry modelu i nastepnie sprawdzac i jakos dopasowania do wartosci gatunku. Dla zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek kwiata.
+
+```{r klasyfikacja-train, echo=FALSE}
+
+X.train <- cbind(1, train_set[,1:4])
+X.train <- as.matrix(X.train)
+
+etykietki.klas <- train_set$Species
+
+K <- length(unique(etykietki.klas))
+n.train <- nrow(train_set)
+
+Y.train <- matrix(0, nrow = n.train, ncol = K)
+
+etykietki.num <- as.numeric(etykietki.klas)
+
+for(k in 1:K)
+  Y.train[etykietki.num == k, k] <- 1
+
+B.hat <- solve(t(X.train) %*% X.train) %*%
+         t(X.train) %*% Y.train
+
+Y.hat.train <- X.train %*% B.hat
+pred.train <- apply(Y.hat.train, 1, which.max)
+```
+
+```{r klasyfikacja-test, echo=FALSE}
+X.test <- cbind(1, test_set[,1:4])
+X.test <- as.matrix(X.test)
+
+Y.hat.test <- X.test %*% B.hat
+pred.test <- apply(Y.hat.test, 1, which.max)
+```
+
+### Ocena klasyfikacji
+
 
 
 # Częśc 2 - porównanie metod klasyfikacji
