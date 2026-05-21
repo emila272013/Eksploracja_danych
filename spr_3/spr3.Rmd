@@ -97,9 +97,11 @@ kable(tab_summary, booktabs = TRUE,
 
 ### Podział danych na zbiór uczący i testowy 
 
-Następnie w celu oceny jakości dziąłnaia klasyfikatora podzielilismy zbior danych na zbior uczący i zbiro testowy.
+Następnie w celu oceny jakości dziąłnaia klasyfikatora podzielilismy zbior danych na zbior uczący i zbiro testowy w stosunku 1 do 2.
 
 ```{r podzial-uczacy-testowy, echo=FALSE}
+set.seed(67)
+
 n <- nrow(dane)
 train_index <- sample(1:n, size = round(2/3 * n))
 
@@ -146,7 +148,143 @@ pred.test <- apply(Y.hat.test, 1, which.max)
 ### Ocena klasyfikacji
 
 
+```{r macierz-pomylek-train, echo=FALSE, warning=FALSE}
+conf.train <- table(
+  Rzeczywiste = train_set$Species,
+  Prognozowane = levels(train_set$Species)[pred.train]
+)
 
+conf.train
+
+blad.train <- mean(
+  pred.train != as.numeric(train_set$Species)
+)
+
+blad.train
+```
+```{r macierz-pomylek-test, echo=FALSE, warning=FALSE}
+
+conf.test <- table(
+  Rzeczywiste = test_set$Species,
+  Prognozowane = levels(test_set$Species)[pred.test]
+)
+
+conf.test
+
+blad.test <- mean(
+  pred.test != as.numeric(test_set$Species)
+)
+
+blad.test
+
+```
+### Model liniowy dla rozszerzonej przestrzeni klas
+
+```{r nowy-data-frame, echo=FALSE,warning=FALSE}
+
+train.poly <- data.frame(
+  PL = train_set$Petal.Length,
+  PW = train_set$Petal.Width,
+  SL = train_set$Sepal.Length,
+  SW = train_set$Sepal.Width
+)
+
+train.poly$PL2 <- train.poly$PL^2
+train.poly$PW2 <- train.poly$PW^2
+train.poly$SL2 <- train.poly$SL^2
+train.poly$SW2 <- train.poly$SW^2
+
+train.poly$PL_PW <- train.poly$PL * train.poly$PW
+train.poly$PL_SW <- train.poly$PL * train.poly$SW
+train.poly$PL_SL <- train.poly$PL * train.poly$SL
+train.poly$PW_SL <- train.poly$PW * train.poly$SL
+train.poly$PW_SW <- train.poly$PW * train.poly$SW
+train.poly$SL_SW <- train.poly$SL * train.poly$SW
+
+test.poly <- data.frame(
+  PL = test_set$Petal.Length,
+  PW = test_set$Petal.Width,
+  SL = test_set$Sepal.Length,
+  SW = test_set$Sepal.Width
+)
+
+test.poly$PL2 <- test.poly$PL^2
+test.poly$PW2 <- test.poly$PW^2
+test.poly$SL2 <- test.poly$SL^2
+test.poly$SW2 <- test.poly$SW^2
+
+test.poly$PL_PW <- test.poly$PL * test.poly$PW
+test.poly$PL_SW <- test.poly$PL * test.poly$SW
+test.poly$PL_SL <- test.poly$PL * test.poly$SL
+test.poly$PW_SL <- test.poly$PW * test.poly$SL
+test.poly$PW_SW <- test.poly$PW * test.poly$SW
+test.poly$SL_SW <- test.poly$SL * test.poly$SW
+
+```
+
+```{r klasyfikacja-train-2, echo=FALSE}
+
+X2.train <- cbind(1, train.poly[,1:4])
+X2.train <- as.matrix(X2.train)
+
+etykietki.klas <- train_set$Species
+
+K <- length(unique(etykietki.klas))
+n.train <- nrow(train_set)
+
+Y.train <- matrix(0, nrow = n.train, ncol = K)
+
+etykietki.num <- as.numeric(etykietki.klas)
+
+for(k in 1:K)
+  Y.train[etykietki.num == k, k] <- 1
+
+B2.hat <- solve(t(X2.train) %*% X2.train) %*%
+         t(X2.train) %*% Y.train
+
+Y2.hat.train <- X2.train %*% B2.hat
+pred2.train <- apply(Y2.hat.train, 1, which.max)
+```
+
+```{r klasyfikacja-test-2, echo=FALSE}
+X2.test <- cbind(1, test.poly[,1:4])
+X2.test <- as.matrix(X2.test)
+
+Y2.hat.test <- X2.test %*% B2.hat
+pred2.test <- apply(Y2.hat.test, 1, which.max)
+```
+
+```{r macierz-pomylek-train-2, echo=FALSE, warning=FALSE}
+conf2.train <- table(
+  Rzeczywiste = train_set$Species,
+  Prognozowane = levels(train_set$Species)[pred2.train]
+)
+
+conf2.train
+
+blad2.train <- mean(
+  pred2.train != as.numeric(train_set$Species)
+)
+
+blad2.train
+```
+
+```{r macierz-pomylek-test-2, echo=FALSE, warning=FALSE}
+
+conf2.test <- table(
+  Rzeczywiste = test_set$Species,
+  Prognozowane = levels(test_set$Species)[pred2.test]
+)
+
+conf2.test
+
+blad2.test <- mean(
+  pred2.test != as.numeric(test_set$Species)
+)
+
+blad2.test
+
+```
 # Częśc 2 - porównanie metod klasyfikacji
 
 
