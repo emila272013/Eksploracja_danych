@@ -48,7 +48,35 @@ kolor_tla_legendy <- "#F5FDFF"
 
 Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*). Naszym zadaniem będzie klasyfikowanie garunku płatka na podstwie modelu regresji liniowej. Zmiennymi objaśniajacymi beda chechy opisują kawiaty (Pl, Pw, Sl, Sw), naromiast zmienną objasnianą będzie gatunek. Cel dla zbioru testowego dopasowoac gatunek i ocenic jakosc klasyfikatora. Dla 3 klas .
 
-## Opis danych 
+```{r irysy, echo=FALSE, cache=FALSE, out.width="32%", fig.show="hold", fig.align="center", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
+
+# ściągnięcie zdjęć irysów w kodzie żeby nie potrzeba było plików
+linki_do_irysow <- c(
+  setosa     = "https://commons.wikimedia.org/wiki/Special:FilePath/Irissetosa1.jpg?width=800",
+  versicolor = "https://commons.wikimedia.org/wiki/Special:FilePath/Blue_Flag,_Ottawa.jpg?width=800",
+  virginica  = "https://commons.wikimedia.org/wiki/Special:FilePath/Iris_virginica_2.jpg?width=800"
+)
+zdjecia_irysow <- file.path(tempdir(), paste0("iris_", names(linki_do_irysow), ".jpg"))
+
+for (i in seq_along(linki_do_irysow))
+  if (!file.exists(zdjecia_irysow[i]))
+    download.file(linki_do_irysow[i], zdjecia_irysow[i], mode = "wb", quiet = TRUE,
+                  headers = c("User-Agent" = "Eksploracja-danych-spr3 (Rmd render)"))
+
+# dziwny kod z nieokreślonego źródła który przycina zdjęcia żeby były kwadratowe
+for (p in zdjecia_irysow) {
+  img <- magick::image_read(p)
+  bok <- min(magick::image_info(img)$width, magick::image_info(img)$height)
+  magick::image_write(
+    magick::image_crop(img, magick::geometry_area(bok, bok), gravity = "Center"),
+    p
+  )
+}
+
+knitr::include_graphics(zdjecia_irysow)
+```
+
+## Opis danych
 
 ```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
 dane <- iris
@@ -224,7 +252,7 @@ test.poly$SL_SW <- test.poly$SL * test.poly$SW
 
 ```{r klasyfikacja-train-2, echo=FALSE}
 
-X2.train <- cbind(1, train.poly[,1:4])
+X2.train <- cbind(1, train.poly[,1:14])
 X2.train <- as.matrix(X2.train)
 
 etykietki.klas <- train_set$Species
@@ -247,7 +275,7 @@ pred2.train <- apply(Y2.hat.train, 1, which.max)
 ```
 
 ```{r klasyfikacja-test-2, echo=FALSE}
-X2.test <- cbind(1, test.poly[,1:4])
+X2.test <- cbind(1, test.poly[,1:14])
 X2.test <- as.matrix(X2.test)
 
 Y2.hat.test <- X2.test %*% B2.hat
