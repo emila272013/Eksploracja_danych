@@ -123,7 +123,7 @@ kable(tab_summary, booktabs = TRUE,
   kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"), stripe_color = "gray!10")
 ```
 
-### Podział danych na zbiór uczący i testowy 
+## Podział danych na zbiór uczący i testowy 
 
 Następnie w celu oceny jakości dziąłnaia klasyfikatora podzielilismy zbior danych na zbior uczący i zbiro testowy w stosunku 1 do 2.
 
@@ -137,7 +137,7 @@ train_set <- dane[train_index, ]
 test_set <- dane[-train_index, ]
 ```
 
-### Konstrukcja klasyfikatora i wyznaczanie prognoz
+## Konstrukcja klasyfikatora i wyznaczanie prognoz
 
 Na podstawie zbioru tran bedziemy estymowac baramtry modelu i nastepnie sprawdzac i jakos dopasowania do wartosci gatunku. Dla zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek kwiata.
 
@@ -173,7 +173,7 @@ Y.hat.test <- X.test %*% B.hat
 pred.test <- apply(Y.hat.test, 1, which.max)
 ```
 
-### Ocena klasyfikacji
+## Ocena klasyfikacji
 
 
 ```{r macierz-pomylek-train, echo=FALSE, warning=FALSE}
@@ -206,7 +206,7 @@ blad.test <- mean(
 blad.test
 
 ```
-### Model liniowy dla rozszerzonej przestrzeni klas
+## Model liniowy dla rozszerzonej przestrzeni klas
 
 ```{r nowy-data-frame, echo=FALSE,warning=FALSE}
 
@@ -313,6 +313,171 @@ blad2.test <- mean(
 blad2.test
 
 ```
+
 # Częśc 2 - porównanie metod klasyfikacji
 
+## Wstęp 
+
+W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porpwnanaie algorytmów alsyifkacji takich jak metoda k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na zaimportoanej bazie danych.
+
+## Opis i wstępna analiza dancyh
+
+Baza danych na kótrej bedziemy pracować zawiera infomacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz pochodzacych z trzech róznych odmian. Chechą dzięki której bedziemy klasyfikować dane wino jest zmienna informująca o przynależnosci do odmainy wina.
+
+
+```{r pobranie-danych, echo=FALSE}
+library(HDclassif)
+data(wine)
+
+dane2 <- wine
+
+```
+
+Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13 pozostałych cefch.
+
+```{r tebala-typow-cech-dane2, echo=FALSE}
+
+tab_cechy_2 <- data.frame(
+  Typ = sapply(wine, class),
+  Opis = c(
+    "przynależność do klasy wina",
+    "zawartość alkoholu",
+    "kwas jabłkowy",
+    "zawartość popiołu",
+    "alkaliczność popiołu",
+    "zawartość magnezu",
+    "łączna zawartość fenoli",
+    "flawonoidy",
+    "fenole niefławonoidowe",
+    "proantocyjaniny",
+    "intensywność barwy",
+    "odcień koloru",
+    "OD280/OD315 rozcieńczonych win",
+    "zawartość proliny"
+  )
+)
+
+# escape=FALSE -- żeby \textit zadziałał
+rownames(tab_cechy_2) <- gsub("_", "\\\\_", rownames(tab_cechy_2))
+
+kable(
+  tab_cechy_2,
+  caption = "Typy oraz opisy cech zbioru wine",
+  booktabs = TRUE,
+  escape = FALSE,
+  align = "l"
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    latex_options = c("striped", "HOLD_position"),
+    stripe_color = "gray!10"
+  ) %>%
+  column_spec(2, width = "9cm")
+```
+
+Na podstawie powyższej tabeli można stwerdzic ze wszystkie typy zmiennych zostały prawidłowo zakodowane, poza zmienną class. Dla której zmienimi typ na facotr. 
+
+W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
+
+TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA ALE W TEJ TAVELI GOWNO
+
+```{r statystyki-opisowe-cech, echo=FALSE}
+wine$class <- as.factor(dane2$class)
+
+tab_summary_2 <- summary(dane2)
+tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+# wine ma 14 kolumn -> dzielimy na 3 części
+kawalki <- list(
+  1:5,
+  6:10,
+  11:14
+)
+
+for (i in seq_along(kawalki)) {
+
+  kawalek_tabeli <- tab_summary_2[, kawalki[[i]], drop = FALSE]
+
+  # usunięcie pustych wierszy
+  kawalek_tabeli <- kawalek_tabeli[
+    rowSums(kawalek_tabeli != "") > 0,
+    ,
+    drop = FALSE
+  ]
+
+  caption_i <- if (i == length(kawalki)) {
+    "Podsumowanie danych zbioru wine"
+  } else {
+    NULL
+  }
+
+  tabela <- kable(
+    kawalek_tabeli,
+    booktabs = TRUE,
+    caption = caption_i
+  ) %>%
+    kable_styling(
+      latex_options = c(
+        "striped",
+        "scale_down",
+        "HOLD_position"
+      )
+    )
+
+  print(tabela)
+}
+```
+W danych nie występuja wartości NA. Na podstawie powyzszej tabeli moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna wartosc dla kazdej cechy jest rozna od 0.
+
+```{r rozklad-klas, echo=FALSE}
+
+library(ggplot2)
+
+ggplot(dane2, aes(x = class)) +
+  geom_bar(fill = "steelblue") +
+  labs(title = "Rozkład klas w wine",
+       x = "Klasa",
+       y = "Liczność")
+
+```
+Na powyzszym wykresie widzimy roklad przynależlonci poszczególnych obserwacji do danej klasy. Mozemy zauważyc, ze najwiecej obserwacji nalezy do kalsy 2, natomist najmnej do klast 3.
+
+Oznacza to, że występują pewne dysproporcje w liczebności klas, jednak nie są one skrajne.
+
+Jeśli wszystkie obserwacje zostałyby przypisane do najczęściej występującej klasy (klasa 2), to błąd klasyfikacji wyniósłby:
+
+$$ bląd = 1 - \frac{n_{max}}{n},  $$
+gdzie:
+n_{max} to liczba obserwacji na najliczniejszej klasie, a n to liczba wszystkich obserwacji.
+
+Bład wynosi `r 1 - max(table(wine$class)) / nrow(wine)`.
+
+Oznacza to, że około 60% obserwacji zostałoby błędnie sklasyfikowanych, a taki klasyfikator osiągnąłby jedynie około 40% skuteczności.
+
+```{r wariancja-cech, echo=FALSE}
+boxplot(dane2[, 2:14], col = rainbow(ncol(dane2)-1))
+```
+Na powyższym wykresie znajduja sie wykres wariancji dla wszystkich cech poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby algorytmy klasyfikujące działy poprawnie.
+
+```{r wariancaj-po-standaryzacji, echo=FALSE}
+dane2_stand <- scale(dane2[, 2:14])
+boxplot(dane2_stand, col = rainbow(ncol(dane2_stand)))
+```
+widzimy ze po standaryzacji zmeinne maja zblizone wariancjie, co pozytywnie wpłynie na dzialanie algorytmów.
+
+
+```{r zmienne-najlepiej-roznicojace, echo=FALSE}
+
+library(MASS)
+
+model <- lda(class ~ ., data = wine)
+model
+
+```
+największe wartości bezwzględne współczynników w funkcjach dyskryminacyjnych LDA.
+
+W szczególności zmienne V3, V7, V8, V11 oraz V12 wykazują największy wkład w separację klas, co oznacza, że najlepiej różnicują obserwacje należące do różnych grup.
+
+Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%, co oznacza, że większość informacji separacyjnej zawarta jest w LD1. 
+
+## Ocena dokładności klasyfikacji i porównanie metod
 
