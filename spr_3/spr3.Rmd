@@ -481,3 +481,131 @@ Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klas
 
 ## Ocena dokładności klasyfikacji i porównanie metod
 
+W dalszej częci raportu porówanym dzialanie algorytmów klasyfikujących takich jak naive, tree, i knn na naszym zbuiioze wine. na poczatku podzielimy zbior na dwa podzbiory pierwszy trrningowy nastepny uczacy. Zbior uczacay bedzie zawierał 70% danych. Do podzialu zostala uzyta bibiloteka caret zachowujaca proporcjie w danych.
+
+```{r podzial-zb-na-pod-zb, echo=FALSE}
+library(caret)
+
+set.seed(67)
+
+index <- createDataPartition(dane2[,1], p = 0.7, list = FALSE)
+
+train <- dane2[index, ]
+test  <- dane2[-index, ]
+
+```
+
+```{r knn-klasyfikacja, echo=FALSE}
+library(class)
+
+train_x <- scale(train[, -1])
+test_x  <- scale(test[, -1],
+                 center = attr(train_x, "scaled:center"),
+                 scale  = attr(train_x, "scaled:scale"))
+
+train_y <- train[,1]
+test_y  <- test[,1]
+
+knn_pred_test <- knn(train_x, test_x, train_y, k = 5)
+
+knn_pred_train <- knn(train_x, train_x, train_y, k = 5)
+
+```
+
+```{r ocena-knn, echo=FALSE}
+
+confusionMatrix(knn_pred_test, as.factor(test_y))
+mean(knn_pred_test != test_y)
+
+confusionMatrix(knn_pred_train, as.factor(train_y))
+mean(knn_pred_train != train_y)
+```
+
+```{r tree-klasyfikacja, echo=FALSE}
+library(rpart)
+#library(rpart.plot)
+
+tree <- rpart(as.factor(train[,1]) ~ ., data = train, method = "class")
+
+tree_pred_test <- predict(tree, test, type = "class")
+
+tree_pred_train <- predict(tree, train, type = "class")
+```
+
+
+```{r tree-ocena, echo=FALSE}
+confusionMatrix(tree_pred_test, as.factor(test[,1]))
+mean(tree_pred_test != test[,1])
+
+confusionMatrix(tree_pred_train, as.factor(train[,1]))
+mean(tree_pred_train != train[,1])
+```
+
+```{r naive-bayes-klasyfikacja, echo=FALSE}
+library(e1071)
+
+nb <- naiveBayes(as.factor(train[,1]) ~ ., data = train)
+
+nb_pred_test <- predict(nb, test)
+
+nb_pred_train <- predict(nb, train)
+
+```
+
+```{r bayes-ocena, echo=FALSE}
+
+confusionMatrix(nb_pred_test, as.factor(test[,1]))
+mean(nb_pred_test != test[,1])   # test error
+
+confusionMatrix(nb_pred_train, as.factor(train[,1]))
+mean(nb_pred_train != train[,1]) # train error
+```
+
+
+
+```{r wielokrotny-podzial-knn, echo=FALSE}
+library(caret)
+
+set.seed(67)
+
+train_cv <- train
+train_cv$Class <- as.factor(train_cv[,1])
+train_cv <- train_cv[, -1]
+
+ctrl <- trainControl(method = "cv", number = 10)
+
+knn_cv <- train(
+  Class ~ .,
+  data = train_cv,
+  method = "knn",
+  trControl = ctrl,
+  tuneLength = 5
+)
+
+knn_cv
+
+```
+
+```{r wielokrotny-podzial-drzewo, echo=FALSE}
+tree_cv <- train(
+  Class ~ .,
+  data = train_cv,
+  method = "rpart",
+  trControl = ctrl
+)
+
+tree_cv
+
+```
+
+```{r wielokrotny-podzial-bayes, echo=FALSE}
+nb_cv <- train(
+  Class ~ .,
+  data = train_cv,
+  method = "nb",
+  trControl = ctrl
+)
+
+nb_cv
+
+```
