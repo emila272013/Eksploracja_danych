@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.4.9)  23 MAY 2026 20:55
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.4.9)  27 MAY 2026 12:45
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -733,32 +733,32 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 
 {c:/texlive/2024/texmf-var/fonts/map/pdftex/updmap/pdftex.map}{c:/texlive/2024/
 texmf-dist/fonts/enc/dvips/lm/lm-ec.enc}]
-<../../AppData/Local/Temp/RtmpyqCNjo/iris_setosa.jpg, id=35, 722.7pt x 722.7pt>
+<../../AppData/Local/Temp/RtmpyUbQr7/iris_setosa.jpg, id=37, 722.7pt x 722.7pt>
 
-File: ../../AppData/Local/Temp/RtmpyqCNjo/iris_setosa.jpg Graphic file (type jp
+File: ../../AppData/Local/Temp/RtmpyUbQr7/iris_setosa.jpg Graphic file (type jp
 g)
-<use ../../AppData/Local/Temp/RtmpyqCNjo/iris_setosa.jpg>
-Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyqCNjo/iris_setosa.jpg  u
+<use ../../AppData/Local/Temp/RtmpyUbQr7/iris_setosa.jpg>
+Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyUbQr7/iris_setosa.jpg  u
 sed on input line 131.
 (pdftex.def)             Requested size: 150.32504pt x 150.32687pt.
-<../../AppData/Local/Temp/RtmpyqCNjo/iris_versicolor.jpg, id=36, 963.6pt x 963.
+<../../AppData/Local/Temp/RtmpyUbQr7/iris_versicolor.jpg, id=38, 963.6pt x 963.
 6pt>
-File: ../../AppData/Local/Temp/RtmpyqCNjo/iris_versicolor.jpg Graphic file (typ
+File: ../../AppData/Local/Temp/RtmpyUbQr7/iris_versicolor.jpg Graphic file (typ
 e jpg)
-<use ../../AppData/Local/Temp/RtmpyqCNjo/iris_versicolor.jpg>
-Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyqCNjo/iris_versicolor.jp
+<use ../../AppData/Local/Temp/RtmpyUbQr7/iris_versicolor.jpg>
+Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyUbQr7/iris_versicolor.jp
 g  used on input line 131.
 (pdftex.def)             Requested size: 150.32504pt x 150.31216pt.
-<../../AppData/Local/Temp/RtmpyqCNjo/iris_virginica.jpg, id=37, 963.6pt x 963.6
+<../../AppData/Local/Temp/RtmpyUbQr7/iris_virginica.jpg, id=39, 963.6pt x 963.6
 pt>
-File: ../../AppData/Local/Temp/RtmpyqCNjo/iris_virginica.jpg Graphic file (type
+File: ../../AppData/Local/Temp/RtmpyUbQr7/iris_virginica.jpg Graphic file (type
  jpg)
-<use ../../AppData/Local/Temp/RtmpyqCNjo/iris_virginica.jpg>
-Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyqCNjo/iris_virginica.jpg
+<use ../../AppData/Local/Temp/RtmpyUbQr7/iris_virginica.jpg>
+Package pdftex.def Info: ../../AppData/Local/Temp/RtmpyUbQr7/iris_virginica.jpg
   used on input line 131.
 (pdftex.def)             Requested size: 150.32504pt x 150.31216pt.
-[2 <../../AppData/Local/Temp/RtmpyqCNjo/iris_setosa.jpg> <../../AppData/Local/T
-emp/RtmpyqCNjo/iris_versicolor.jpg> <../../AppData/Local/Temp/RtmpyqCNjo/iris_v
+[2 <../../AppData/Local/Temp/RtmpyUbQr7/iris_setosa.jpg> <../../AppData/Local/T
+emp/RtmpyUbQr7/iris_versicolor.jpg> <../../AppData/Local/Temp/RtmpyUbQr7/iris_v
 irginica.jpg>]
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 1
 92.
@@ -879,7 +879,7 @@ Overfull \hbox (623.20651pt too wide) in paragraph at lines 361--361
 \cellcolor{gray!10}{3rd Qu.: 985.0}\\[] 
  []
 
-<spr3_files/figure-latex/rozklad-klas-1.pdf, id=67, 352.31625pt x 278.03876pt>
+<spr3_files/figure-latex/rozklad-klas-1.pdf, id=69, 352.31625pt x 278.03876pt>
 File: spr3_files/figure-latex/rozklad-klas-1.pdf Graphic file (type pdf)
 <use spr3_files/figure-latex/rozklad-klas-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/rozklad-klas-1.pdf  used on in
@@ -889,7 +889,7 @@ put line 365.
 
 LaTeX Warning: Command \k invalid in math mode on input line 372.
 
-<spr3_files/figure-latex/wariancja-cech-1.pdf, id=72, 299.1175pt x 183.68625pt>
+<spr3_files/figure-latex/wariancja-cech-1.pdf, id=74, 299.1175pt x 183.68625pt>
 
 File: spr3_files/figure-latex/wariancja-cech-1.pdf Graphic file (type pdf)
 <use spr3_files/figure-latex/wariancja-cech-1.pdf>
@@ -899,7 +899,7 @@ input line 380.
 [7{c:/texlive/2024/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{c:/texlive/2024
 /texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{c:/texlive/2024/texmf-dist/fonts/enc/
 dvips/lm/lm-mathsy.enc} <./spr3_files/figure-latex/rozklad-klas-1.pdf>]
-<spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf, id=87, 299.1175pt x 
+<spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf, id=89, 299.1175pt x 
 183.68625pt>
 File: spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf Graphic file (ty
 pe pdf)
@@ -932,20 +932,33 @@ Overfull \hbox (5.6852pt too wide) in paragraph at lines 423--423
  []
 
 [8 <./spr3_files/figure-latex/wariancja-cech-1.pdf> <./spr3_files/figure-latex/
-wariancaj-po-standaryzacji-1.pdf>] [9] (./spr3.aux)
+wariancaj-po-standaryzacji-1.pdf>] [9] [10] [11] [12] [13] [14] [15] [16] [17] 
+[18] [19] [20] [21]
+Overfull \hbox (24.24522pt too wide) in paragraph at lines 1351--1351
+[]\T1/lmtt/m/n/12 ## The final values used for the model were fL = 0, usekernel
+ = FALSE and adjust[] 
+ []
+
+[22]
+Overfull \hbox (24.24522pt too wide) in paragraph at lines 1426--1426
+[]\T1/lmtt/m/n/12 ## The final values used for the model were fL = 0, usekernel
+ = FALSE and adjust[] 
+ []
+
+[23] (./spr3.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-02-20>
  ***********
  ) 
 Here is how much of TeX's memory you used:
- 18288 strings out of 474116
- 296300 string characters out of 5747718
+ 18307 strings out of 474116
+ 296481 string characters out of 5747718
  1942190 words of memory out of 5000000
- 40230 multiletter control sequences out of 15000+600000
- 613510 words of font info for 124 fonts, out of 8000000 for 9000
+ 40232 multiletter control sequences out of 15000+600000
+ 613601 words of font info for 125 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 69i,11n,79p,1001b,668s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 69i,11n,79p,1001b,670s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <c:/texlive/2024/texmf-dist/fonts/type1/public/lm/lmbx12.pfb><c:/texlive/2024
 /texmf-dist/fonts/type1/public/lm/lmmi12.pfb><c:/texlive/2024/texmf-dist/fonts/
 type1/public/lm/lmmi8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/lm/lmr
@@ -953,10 +966,10 @@ type1/public/lm/lmmi8.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/lm/lmr
 2024/texmf-dist/fonts/type1/public/lm/lmri12.pfb><c:/texlive/2024/texmf-dist/fo
 nts/type1/public/lm/lmsy10.pfb><c:/texlive/2024/texmf-dist/fonts/type1/public/l
 m/lmtt12.pfb>
-Output written on spr3.pdf (9 pages, 748290 bytes).
+Output written on spr3.pdf (23 pages, 761323 bytes).
 PDF statistics:
- 192 PDF objects out of 1000 (max. 8388607)
- 146 compressed objects within 2 object streams
- 26 named destinations out of 1000 (max. 500000)
- 28791 words of extra memory for PDF output out of 29859 (max. 10000000)
+ 259 PDF objects out of 1000 (max. 8388607)
+ 199 compressed objects within 2 object streams
+ 41 named destinations out of 1000 (max. 500000)
+ 28799 words of extra memory for PDF output out of 29859 (max. 10000000)
 

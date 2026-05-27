@@ -139,7 +139,7 @@ test_set <- dane[-train_index, ]
 
 ## Konstrukcja klasyfikatora i wyznaczanie prognoz
 
-Na podstawie zbioru tran bedziemy estymowac baramtry modelu i nastepnie sprawdzac i jakos dopasowania do wartosci gatunku. Dla zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek kwiata.
+Na podstawie zbioru train bedziemy estymowac baramtry modelu i nastepnie sprawdzac i jakosc dopasowania do wartosci prawdziwej gatunku. Dla zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek kwiata.
 
 ```{r klasyfikacja-train, echo=FALSE}
 
@@ -175,6 +175,7 @@ pred.test <- apply(Y.hat.test, 1, which.max)
 
 ## Ocena klasyfikacji
 
+nastepnei w celu oceny klasyfikacji została wyznaczona macierz pomyłek i bład klasyfikacji na zbiorze uczacym oarz testowym.
 
 ```{r macierz-pomylek-train, echo=FALSE, warning=FALSE}
 conf.train <- table(
@@ -190,6 +191,7 @@ blad.train <- mean(
 
 blad.train
 ```
+Na powyzesz tablie widzmimy wyniki oceny dopaswoanie gatunkow do kwiawtów. Analizuajc wyniki mozemy stwerdzic ze nie wystepuje zjawisko maskowania danych, poniewaz na przkatnej wartosci zdmonoway tabele oraz blad kalsyfikacji wynosi 15% co swaidczy o dbrym dzialalu klasyfikatora.
 ```{r macierz-pomylek-test, echo=FALSE, warning=FALSE}
 
 conf.test <- table(
@@ -206,7 +208,14 @@ blad.test <- mean(
 blad.test
 
 ```
+Dla zbioru testowego rozniez nie obesrujemy zjawiska maskowania danych i blad klasyfikajci wynia 14 %, zblizona wartosc bledow kalsyfikacji dla zbioryu uczacego i testowego swiadczy ze mdoel nie jest przetrenowany i dobrze kalsyfikuje dane. Na przekatnej znaduje sie zdecydowana wiekszosc wystapien co siwadczy o braku maskowania i dobrej klasyfikacji.
+
+to zdanie ggeminik
+Brak maskowania wynika z faktu wykorzystania w klasyfikatorze indykatorowym pełnego zestawu 4 cech irysa.
+
 ## Model liniowy dla rozszerzonej przestrzeni klas
+
+Nastepnei przeprowadizmu klasyfikacie gatunków irysów na rozszerzonej przestrzeni cech. W tym celu zbudujemy nowy model liniowy dla tych cech i porowananymy dokładnosć klasyfiakcji z porzednim modelem. Nasza nowa przestrzen cech zawiera takie zmienne jak Pl^2 tutaj dopisz to. 
 
 ```{r nowy-data-frame, echo=FALSE,warning=FALSE}
 
@@ -296,6 +305,7 @@ blad2.train <- mean(
 
 blad2.train
 ```
+W tabieli zstały przedstawone wyniki dla macierzy pomylek i bład klasyfikacji widizmy ze nie wsytepuje zjawisko maskowania danych, ponwiwaz na przekatnej znaduja zdecydowana wiekszosc danych, co swiadczy o jej doobrym skasyfkiowaniu. Blad kalsyfikacji wynosi 0.02 co siwdczy o bardzo dobrym dopasowaniu gatunkow to kawitów. Blad kalsyfikacji jest znaczaco mniejszy niz dla porzedniego moedlu, co swiadczy ze zaleznosci gatunków miedzy irysami nie sa liniowe, powieaz wprowadznie dodatkowych cech pozwolilo na lepsze odseparownie klas.
 
 ```{r macierz-pomylek-test-2, echo=FALSE, warning=FALSE}
 
@@ -313,19 +323,19 @@ blad2.test <- mean(
 blad2.test
 
 ```
+dla zbioru testowego rozniwaz nie wystepuej zjawisko maskowania zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Blad kalsyfikacji wynosi 0.06 i jest zblizony do wartosci blesu train co siwadczy ze model nie jest przetrenowany tylko dobrze nauczył się ogólnych, nieliniowych reguł rządzących tym zbiorem danych.
 
 # Częśc 2 - porównanie metod klasyfikacji
 
 ## Wstęp 
 
-W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porpwnanaie algorytmów alsyifkacji takich jak metoda k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na zaimportoanej bazie danych.
+W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porownanaie algorytmów klasyifkacji takich jak metoda k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na zaimportoanej bazie danych.
 
 ## Opis i wstępna analiza dancyh
 
 Baza danych na kótrej bedziemy pracować zawiera infomacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz pochodzacych z trzech róznych odmian. Chechą dzięki której bedziemy klasyfikować dane wino jest zmienna informująca o przynależnosci do odmainy wina.
 
-
-```{r pobranie-danych, echo=FALSE}
+```{r pobranie-danych, echo=FALSE, warning=FALSE}
 library(HDclassif)
 data(wine)
 
@@ -333,7 +343,7 @@ dane2 <- wine
 
 ```
 
-Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13 pozostałych cefch.
+Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13 pozostałych cefch. zmienna class zawiera `r length(unique(dane2$class))` kals sluzcych do pogrupowania win.
 
 ```{r tebala-typow-cech-dane2, echo=FALSE}
 
@@ -379,10 +389,10 @@ Na podstawie powyższej tabeli można stwerdzic ze wszystkie typy zmiennych zost
 
 W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
 
-TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA ALE W TEJ TAVELI GOWNO
+TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA ALE W TEJ TAVELI GOWNO - chyba naprawiłam
 
 ```{r statystyki-opisowe-cech, echo=FALSE}
-wine$class <- as.factor(dane2$class)
+dane2$class <- as.factor(dane2$class)
 
 tab_summary_2 <- summary(dane2)
 tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
@@ -426,7 +436,7 @@ for (i in seq_along(kawalki)) {
   print(tabela)
 }
 ```
-W danych nie występuja wartości NA. Na podstawie powyzszej tabeli moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna wartosc dla kazdej cechy jest rozna od 0.
+W danych nie występuja wartości NA. Na podstawie powyzszej tabeli moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna wartosc dla kazdej cechy jest rozna od 0. Jedynie zmienna v13 cechuje sie duza zmeinnosci w poronaiu do pozostalych zmeinnych.
 
 ```{r rozklad-klas, echo=FALSE}
 
@@ -456,7 +466,7 @@ Oznacza to, że około 60% obserwacji zostałoby błędnie sklasyfikowanych, a t
 ```{r wariancja-cech, echo=FALSE}
 boxplot(dane2[, 2:14], col = rainbow(ncol(dane2)-1))
 ```
-Na powyższym wykresie znajduja sie wykres wariancji dla wszystkich cech poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby algorytmy klasyfikujące działy poprawnie.
+Na powyższym wykresie znajduja sie roklad wariancji dla wszystkich cech poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby algorytmy klasyfikujące działy poprawnie.
 
 ```{r wariancaj-po-standaryzacji, echo=FALSE}
 dane2_stand <- scale(dane2[, 2:14])
@@ -464,26 +474,31 @@ boxplot(dane2_stand, col = rainbow(ncol(dane2_stand)))
 ```
 widzimy ze po standaryzacji zmeinne maja zblizone wariancjie, co pozytywnie wpłynie na dzialanie algorytmów.
 
-
 ```{r zmienne-najlepiej-roznicojace, echo=FALSE}
 
 library(MASS)
 
-model <- lda(class ~ ., data = wine)
+model <- lda(class ~ ., data = dane2)
 model
 
 ```
+W celu znalezienia zmiennych, które charakteryzują się najlepszymi zdolnościami dyskryminacyjnymi, zastosowano model Liniowej Analizy Dyskryminacyjnej (LDA). Model ten dokonuje transformacji pierwotnej przestrzeni cech w nową przestrzeń o niższej wymiarowości ($K-1$, gdzie $K$ to liczba klas).
 największe wartości bezwzględne współczynników w funkcjach dyskryminacyjnych LDA.
 
 W szczególności zmienne V3, V7, V8, V11 oraz V12 wykazują największy wkład w separację klas, co oznacza, że najlepiej różnicują obserwacje należące do różnych grup.
 
 Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%, co oznacza, że większość informacji separacyjnej zawarta jest w LD1. 
 
+geminik
+Analiza wag pokazała, że największe wartości bezwzględne współczynników w funkcjach dyskryminacyjnych LDA wykazują zmienne V3, V7, V8, V11 oraz V12. To one charakteryzują się największym wkładem w separację i najlepiej różnicują obserwacje. Ponieważ analiza została przeprowadzona na danych ustandaryzowanych, wielkości te bezpośrednio odzwierciedlają realną siłę dyskryminacyjną cech, a ich przeciwne znaki odpowiadają za rozsuwanie klas w przeciwległe krańce przestrzeni.
+
+Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%
+
 ## Ocena dokładności klasyfikacji i porównanie metod
 
 W dalszej częci raportu porówanym dzialanie algorytmów klasyfikujących takich jak naive, tree, i knn na naszym zbuiioze wine. na poczatku podzielimy zbior na dwa podzbiory pierwszy trrningowy nastepny uczacy. Zbior uczacay bedzie zawierał 70% danych. Do podzialu zostala uzyta bibiloteka caret zachowujaca proporcjie w danych.
 
-```{r podzial-zb-na-pod-zb, echo=FALSE}
+```{r podzial-zb-na-pod-zb, echo=FALSE, warning=FALSE}
 library(caret)
 
 set.seed(67)
@@ -514,12 +529,14 @@ knn_pred_train <- knn(train_x, train_x, train_y, k = 5)
 
 ```{r ocena-knn, echo=FALSE}
 
+confusionMatrix(knn_pred_train, as.factor(train_y))
+mean(knn_pred_train != train_y)
+
 confusionMatrix(knn_pred_test, as.factor(test_y))
 mean(knn_pred_test != test_y)
 
-confusionMatrix(knn_pred_train, as.factor(train_y))
-mean(knn_pred_train != train_y)
 ```
+Powyzsza tabela zawira wyniki dziala klasyfikatora knn dla 5 sa saidów dla widzimy ze macierz pomylek dla train i test nie zawiera maskowania dancyh na przekatnych znajduje sie wiekszosc informacji oraz blad klasyfikacji dla train wynosi 2.3 %b a dla tets 5.7 % wartosci sa relatywnie zblizone do siebie co swiadczy ze mdoel nie jest przetrenowany. (tu sie zastanawiam czy czegos cjeszce nie odaodac z tych wyników)
 
 ```{r tree-klasyfikacja, echo=FALSE}
 library(rpart)
@@ -532,16 +549,16 @@ tree_pred_test <- predict(tree, test, type = "class")
 tree_pred_train <- predict(tree, train, type = "class")
 ```
 
-
 ```{r tree-ocena, echo=FALSE}
+confusionMatrix(tree_pred_train, as.factor(train[,1]))
+mean(tree_pred_train != train[,1])
+
 confusionMatrix(tree_pred_test, as.factor(test[,1]))
 mean(tree_pred_test != test[,1])
 
-confusionMatrix(tree_pred_train, as.factor(train[,1]))
-mean(tree_pred_train != train[,1])
 ```
-
-```{r naive-bayes-klasyfikacja, echo=FALSE}
+Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100% wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie modelu.
+```{r naive-bayes-klasyfikacja, echo=FALSE, warning=FALSE}
 library(e1071)
 
 nb <- naiveBayes(as.factor(train[,1]) ~ ., data = train)
@@ -553,15 +570,16 @@ nb_pred_train <- predict(nb, train)
 ```
 
 ```{r bayes-ocena, echo=FALSE}
+confusionMatrix(nb_pred_train, as.factor(train[,1]))
+mean(nb_pred_train != train[,1]) # train error
 
 confusionMatrix(nb_pred_test, as.factor(test[,1]))
 mean(nb_pred_test != test[,1])   # test error
 
-confusionMatrix(nb_pred_train, as.factor(train[,1]))
-mean(nb_pred_train != train[,1]) # train error
 ```
+Wyniki kalsyfikacji dla modelu naive bayes dla zbioru testowego wykazuja 100% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu dla ziboru testoego wynosi 1.92 co siwaddczy o bradzo dobrym dzialaniu modelu i braku przetrenowania go. Rowniez nie wsytepuje zjawisko maskowania dancyh na przekatnej macierzy znajduje sie zdecydowania wieksozc danych.
 
-
+Nastepnei w celu porwniaia dziala algorytmow przeprowadizmy kalsyfikacjie lecz zastoswujemy bardziej zaawansowany scheamt oceny dokładnosci. Uzylismy metoy cross validation.
 
 ```{r wielokrotny-podzial-knn, echo=FALSE}
 library(caret)
