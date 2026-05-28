@@ -494,9 +494,28 @@ Analiza wag pokazała, że największe wartości bezwzględne współczynników 
 
 Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%
 
+czat:
+Analiza LDA została wykorzystana do oceny zdolności dyskryminacyjnych zmiennych. Największy wpływ na separację klas mają zmienne V7, V8, V11, V12 oraz V3, ponieważ osiągnęły najwyższe wartości bezwzględne współczynników funkcji dyskryminacyjnych.
+
+Pierwsza funkcja dyskryminacyjna (LD1) odpowiada za 68.75% całkowitej separacji klas, natomiast druga funkcja (LD2) za 31.25%. Oznacza to, że większość informacji potrzebnej do rozróżniania klas zawiera się w LD1.
+
+Dodatkowo analiza średnich grupowych wskazuje, że wybrane zmienne przyjmują wyraźnie różne wartości w poszczególnych klasach, co potwierdza ich wysoką zdolność predykcyjną.
+
 ## Ocena dokładności klasyfikacji i porównanie metod
 
 W dalszej częci raportu porówanym dzialanie algorytmów klasyfikujących takich jak naive, tree, i knn na naszym zbuiioze wine. na poczatku podzielimy zbior na dwa podzbiory pierwszy trrningowy nastepny uczacy. Zbior uczacay bedzie zawierał 70% danych. Do podzialu zostala uzyta bibiloteka caret zachowujaca proporcjie w danych.
+
+od czacika troche madre
+
+<!-- W celu oceny skuteczności klasyfikatora kNN dokonano podziału zbioru danych na część uczącą (70%) oraz testową (30%) przy użyciu funkcji createDataPartition, zapewniającej zachowanie proporcji klas w obu zbiorach. -->
+
+<!-- Dane wejściowe zostały poddane standaryzacji, co jest konieczne w przypadku algorytmu k-NN, ponieważ opiera się on na miarach odległości. -->
+
+<!-- Następnie przeprowadzono klasyfikację dla zbioru uczącego oraz testowego przy ustalonej wartości parametru k = 5. Otrzymano macierze pomyłek oraz wartości błędu klasyfikacji. -->
+
+<!-- Błąd na zbiorze uczącym był niższy niż na zbiorze testowym, co jest zjawiskiem typowym i wynika z dopasowania modelu do danych uczących. Błąd na zbiorze testowym stanowi bardziej wiarygodną ocenę jakości klasyfikatora, ponieważ odnosi się do danych niewykorzystywanych podczas uczenia. -->
+
+<!-- Różnica między błędem treningowym i testowym pozwala ocenić stopień przeuczenia modelu (overfitting). -->
 
 ```{r podzial-zb-na-pod-zb, echo=FALSE, warning=FALSE}
 library(caret)
@@ -557,7 +576,8 @@ confusionMatrix(tree_pred_test, as.factor(test[,1]))
 mean(tree_pred_test != test[,1])
 
 ```
-Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100% wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie modelu.
+Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100% wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie modelu. - tego nie jestem pewna 
+
 ```{r naive-bayes-klasyfikacja, echo=FALSE, warning=FALSE}
 library(e1071)
 
@@ -601,8 +621,18 @@ knn_cv <- train(
 )
 
 knn_cv
+knn_cv$results
 #cor(train_x)
 ```
+Wyniki uzyskane metodą cross-validation odnoszą się do zbioru treningowego, który został wielokrotnie dzielony na części uczące i walidacyjne. W związku z tym stanowią one bardziej stabilną ocenę modelu niż pojedynczy wynik na zbiorze treningowym, ale nadal nie są to wyniki na niezależnym zbiorze testowym.
+
+W przypadku pojedynczego podziału uzyskano bardzo wysoką dokładność klasyfikacji na poziomie około 94% dla k = 5. Wynik ten może być jednak obarczony dużą zmiennością, ponieważ zależy od konkretnego losowego podziału danych.
+
+Natomiast zastosowanie 10-krotnej walidacji krzyżowej dało bardziej stabilną ocenę skuteczności modelu, gdzie dla k = 5 uzyskano średnią dokładność na poziomie około 74%.
+
+Różnica pomiędzy wynikami wskazuje, że pojedynczy podział może prowadzić do zawyżenia oceny jakości klasyfikatora, natomiast walidacja krzyżowa dostarcza bardziej wiarygodnej i uogólnionej oceny.
+
+Zaobserwowano również, że wraz ze wzrostem wartości parametru k dokładność klasyfikacji generalnie rośnie, co sugeruje, że większa liczba sąsiadów stabilizuje decyzje klasyfikatora i zmniejsza wpływ szumu w danych.
 
 ```{r wielokrotny-podzial-drzewo, echo=FALSE}
 tree_cv <- train(
@@ -615,8 +645,15 @@ tree_cv <- train(
 tree_cv
 
 ```
+W pojedynczym podzale accuracy wynioso 100 dla teset set. Wynik ten wskazuje na bardzo wysoką skuteczność modelu drzewa decyzyjnego, jednak należy interpretować go ostrożnie, ponieważ może on wynikać z korzystnego podziału danych, niewielkiej liczby obserwacji w zbiorze testowym lub łatwej separowalności klas.
 
-```{r wielokrotny-podzial-bayes, echo=FALSE}
+W celu oceny skuteczności drzewa decyzyjnego zastosowano metodę 10-krotnej walidacji krzyżowej (10-fold cross-validation). Model CART testował różne wartości parametru cp (complexity parameter), który kontroluje stopień przycinania drzewa i jego złożoność.
+
+Najlepszy wynik uzyskano dla cp = 0.0789, dla którego model osiągnął dokładność klasyfikacji na poziomie około 88.7% oraz współczynnik Kappa równy 0.831. Oznacza to bardzo dobrą zgodność klasyfikacji oraz wysoką zdolność modelu do poprawnego rozróżniania klas.
+
+Wraz ze wzrostem wartości parametru cp obserwowano spadek skuteczności modelu, co wskazuje, że zbyt silne przycinanie drzewa prowadzi do utraty informacji i pogorszenia jakości klasyfikacji.
+
+```{r wielokrotny-podzial-bayes, echo=FALSE, warning=FALSE}
 nb_cv <- train(
   Class ~ .,
   data = train_cv,
@@ -627,6 +664,13 @@ nb_cv <- train(
 nb_cv
 
 ```
+W celu oceny skuteczności klasyfikatora Naive Bayes zastosowano 10-krotną walidację krzyżową. Model testował dwa warianty: z estymacją jądrową (usekernel = TRUE) oraz bez niej (usekernel = FALSE).
+
+Najlepszy wynik uzyskano dla modelu bez estymacji jądrowej, który osiągnął dokładność klasyfikacji na poziomie około 98.4% oraz współczynnik Kappa równy 0.976. Oznacza to bardzo wysoką skuteczność klasyfikatora oraz bardzo dobrą zgodność przewidywań z rzeczywistymi klasami.
+
+Wyniki wskazują, że klasy w analizowanym zbiorze danych są dobrze separowalne przy założeniu niezależności zmiennych, co sprzyja wysokiej skuteczności modelu Naive Bayes.
+
+
 ## Różne paramtery i podzbiory cech
 
 ```{r rozne-cech-ale-robimy-to-samo, echo=FALSE}
