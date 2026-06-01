@@ -24,6 +24,9 @@ header-includes:
   - \definecolor{versicolor}{HTML}{5D00BE}
   - \definecolor{virginica}{HTML}{A68DE5}
 fontsize: 12pt
+editor_options: 
+  markdown: 
+    wrap: 72
 ---
 
 ```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
@@ -35,7 +38,7 @@ library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
 showtext_auto()   #
 
-knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE)
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE, message = FALSE)
 
 kolor_tla_legendy <- "#F5FDFF"
 ```
@@ -44,11 +47,24 @@ kolor_tla_legendy <- "#F5FDFF"
 
 # Część 1 – klasyfikacja
 
+```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
+dane <- iris
+kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
+#kolor_granic <- "#AB0046"
+```
+
+
 ## Wstęp
 
-Mamy zbiór danych zawierający wyniki pomiarów przedstawicieli trzech gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}}, \textcolor{versicolor}{\textit{Iris versicolor}} oraz \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości oraz szerokości poszczególnych części kwiatu – działki kielicha (ang. *sepal*) oraz płatka (ang. *petal*). Naszym zadaniem będzie klasyfikowanie garunku płatka na podstwie modelu regresji liniowej. Zmiennymi objaśniajacymi beda chechy opisują kawiaty (Pl, Pw, Sl, Sw), naromiast zmienną objasnianą będzie gatunek. Cel dla zbioru testowego dopasowoac gatunek i ocenic jakosc klasyfikatora. Dla 3 klas .
+Pracujemy na tym samym zbiorze danych danych co w poprzednim sprawozdaniu.
+Zbiór zawiera  wyniki pomiarów przedstawicieli trzech
+gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}},
+\textcolor{versicolor}{\textit{Iris versicolor}} oraz
+\textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości
+oraz szerokości poszczególnych części kwiatu – działki kielicha (ang.
+*sepal*) oraz płatka (ang. *petal*). W przeciągu ostatniego miesiąca wygląd kwiatów się nie zmienił i nadal wyglądają one tak:
 
-```{r irysy, echo=FALSE, cache=FALSE, out.width="32%", fig.show="hold", fig.align="center", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
+```{r irysy-zdjecia, echo=FALSE, cache=FALSE, out.width="32%", fig.show="hold", fig.align="center", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
 
 # ściągnięcie zdjęć irysów w kodzie żeby nie potrzeba było plików
 linki_do_irysow <- c(
@@ -76,15 +92,12 @@ for (p in zdjecia_irysow) {
 knitr::include_graphics(zdjecia_irysow)
 ```
 
-## Opis danych
+## Przypomnienie struktury danych
 
-```{r setup-1, echo=FALSE, warning=FALSE, message=FALSE}
-dane <- iris
-kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C3B1F7")
-#kolor_granic <- "#AB0046"
-```
-
-W naszych danych znajdują się pomiary `r nrow(dane)` irysów`r if (length(unique(table(dane$Species))) == 1) paste0(", po ", unique(table(dane$Species)), " z każdego gatunku") else ""`. Dla każdego z nich mamy wyniki czterech pomiarów, oraz informację o tym do którego gatunku należy:
+W naszych danych znajdują się pomiary `r nrow(dane)`
+irysów`r if (length(unique(table(dane$Species))) == 1) paste0(", po ", unique(table(dane$Species)), " z każdego gatunku") else ""`.
+Dla każdego z nich mamy wyniki czterech pomiarów, oraz informację o tym
+do którego gatunku należy:
 
 ```{r tabela-cech, echo=FALSE, warning=FALSE, message=FALSE}
 tab_cechy <- data.frame(
@@ -123,11 +136,11 @@ kable(tab_summary, booktabs = TRUE,
   kable_styling(latex_options = c("striped", "scale_down", "HOLD_position"), stripe_color = "gray!10")
 ```
 
-## Podział danych na zbiór uczący i testowy 
+## Podział danych na zbiór uczący i testowy
 
-Następnie w celu oceny jakości dziąłnaia klasyfikatora podzielilismy zbior danych na zbior uczący i zbiro testowy w stosunku 1 do 2.
+W celu oceny jakości działnaia klasyfikatora dzielimy zbiór danych na zbiór uczący i zbiór testowy w proporcjach 1 do 2:
 
-```{r podzial-uczacy-testowy, echo=FALSE}
+```{r podzial-uczacy-testowy}
 set.seed(67)
 
 n <- nrow(dane)
@@ -139,7 +152,12 @@ test_set <- dane[-train_index, ]
 
 ## Konstrukcja klasyfikatora i wyznaczanie prognoz
 
-Na podstawie zbioru train bedziemy estymowac baramtry modelu i nastepnie sprawdzac i jakosc dopasowania do wartosci prawdziwej gatunku. Dla zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek kwiata.
+Na podstawie zbioru train bedziemy estymowac baramtry modelu i nastepnie
+sprawdzac i jakosc dopasowania do wartosci prawdziwej gatunku. Dla
+zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek
+kwiata.
+
+tutaj coś powinno być jeszcze jakiś kod czy coś
 
 ```{r klasyfikacja-train, echo=FALSE}
 
@@ -175,7 +193,8 @@ pred.test <- apply(Y.hat.test, 1, which.max)
 
 ## Ocena klasyfikacji
 
-nastepnei w celu oceny klasyfikacji została wyznaczona macierz pomyłek i bład klasyfikacji na zbiorze uczacym oarz testowym.
+nastepnei w celu oceny klasyfikacji została wyznaczona macierz pomyłek i
+bład klasyfikacji na zbiorze uczacym oarz testowym.
 
 ```{r macierz-pomylek-train, echo=FALSE, warning=FALSE}
 conf.train <- table(
@@ -183,15 +202,22 @@ conf.train <- table(
   Prognozowane = levels(train_set$Species)[pred.train]
 )
 
-conf.train
-
 blad.train <- mean(
   pred.train != as.numeric(train_set$Species)
 )
 
-blad.train
+kable(conf.train, booktabs = TRUE,
+      caption = "Macierz pomyłek dla zbioru uczącego (model liniowy)") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
-Na powyzesz tablie widzmimy wyniki oceny dopaswoanie gatunkow do kwiawtów. Analizuajc wyniki mozemy stwerdzic ze nie wystepuje zjawisko maskowania danych, poniewaz na przkatnej wartosci zdmonoway tabele oraz blad kalsyfikacji wynosi 15% co swaidczy o dbrym dzialalu klasyfikatora.
+
+Na powyzesz tablie widzmimy wyniki oceny dopaswoanie gatunkow do
+kwiawtów. Analizuajc wyniki mozemy stwerdzic ze nie wystepuje zjawisko
+maskowania danych, poniewaz na przkatnej wartosci zdmonoway tabele oraz
+blad kalsyfikacji wynosi 15% co swaidczy o dbrym dzialalu klasyfikatora.
+
 ```{r macierz-pomylek-test, echo=FALSE, warning=FALSE}
 
 conf.test <- table(
@@ -199,23 +225,66 @@ conf.test <- table(
   Prognozowane = levels(test_set$Species)[pred.test]
 )
 
-conf.test
-
 blad.test <- mean(
   pred.test != as.numeric(test_set$Species)
 )
 
-blad.test
-
+kable(conf.test, booktabs = TRUE,
+      caption = "Macierz pomyłek dla zbioru testowego (model liniowy)") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
-Dla zbioru testowego rozniez nie obesrujemy zjawiska maskowania danych i blad klasyfikajci wynia 14 %, zblizona wartosc bledow kalsyfikacji dla zbioryu uczacego i testowego swiadczy ze mdoel nie jest przetrenowany i dobrze kalsyfikuje dane. Na przekatnej znaduje sie zdecydowana wiekszosc wystapien co siwadczy o braku maskowania i dobrej klasyfikacji.
 
-to zdanie ggeminik
-Brak maskowania wynika z faktu wykorzystania w klasyfikatorze indykatorowym pełnego zestawu 4 cech irysa.
+Dla zbioru testowego rozniez nie obesrujemy zjawiska maskowania danych i
+blad klasyfikajci wynia 14 %, zblizona wartosc bledow kalsyfikacji dla
+zbioryu uczacego i testowego swiadczy ze mdoel nie jest przetrenowany i
+dobrze kalsyfikuje dane. Na przekatnej znaduje sie zdecydowana wiekszosc
+wystapien co siwadczy o braku maskowania i dobrej klasyfikacji.
+
+to zdanie ggeminik Brak maskowania wynika z faktu wykorzystania w
+klasyfikatorze indykatorowym pełnego zestawu 4 cech irysa.
+
+```{r funkcja-wykres-maskowania, echo=FALSE}
+# funkcja rysująca wykres maskowania klas: dla każdego obiektu (uporządkowanego
+# wg prawdziwego gatunku) rysujemy dopasowane wartości Y.hat dla wszystkich 3 klas
+wykres_maskowania <- function(Y.hat, gatunki) {
+  ord <- order(gatunki)
+  M <- Y.hat[ord, ]
+  colnames(M) <- levels(gatunki)
+  n <- nrow(M)
+
+  df_long <- data.frame(
+    obiekt  = rep(seq_len(n), times = ncol(M)),
+    Gatunek = factor(rep(colnames(M), each = n), levels = colnames(M)),
+    wartosc = as.vector(M)
+  )
+  # linie pionowe oddzielające bloki klas
+  granice <- cumsum(table(gatunki[ord]))
+  granice <- head(granice, -1) + 0.5
+
+  ggplot(df_long, aes(obiekt, wartosc, colour = Gatunek)) +
+    geom_vline(xintercept = granice, linetype = "dashed", colour = "gray70") +
+    geom_line(linewidth = 0.6) +
+    scale_colour_manual(values = kolory_gatunkow) +
+    labs(x = "Numer obiektu (posortowane wg gatunku)",
+         y = expression(hat(Y))) +
+    theme_minimal(base_size = 11) +
+    theme(legend.position = "top",
+          legend.background = element_rect(fill = kolor_tla_legendy, colour = NA))
+}
+```
+
+```{r wykres-maskowania-lin, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu liniowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
+wykres_maskowania(Y.hat.train, train_set$Species)
+```
 
 ## Model liniowy dla rozszerzonej przestrzeni klas
 
-Nastepnei przeprowadizmu klasyfikacie gatunków irysów na rozszerzonej przestrzeni cech. W tym celu zbudujemy nowy model liniowy dla tych cech i porowananymy dokładnosć klasyfiakcji z porzednim modelem. Nasza nowa przestrzen cech zawiera takie zmienne jak Pl^2 tutaj dopisz to. 
+Nastepnei przeprowadizmu klasyfikacie gatunków irysów na rozszerzonej
+przestrzeni cech. W tym celu zbudujemy nowy model liniowy dla tych cech
+i porowananymy dokładnosć klasyfiakcji z porzednim modelem. Nasza nowa
+przestrzen cech zawiera takie zmienne jak Pl\^2 tutaj dopisz to.
 
 ```{r nowy-data-frame, echo=FALSE,warning=FALSE}
 
@@ -297,15 +366,25 @@ conf2.train <- table(
   Prognozowane = levels(train_set$Species)[pred2.train]
 )
 
-conf2.train
-
 blad2.train <- mean(
   pred2.train != as.numeric(train_set$Species)
 )
 
-blad2.train
+kable(conf2.train, booktabs = TRUE,
+      caption = "Macierz pomyłek dla zbioru uczącego (model wielomianowy)") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
-W tabieli zstały przedstawone wyniki dla macierzy pomylek i bład klasyfikacji widizmy ze nie wsytepuje zjawisko maskowania danych, ponwiwaz na przekatnej znaduja zdecydowana wiekszosc danych, co swiadczy o jej doobrym skasyfkiowaniu. Blad kalsyfikacji wynosi 0.02 co siwdczy o bardzo dobrym dopasowaniu gatunkow to kawitów. Blad kalsyfikacji jest znaczaco mniejszy niz dla porzedniego moedlu, co swiadczy ze zaleznosci gatunków miedzy irysami nie sa liniowe, powieaz wprowadznie dodatkowych cech pozwolilo na lepsze odseparownie klas.
+
+W tabieli zstały przedstawone wyniki dla macierzy pomylek i bład
+klasyfikacji widizmy ze nie wsytepuje zjawisko maskowania danych,
+ponwiwaz na przekatnej znaduja zdecydowana wiekszosc danych, co swiadczy
+o jej doobrym skasyfkiowaniu. Blad kalsyfikacji wynosi 0.02 co siwdczy o
+bardzo dobrym dopasowaniu gatunkow to kawitów. Blad kalsyfikacji jest
+znaczaco mniejszy niz dla porzedniego moedlu, co swiadczy ze zaleznosci
+gatunków miedzy irysami nie sa liniowe, powieaz wprowadznie dodatkowych
+cech pozwolilo na lepsze odseparownie klas.
 
 ```{r macierz-pomylek-test-2, echo=FALSE, warning=FALSE}
 
@@ -314,26 +393,59 @@ conf2.test <- table(
   Prognozowane = levels(test_set$Species)[pred2.test]
 )
 
-conf2.test
-
 blad2.test <- mean(
   pred2.test != as.numeric(test_set$Species)
 )
 
-blad2.test
-
+kable(conf2.test, booktabs = TRUE,
+      caption = "Macierz pomyłek dla zbioru testowego (model wielomianowy)") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
-dla zbioru testowego rozniwaz nie wystepuej zjawisko maskowania zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Blad kalsyfikacji wynosi 0.06 i jest zblizony do wartosci blesu train co siwadczy ze model nie jest przetrenowany tylko dobrze nauczył się ogólnych, nieliniowych reguł rządzących tym zbiorem danych.
+
+dla zbioru testowego rozniwaz nie wystepuej zjawisko maskowania
+zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Blad
+kalsyfikacji wynosi 0.06 i jest zblizony do wartosci blesu train co
+siwadczy ze model nie jest przetrenowany tylko dobrze nauczył się
+ogólnych, nieliniowych reguł rządzących tym zbiorem danych.
+
+```{r wykres-maskowania-poly, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu wielomianowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
+wykres_maskowania(Y2.hat.train, train_set$Species)
+```
+
+```{r tabela-porownanie-bledow, echo=FALSE, warning=FALSE}
+tab_bledy <- data.frame(
+  Model = c("liniowy", "wielomianowy (st. 2)"),
+  `Zbiór uczący` = c(blad.train, blad2.train),
+  `Zbiór testowy` = c(blad.test, blad2.test),
+  check.names = FALSE
+)
+
+kable(tab_bledy, booktabs = TRUE, digits = 3,
+      caption = "Porównanie błędu klasyfikacji: model liniowy vs wielomianowy") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
+```
 
 # Częśc 2 - porównanie metod klasyfikacji
 
-## Wstęp 
+## Wstęp
 
-W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porownanaie algorytmów klasyifkacji takich jak metoda k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na zaimportoanej bazie danych.
+W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z
+bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porownanaie
+algorytmów klasyifkacji takich jak metoda k-najblizszych sasiadów,
+drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na
+zaimportoanej bazie danych.
 
 ## Opis i wstępna analiza dancyh
 
-Baza danych na kótrej bedziemy pracować zawiera infomacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz pochodzacych z trzech róznych odmian. Chechą dzięki której bedziemy klasyfikować dane wino jest zmienna informująca o przynależnosci do odmainy wina.
+Baza danych na kótrej bedziemy pracować zawiera infomacje o wynikach
+analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz
+pochodzacych z trzech róznych odmian. Chechą dzięki której bedziemy
+klasyfikować dane wino jest zmienna informująca o przynależnosci do
+odmainy wina.
 
 ```{r pobranie-danych, echo=FALSE, warning=FALSE}
 library(HDclassif)
@@ -343,7 +455,11 @@ dane2 <- wine
 
 ```
 
-Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13 pozostałych cefch. zmienna class zawiera `r length(unique(dane2$class))` kals sluzcych do pogrupowania win.
+Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich
+mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o
+przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13
+pozostałych cefch. zmienna class zawiera `r length(unique(dane2$class))`
+kals sluzcych do pogrupowania win.
 
 ```{r tebala-typow-cech-dane2, echo=FALSE}
 
@@ -358,7 +474,7 @@ tab_cechy_2 <- data.frame(
     "zawartość magnezu",
     "łączna zawartość fenoli",
     "flawonoidy",
-    "fenole niefławonoidowe",
+    "fenole nieflawonoidowe",
     "proantocyjaniny",
     "intensywność barwy",
     "odcień koloru",
@@ -385,13 +501,18 @@ kable(
   column_spec(2, width = "9cm")
 ```
 
-Na podstawie powyższej tabeli można stwerdzic ze wszystkie typy zmiennych zostały prawidłowo zakodowane, poza zmienną class. Dla której zmienimi typ na facotr. 
+Na podstawie powyższej tabeli można stwerdzic ze wszystkie typy
+zmiennych zostały prawidłowo zakodowane, poza zmienną class. Dla której
+zmienimi typ na facotr.
 
-W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja podstawowych nieprawidłowości.
+W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki
+czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja
+podstawowych nieprawidłowości.
 
-TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA ALE W TEJ TAVELI GOWNO - chyba naprawiłam
+TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA
+ALE W TEJ TAVELI GOWNO - chyba naprawiłam
 
-```{r statystyki-opisowe-cech, echo=FALSE}
+```{r statystyki-opisowe-cech, echo=FALSE, results='asis'}
 dane2$class <- as.factor(dane2$class)
 
 tab_summary_2 <- summary(dane2)
@@ -436,7 +557,11 @@ for (i in seq_along(kawalki)) {
   print(tabela)
 }
 ```
-W danych nie występuja wartości NA. Na podstawie powyzszej tabeli moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna wartosc dla kazdej cechy jest rozna od 0. Jedynie zmienna v13 cechuje sie duza zmeinnosci w poronaiu do pozostalych zmeinnych.
+
+W danych nie występuja wartości NA. Na podstawie powyzszej tabeli
+moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna
+wartosc dla kazdej cechy jest rozna od 0. Jedynie zmienna v13 cechuje
+sie duza zmeinnosci w poronaiu do pozostalych zmeinnych.
 
 ```{r rozklad-klas, echo=FALSE}
 
@@ -449,61 +574,102 @@ ggplot(dane2, aes(x = class)) +
        y = "Liczność")
 
 ```
-Na powyzszym wykresie widzimy roklad przynależlonci poszczególnych obserwacji do danej klasy. Mozemy zauważyc, ze najwiecej obserwacji nalezy do kalsy 2, natomist najmnej do klast 3.
 
-Oznacza to, że występują pewne dysproporcje w liczebności klas, jednak nie są one skrajne.
+Na powyzszym wykresie widzimy roklad przynależlonci poszczególnych
+obserwacji do danej klasy. Mozemy zauważyc, ze najwiecej obserwacji
+nalezy do kalsy 2, natomist najmnej do klast 3.
 
-Jeśli wszystkie obserwacje zostałyby przypisane do najczęściej występującej klasy (klasa 2), to błąd klasyfikacji wyniósłby:
+Oznacza to, że występują pewne dysproporcje w liczebności klas, jednak
+nie są one skrajne.
 
-$$ bląd = 1 - \frac{n_{max}}{n},  $$
-gdzie:
-n_{max} to liczba obserwacji na najliczniejszej klasie, a n to liczba wszystkich obserwacji.
+Jeśli wszystkie obserwacje zostałyby przypisane do najczęściej
+występującej klasy (klasa 2), to błąd klasyfikacji wyniósłby:
+
+$$ bląd = 1 - \frac{n_{max}}{n},  $$ gdzie: n\_{max} to liczba
+obserwacji na najliczniejszej klasie, a n to liczba wszystkich
+obserwacji.
 
 Bład wynosi `r 1 - max(table(wine$class)) / nrow(wine)`.
 
-Oznacza to, że około 60% obserwacji zostałoby błędnie sklasyfikowanych, a taki klasyfikator osiągnąłby jedynie około 40% skuteczności.
+Oznacza to, że około 60% obserwacji zostałoby błędnie sklasyfikowanych,
+a taki klasyfikator osiągnąłby jedynie około 40% skuteczności.
 
 ```{r wariancja-cech, echo=FALSE}
 boxplot(dane2[, 2:14], col = rainbow(ncol(dane2)-1))
 ```
-Na powyższym wykresie znajduja sie roklad wariancji dla wszystkich cech poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby algorytmy klasyfikujące działy poprawnie.
+
+Na powyższym wykresie znajduja sie roklad wariancji dla wszystkich cech
+poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie
+najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby
+algorytmy klasyfikujące działy poprawnie.
 
 ```{r wariancaj-po-standaryzacji, echo=FALSE}
 dane2_stand <- scale(dane2[, 2:14])
 boxplot(dane2_stand, col = rainbow(ncol(dane2_stand)))
 ```
-widzimy ze po standaryzacji zmeinne maja zblizone wariancjie, co pozytywnie wpłynie na dzialanie algorytmów.
+
+widzimy ze po standaryzacji zmeinne maja zblizone wariancjie, co
+pozytywnie wpłynie na dzialanie algorytmów.
 
 ```{r zmienne-najlepiej-roznicojace, echo=FALSE}
 
 library(MASS)
 
 model <- lda(class ~ ., data = dane2)
-model
 
+kable(model$scaling, booktabs = TRUE, digits = 3,
+      caption = "Współczynniki funkcji dyskryminacyjnych LDA (LD1, LD2)") %>%
+  kable_styling(full_width = FALSE,
+                latex_options = c("striped", "HOLD_position"),
+                stripe_color = "gray!10")
 ```
-W celu znalezienia zmiennych, które charakteryzują się najlepszymi zdolnościami dyskryminacyjnymi, zastosowano model Liniowej Analizy Dyskryminacyjnej (LDA). Model ten dokonuje transformacji pierwotnej przestrzeni cech w nową przestrzeń o niższej wymiarowości ($K-1$, gdzie $K$ to liczba klas).
-największe wartości bezwzględne współczynników w funkcjach dyskryminacyjnych LDA.
 
-W szczególności zmienne V3, V7, V8, V11 oraz V12 wykazują największy wkład w separację klas, co oznacza, że najlepiej różnicują obserwacje należące do różnych grup.
+W celu znalezienia zmiennych, które charakteryzują się najlepszymi
+zdolnościami dyskryminacyjnymi, zastosowano model Liniowej Analizy
+Dyskryminacyjnej (LDA). Model ten dokonuje transformacji pierwotnej
+przestrzeni cech w nową przestrzeń o niższej wymiarowości ($K-1$, gdzie
+$K$ to liczba klas). największe wartości bezwzględne współczynników w
+funkcjach dyskryminacyjnych LDA.
 
-Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%, co oznacza, że większość informacji separacyjnej zawarta jest w LD1. 
+W szczególności zmienne V3, V7, V8, V11 oraz V12 wykazują największy
+wkład w separację klas, co oznacza, że najlepiej różnicują obserwacje
+należące do różnych grup.
 
-geminik
-Analiza wag pokazała, że największe wartości bezwzględne współczynników w funkcjach dyskryminacyjnych LDA wykazują zmienne V3, V7, V8, V11 oraz V12. To one charakteryzują się największym wkładem w separację i najlepiej różnicują obserwacje. Ponieważ analiza została przeprowadzona na danych ustandaryzowanych, wielkości te bezpośrednio odzwierciedlają realną siłę dyskryminacyjną cech, a ich przeciwne znaki odpowiadają za rozsuwanie klas w przeciwległe krańce przestrzeni.
+Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między
+klasami, natomiast druga (LD2) 31.25%, co oznacza, że większość
+informacji separacyjnej zawarta jest w LD1.
 
-Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między klasami, natomiast druga (LD2) 31.25%
+geminik Analiza wag pokazała, że największe wartości bezwzględne
+współczynników w funkcjach dyskryminacyjnych LDA wykazują zmienne V3,
+V7, V8, V11 oraz V12. To one charakteryzują się największym wkładem w
+separację i najlepiej różnicują obserwacje. Ponieważ analiza została
+przeprowadzona na danych ustandaryzowanych, wielkości te bezpośrednio
+odzwierciedlają realną siłę dyskryminacyjną cech, a ich przeciwne znaki
+odpowiadają za rozsuwanie klas w przeciwległe krańce przestrzeni.
 
-czat:
-Analiza LDA została wykorzystana do oceny zdolności dyskryminacyjnych zmiennych. Największy wpływ na separację klas mają zmienne V7, V8, V11, V12 oraz V3, ponieważ osiągnęły najwyższe wartości bezwzględne współczynników funkcji dyskryminacyjnych.
+Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75% zmienności między
+klasami, natomiast druga (LD2) 31.25%
 
-Pierwsza funkcja dyskryminacyjna (LD1) odpowiada za 68.75% całkowitej separacji klas, natomiast druga funkcja (LD2) za 31.25%. Oznacza to, że większość informacji potrzebnej do rozróżniania klas zawiera się w LD1.
+czat: Analiza LDA została wykorzystana do oceny zdolności
+dyskryminacyjnych zmiennych. Największy wpływ na separację klas mają
+zmienne V7, V8, V11, V12 oraz V3, ponieważ osiągnęły najwyższe wartości
+bezwzględne współczynników funkcji dyskryminacyjnych.
 
-Dodatkowo analiza średnich grupowych wskazuje, że wybrane zmienne przyjmują wyraźnie różne wartości w poszczególnych klasach, co potwierdza ich wysoką zdolność predykcyjną.
+Pierwsza funkcja dyskryminacyjna (LD1) odpowiada za 68.75% całkowitej
+separacji klas, natomiast druga funkcja (LD2) za 31.25%. Oznacza to, że
+większość informacji potrzebnej do rozróżniania klas zawiera się w LD1.
+
+Dodatkowo analiza średnich grupowych wskazuje, że wybrane zmienne
+przyjmują wyraźnie różne wartości w poszczególnych klasach, co
+potwierdza ich wysoką zdolność predykcyjną.
 
 ## Ocena dokładności klasyfikacji i porównanie metod
 
-W dalszej częci raportu porówanym dzialanie algorytmów klasyfikujących takich jak naive, tree, i knn na naszym zbuiioze wine. na poczatku podzielimy zbior na dwa podzbiory pierwszy trrningowy nastepny uczacy. Zbior uczacay bedzie zawierał 70% danych. Do podzialu zostala uzyta bibiloteka caret zachowujaca proporcjie w danych.
+W dalszej częci raportu porówanym dzialanie algorytmów klasyfikujących
+takich jak naive, tree, i knn na naszym zbuiioze wine. na poczatku
+podzielimy zbior na dwa podzbiory pierwszy trrningowy nastepny uczacy.
+Zbior uczacay bedzie zawierał 70% danych. Do podzialu zostala uzyta
+bibiloteka caret zachowujaca proporcjie w danych.
 
 od czacika troche madre
 
@@ -546,16 +712,32 @@ knn_pred_train <- knn(train_x, train_x, train_y, k = 5)
 
 ```
 
-```{r ocena-knn, echo=FALSE}
-
-confusionMatrix(knn_pred_train, as.factor(train_y))
-mean(knn_pred_train != train_y)
-
-confusionMatrix(knn_pred_test, as.factor(test_y))
-mean(knn_pred_test != test_y)
-
+```{r funkcja-tabela-cm, echo=FALSE}
+# macierz pomyłek jako tabela (Część 2)
+tabela_cm <- function(pred, ref, caption) {
+  cm <- table(Rzeczywiste = ref, Prognozowane = pred)
+  kable(cm, booktabs = TRUE, caption = caption) %>%
+    kable_styling(full_width = FALSE,
+                  latex_options = c("striped", "HOLD_position"),
+                  stripe_color = "gray!10")
+}
 ```
-Powyzsza tabela zawira wyniki dziala klasyfikatora knn dla 5 sa saidów dla widzimy ze macierz pomylek dla train i test nie zawiera maskowania dancyh na przekatnych znajduje sie wiekszosc informacji oraz blad klasyfikacji dla train wynosi 2.3 %b a dla tets 5.7 % wartosci sa relatywnie zblizone do siebie co swiadczy ze mdoel nie jest przetrenowany. (tu sie zastanawiam czy czegos cjeszce nie odaodac z tych wyników)
+
+```{r ocena-knn-train, echo=FALSE}
+tabela_cm(knn_pred_train, train_y, "Macierz pomyłek -- k-NN, zbiór uczący")
+```
+
+```{r ocena-knn-test, echo=FALSE}
+tabela_cm(knn_pred_test,  test_y,  "Macierz pomyłek -- k-NN, zbiór testowy")
+```
+
+Powyzsza tabela zawira wyniki dziala klasyfikatora knn dla 5 sa saidów
+dla widzimy ze macierz pomylek dla train i test nie zawiera maskowania
+dancyh na przekatnych znajduje sie wiekszosc informacji oraz blad
+klasyfikacji dla train wynosi 2.3 %b a dla tets 5.7 % wartosci sa
+relatywnie zblizone do siebie co swiadczy ze mdoel nie jest
+przetrenowany. (tu sie zastanawiam czy czegos cjeszce nie odaodac z tych
+wyników)
 
 ```{r tree-klasyfikacja, echo=FALSE}
 library(rpart)
@@ -568,15 +750,20 @@ tree_pred_test <- predict(tree, test, type = "class")
 tree_pred_train <- predict(tree, train, type = "class")
 ```
 
-```{r tree-ocena, echo=FALSE}
-confusionMatrix(tree_pred_train, as.factor(train[,1]))
-mean(tree_pred_train != train[,1])
-
-confusionMatrix(tree_pred_test, as.factor(test[,1]))
-mean(tree_pred_test != test[,1])
-
+```{r tree-ocena-train, echo=FALSE}
+tabela_cm(tree_pred_train, train[,1], "Macierz pomyłek -- drzewo, zbiór uczący")
 ```
-Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100% wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie modelu. - tego nie jestem pewna 
+
+```{r tree-ocena-test, echo=FALSE}
+tabela_cm(tree_pred_test,  test[,1],  "Macierz pomyłek -- drzewo, zbiór testowy")
+```
+
+Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze
+uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich
+kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial
+dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100%
+wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie
+modelu. - tego nie jestem pewna
 
 ```{r naive-bayes-klasyfikacja, echo=FALSE, warning=FALSE}
 library(e1071)
@@ -589,17 +776,35 @@ nb_pred_train <- predict(nb, train)
 
 ```
 
-```{r bayes-ocena, echo=FALSE}
-confusionMatrix(nb_pred_train, as.factor(train[,1]))
-mean(nb_pred_train != train[,1]) # train error
-
-confusionMatrix(nb_pred_test, as.factor(test[,1]))
-mean(nb_pred_test != test[,1])   # test error
-
+```{r bayes-ocena-train, echo=FALSE}
+tabela_cm(nb_pred_train, train[,1], "Macierz pomyłek -- naive Bayes, zbiór uczący")
 ```
-Wyniki kalsyfikacji dla modelu naive bayes dla zbioru testowego wykazuja 100% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu dla ziboru testoego wynosi 1.92 co siwaddczy o bradzo dobrym dzialaniu modelu i braku przetrenowania go. Rowniez nie wsytepuje zjawisko maskowania dancyh na przekatnej macierzy znajduje sie zdecydowania wieksozc danych.
 
-Nastepnei w celu porwniaia dziala algorytmow przeprowadizmy kalsyfikacjie lecz zastoswujemy bardziej zaawansowany scheamt oceny dokładnosci. Uzylismy metoy cross validation.
+```{r bayes-ocena-test, echo=FALSE}
+tabela_cm(nb_pred_test,  test[,1],  "Macierz pomyłek -- naive Bayes, zbiór testowy")
+```
+
+Wyniki kalsyfikacji dla modelu naive bayes dla zbioru uczącego wykazuja
+100% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu
+dla ziboru testoego wynosi 1.92 co siwaddczy o bradzo dobrym dzialaniu
+modelu i braku przetrenowania go. Rowniez nie wsytepuje zjawisko
+maskowania dancyh na przekatnej macierzy znajduje sie zdecydowania
+wieksozc danych.
+
+Nastepnei w celu porwniaia dziala algorytmow przeprowadizmy
+kalsyfikacjie lecz zastoswujemy bardziej zaawansowany scheamt oceny
+dokładnosci. Uzylismy metoy cross validation.
+
+```{r funkcja-tabela-wynikow, echo=FALSE}
+# wyniki strojenia modelu caret::train jako tabela (Część 2)
+tabela_wynikow <- function(model, caption) {
+  kable(model$results, booktabs = TRUE, digits = 3, row.names = FALSE,
+        caption = caption) %>%
+    kable_styling(full_width = FALSE,
+                  latex_options = c("striped", "scale_down", "HOLD_position"),
+                  stripe_color = "gray!10")
+}
+```
 
 ```{r wielokrotny-podzial-knn, echo=FALSE}
 library(caret)
@@ -617,22 +822,39 @@ knn_cv <- train(
   data = train_cv,
   method = "knn",
   trControl = ctrl,
-  tuneLength = 5
+  tuneLength = 5,
+  preProcess = c("center", "scale") # k-NN wymaga standaryzacji (jak przy pojedynczym podziale)
 )
 
-knn_cv
-knn_cv$results
+tabela_wynikow(knn_cv, "Wyniki 10-krotnej walidacji krzyżowej -- k-NN (wg parametru k)")
 #cor(train_x)
 ```
-Wyniki uzyskane metodą cross-validation odnoszą się do zbioru treningowego, który został wielokrotnie dzielony na części uczące i walidacyjne. W związku z tym stanowią one bardziej stabilną ocenę modelu niż pojedynczy wynik na zbiorze treningowym, ale nadal nie są to wyniki na niezależnym zbiorze testowym.
 
-W przypadku pojedynczego podziału uzyskano bardzo wysoką dokładność klasyfikacji na poziomie około 94% dla k = 5. Wynik ten może być jednak obarczony dużą zmiennością, ponieważ zależy od konkretnego losowego podziału danych.
+\textcolor{red}{[DO PRZEPISANIA: do CV k-NN dodano standaryzację (\texttt{preProcess}), bo wcześniej jej brakowało, a przy pojedynczym podziale była. Teraz CV k-NN daje najlepszy wynik (k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`) ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, czyli zbliżony do pojedynczego podziału (ok. `r round(100 * (1 - mean(knn_pred_test != test_y)), 1)`\%), a NIE 74\%. Dlatego poniższa interpretacja jest nieaktualna i wymaga zmiany: (1) spadek do 74\% NIE wynikał z optymizmu pojedynczego podziału, tylko z braku standaryzacji w CV; teraz oba schematy są spójne; (2) dokładność najlepszego k to ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, a nie 74\%; (3) zdanie, że dokładność „generalnie rośnie wraz z k", jest błędne — po standaryzacji najlepsze jest k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`.]}
 
-Natomiast zastosowanie 10-krotnej walidacji krzyżowej dało bardziej stabilną ocenę skuteczności modelu, gdzie dla k = 5 uzyskano średnią dokładność na poziomie około 74%.
+Wyniki uzyskane metodą cross-validation odnoszą się do zbioru
+treningowego, który został wielokrotnie dzielony na części uczące i
+walidacyjne. W związku z tym stanowią one bardziej stabilną ocenę modelu
+niż pojedynczy wynik na zbiorze treningowym, ale nadal nie są to wyniki
+na niezależnym zbiorze testowym.
 
-Różnica pomiędzy wynikami wskazuje, że pojedynczy podział może prowadzić do zawyżenia oceny jakości klasyfikatora, natomiast walidacja krzyżowa dostarcza bardziej wiarygodnej i uogólnionej oceny.
+W przypadku pojedynczego podziału uzyskano bardzo wysoką dokładność
+klasyfikacji na poziomie około 94% dla k = 5. Wynik ten może być jednak
+obarczony dużą zmiennością, ponieważ zależy od konkretnego losowego
+podziału danych.
 
-Zaobserwowano również, że wraz ze wzrostem wartości parametru k dokładność klasyfikacji generalnie rośnie, co sugeruje, że większa liczba sąsiadów stabilizuje decyzje klasyfikatora i zmniejsza wpływ szumu w danych.
+Natomiast zastosowanie 10-krotnej walidacji krzyżowej dało bardziej
+stabilną ocenę skuteczności modelu, gdzie dla k = 5 uzyskano średnią
+dokładność na poziomie około 74%.
+
+Różnica pomiędzy wynikami wskazuje, że pojedynczy podział może prowadzić
+do zawyżenia oceny jakości klasyfikatora, natomiast walidacja krzyżowa
+dostarcza bardziej wiarygodnej i uogólnionej oceny.
+
+Zaobserwowano również, że wraz ze wzrostem wartości parametru k
+dokładność klasyfikacji generalnie rośnie, co sugeruje, że większa
+liczba sąsiadów stabilizuje decyzje klasyfikatora i zmniejsza wpływ
+szumu w danych.
 
 ```{r wielokrotny-podzial-drzewo, echo=FALSE}
 tree_cv <- train(
@@ -642,16 +864,29 @@ tree_cv <- train(
   trControl = ctrl
 )
 
-tree_cv
+tabela_wynikow(tree_cv, "Wyniki 10-krotnej walidacji krzyżowej -- drzewo (wg parametru cp)")
 
 ```
-W pojedynczym podzale accuracy wynioso 100 dla teset set. Wynik ten wskazuje na bardzo wysoką skuteczność modelu drzewa decyzyjnego, jednak należy interpretować go ostrożnie, ponieważ może on wynikać z korzystnego podziału danych, niewielkiej liczby obserwacji w zbiorze testowym lub łatwej separowalności klas.
 
-W celu oceny skuteczności drzewa decyzyjnego zastosowano metodę 10-krotnej walidacji krzyżowej (10-fold cross-validation). Model CART testował różne wartości parametru cp (complexity parameter), który kontroluje stopień przycinania drzewa i jego złożoność.
+W pojedynczym podzale accuracy wynioso 100 dla teset set. Wynik ten
+wskazuje na bardzo wysoką skuteczność modelu drzewa decyzyjnego, jednak
+należy interpretować go ostrożnie, ponieważ może on wynikać z
+korzystnego podziału danych, niewielkiej liczby obserwacji w zbiorze
+testowym lub łatwej separowalności klas.
 
-Najlepszy wynik uzyskano dla cp = 0.0789, dla którego model osiągnął dokładność klasyfikacji na poziomie około 88.7% oraz współczynnik Kappa równy 0.831. Oznacza to bardzo dobrą zgodność klasyfikacji oraz wysoką zdolność modelu do poprawnego rozróżniania klas.
+W celu oceny skuteczności drzewa decyzyjnego zastosowano metodę
+10-krotnej walidacji krzyżowej (10-fold cross-validation). Model CART
+testował różne wartości parametru cp (complexity parameter), który
+kontroluje stopień przycinania drzewa i jego złożoność.
 
-Wraz ze wzrostem wartości parametru cp obserwowano spadek skuteczności modelu, co wskazuje, że zbyt silne przycinanie drzewa prowadzi do utraty informacji i pogorszenia jakości klasyfikacji.
+Najlepszy wynik uzyskano dla cp = 0.0789, dla którego model osiągnął
+dokładność klasyfikacji na poziomie około 88.7% oraz współczynnik Kappa
+równy 0.831. Oznacza to bardzo dobrą zgodność klasyfikacji oraz wysoką
+zdolność modelu do poprawnego rozróżniania klas.
+
+Wraz ze wzrostem wartości parametru cp obserwowano spadek skuteczności
+modelu, co wskazuje, że zbyt silne przycinanie drzewa prowadzi do utraty
+informacji i pogorszenia jakości klasyfikacji.
 
 ```{r wielokrotny-podzial-bayes, echo=FALSE, warning=FALSE}
 nb_cv <- train(
@@ -661,15 +896,25 @@ nb_cv <- train(
   trControl = ctrl
 )
 
-nb_cv
+tabela_wynikow(nb_cv, "Wyniki 10-krotnej walidacji krzyżowej -- naive Bayes")
 
 ```
-W celu oceny skuteczności klasyfikatora Naive Bayes zastosowano 10-krotną walidację krzyżową. Model testował dwa warianty: z estymacją jądrową (usekernel = TRUE) oraz bez niej (usekernel = FALSE).
 
-Najlepszy wynik uzyskano dla modelu bez estymacji jądrowej, który osiągnął dokładność klasyfikacji na poziomie około 98.4% oraz współczynnik Kappa równy 0.976. Oznacza to bardzo wysoką skuteczność klasyfikatora oraz bardzo dobrą zgodność przewidywań z rzeczywistymi klasami.
+W celu oceny skuteczności klasyfikatora Naive Bayes zastosowano
+10-krotną walidację krzyżową. Model testował dwa warianty: z estymacją
+jądrową (usekernel = TRUE) oraz bez niej (usekernel = FALSE).
 
-Wyniki wskazują, że klasy w analizowanym zbiorze danych są dobrze separowalne przy założeniu niezależności zmiennych, co sprzyja wysokiej skuteczności modelu Naive Bayes.
+Najlepszy wynik uzyskano dla modelu bez estymacji jądrowej, który
+osiągnął dokładność klasyfikacji na poziomie około
+`r round(100 * nb_cv$results$Accuracy[which.max(nb_cv$results$Accuracy)], 1)`%
+oraz współczynnik Kappa równy
+`r round(nb_cv$results$Kappa[which.max(nb_cv$results$Accuracy)], 3)`.
+Oznacza to bardzo wysoką skuteczność klasyfikatora oraz bardzo dobrą
+zgodność przewidywań z rzeczywistymi klasami.
 
+Wyniki wskazują, że klasy w analizowanym zbiorze danych są dobrze
+separowalne przy założeniu niezależności zmiennych, co sprzyja wysokiej
+skuteczności modelu Naive Bayes.
 
 ## Różne paramtery i podzbiory cech
 
@@ -681,10 +926,11 @@ knn_small <- train(
   data = train_small,
   method = "knn",
   trControl = ctrl,
-  tuneLength = 5
+  tuneLength = 5,
+  preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
 )
 
-knn_small
+tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
 ```{r rozne-cechy-drzewo, echo=FALSE}
@@ -696,8 +942,9 @@ tree_small <- train(
   trControl = ctrl
 )
 
-tree_small
+tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
 ```
+
 ```{r rozne-cechy-naive-bayes, echo=FALSE}
 
 nb_small <- train(
@@ -707,9 +954,11 @@ nb_small <- train(
   trControl = ctrl
 )
 
-nb_small
+tabela_wynikow(nb_small, "Wyniki CV -- naive Bayes na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
+\textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V3, V7, V8, V11, V12 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników.]}
 
+## Podsumowanie
 
-
+\textcolor{red}{[DO NAPISANIA -- końcowe wnioski (Zadanie 2f), wymagane w treści listy. Odpowiedzieć na trzy pytania: (1) dla jakiego podzbioru cech i jakich parametrów (np. k w k-NN, cp w drzewie, usekernel w naive Bayes) wyniki są najlepsze; (2) która metoda klasyfikacji wypada najlepiej, a która najgorzej na zbiorze wine; (3) czy wybór schematu oceny (pojedynczy podział vs walidacja krzyżowa) wpłynął na wnioski o skuteczności metod. Można podeprzeć się tabelami wyżej.]}
