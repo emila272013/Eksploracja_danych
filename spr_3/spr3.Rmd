@@ -73,20 +73,24 @@ linki_do_irysow <- c(
   virginica  = "https://commons.wikimedia.org/wiki/Special:FilePath/Iris_virginica_2.jpg?width=800"
 )
 zdjecia_irysow <- file.path(tempdir(), paste0("iris_", names(linki_do_irysow), ".jpg"))
+names(zdjecia_irysow) <- names(linki_do_irysow)
 
 for (i in seq_along(linki_do_irysow))
   if (!file.exists(zdjecia_irysow[i]))
     download.file(linki_do_irysow[i], zdjecia_irysow[i], mode = "wb", quiet = TRUE,
                   headers = c("User-Agent" = "Eksploracja-danych-spr3 (Rmd render)"))
 
-# dziwny kod z nieokreślonego źródła który przycina zdjęcia żeby były kwadratowe
-for (p in zdjecia_irysow) {
+# kod który przycina zdjęcia żeby były kwadratowe bo ktoś kto ustawiał zdjęcia na wikipedii nie był perfekcjonistą i setosa jest innych wymiarów niż pozostałe
+for (g in names(zdjecia_irysow)) {
+  p <- zdjecia_irysow[g]
   img <- magick::image_read(p)
-  bok <- min(magick::image_info(img)$width, magick::image_info(img)$height)
-  magick::image_write(
-    magick::image_crop(img, magick::geometry_area(bok, bok), gravity = "Center"),
-    p
-  )
+  if (g == "setosa") {
+    img <- magick::image_crop(magick::image_resize(img, "x375"), "375x375+71+0")
+  } else {
+    bok <- min(magick::image_info(img)$width, magick::image_info(img)$height)
+    img <- magick::image_crop(img, magick::geometry_area(bok, bok), gravity = "Center")
+  }
+  magick::image_write(img, p)
 }
 
 knitr::include_graphics(zdjecia_irysow)
