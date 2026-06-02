@@ -53,16 +53,16 @@ kolory_gatunkow <- c(setosa = "#9B72EF", versicolor = "#713DC5", virginica = "#C
 #kolor_granic <- "#AB0046"
 ```
 
-
 ## Wstęp
 
-Pracujemy na tym samym zbiorze danych danych co w poprzednim sprawozdaniu.
-Zbiór zawiera  wyniki pomiarów przedstawicieli trzech
+Pracujemy na tym samym zbiorze danych danych co w poprzednim
+sprawozdaniu. Zbiór zawiera wyniki pomiarów przedstawicieli trzech
 gatunków irysów: \textcolor{setosa}{\textit{Iris setosa}},
 \textcolor{versicolor}{\textit{Iris versicolor}} oraz
 \textcolor{virginica}{\textit{Iris virginica}}. Pomiary dotyczą długości
 oraz szerokości poszczególnych części kwiatu – działki kielicha (ang.
-*sepal*) oraz płatka (ang. *petal*). W przeciągu ostatniego miesiąca wygląd kwiatów się nie zmienił i nadal wyglądają one tak:
+*sepal*) oraz płatka (ang. *petal*). W przeciągu ostatniego miesiąca
+wygląd kwiatów się nie zmienił i nadal wyglądają one tak:
 
 ```{r irysy-zdjecia, echo=FALSE, cache=FALSE, out.width="32%", fig.show="hold", fig.align="center", fig.cap="\\textcolor{setosa}{\\textit{Iris setosa}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Irissetosa1.jpg}{źródło}}), \\textcolor{versicolor}{\\textit{Iris versicolor}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Blue_Flag,_Ottawa.jpg}{źródło}}) oraz \\textcolor{virginica}{\\textit{Iris virginica}} (\\textcolor{magenta}{\\href{https://commons.wikimedia.org/wiki/File:Iris_virginica_2.jpg}{źródło}})"}
 
@@ -138,7 +138,8 @@ kable(tab_summary, booktabs = TRUE,
 
 ## Podział danych na zbiór uczący i testowy
 
-W celu oceny jakości działnaia klasyfikatora dzielimy zbiór danych na zbiór uczący i zbiór testowy w proporcjach 1 do 2:
+W celu oceny jakości działnaia klasyfikatora dzielimy zbiór danych na
+zbiór uczący i zbiór testowy w proporcjach 1 do 2:
 
 ```{r podzial-uczacy-testowy}
 set.seed(67)
@@ -265,7 +266,7 @@ wykres_maskowania <- function(Y.hat, gatunki) {
 
   ggplot(df_long, aes(obiekt, wartosc, colour = Gatunek)) +
     geom_vline(xintercept = granice, linetype = "dashed", colour = "gray70") +
-    geom_line(linewidth = 0.6) +
+    geom_point() +
     scale_colour_manual(values = kolory_gatunkow) +
     labs(x = "Numer obiektu (posortowane wg gatunku)",
          y = expression(hat(Y))) +
@@ -278,6 +279,21 @@ wykres_maskowania <- function(Y.hat, gatunki) {
 ```{r wykres-maskowania-lin, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu liniowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
 wykres_maskowania(Y.hat.train, train_set$Species)
 ```
+
+Powyższy wykres został skonstruowany następująco: obiekty zostały
+uporządkowane tak, aby wszystkie próbki tego samego gatunku znajdowały
+się obok siebie. Następnie dla każdego obiektu przedstawiono wartości
+przypisane przez model do poszczególnych klas. Dodatkowo wprowadzono
+pionowe linie przerywane, które wyznaczają granice pomiędzy kolejnymi
+grupami gatunków.
+
+Na podstawie wykresu można zauważyć, że najlepszą separowalność uzyskano
+dla klasy Setosa, która tworzy wyraźnie odseparowany blok. Klasa
+Versicolor jest mniej jednoznaczna i częściowo nakłada się z pozostałymi
+klasami, co wskazuje na trudniejszą klasyfikację. Największe trudności
+model ma w rozróżnieniu klasy Virginica, która wykazuje największe
+podobieństwo do pozostałych klas, szczególnie w zakresie wartości
+predykcji.
 
 ## Model liniowy dla rozszerzonej przestrzeni klas
 
@@ -405,14 +421,24 @@ kable(conf2.test, booktabs = TRUE,
 ```
 
 dla zbioru testowego rozniwaz nie wystepuej zjawisko maskowania
-zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Blad
-kalsyfikacji wynosi 0.06 i jest zblizony do wartosci blesu train co
-siwadczy ze model nie jest przetrenowany tylko dobrze nauczył się
-ogólnych, nieliniowych reguł rządzących tym zbiorem danych.
+zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Na zbiorze
+testowym błąd klasyfikacji wynosi 0.06, co oznacza, że większość
+obserwacji została poprawnie sklasyfikowana. Jednak w porównaniu do
+błędu na zbiorze treningowym (0.02) widoczna jest różnica, co wskazuje
+na umiarkowane przeuczenie modelu. Model wielomianowy (stopnia 2) lepiej
+odwzorowuje nieliniowe zależności niż model liniowy, ale kosztem
+mniejszej stabilności na danych testowych.
 
 ```{r wykres-maskowania-poly, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu wielomianowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
 wykres_maskowania(Y2.hat.train, train_set$Species)
 ```
+
+na podstawie powyzszego wykresu mozna zauwazyc ze setosa klasyfiukejse w
+pierszej grupie w drugim segmencie versicolocr a w trzecim virginica i
+widzmy zdecydoanwie bardziej wyronijace sie klasy w 2 i 3 segmencie co
+siwadczy ze model wielomianowy lepiej poradzil soebie z zadaniem
+kalsyfikacji nwm czy nei pisze bzdur zapytac czata czy czegos jak to
+dobzrze opsiac
 
 ```{r tabela-porownanie-bledow, echo=FALSE, warning=FALSE}
 tab_bledy <- data.frame(
@@ -428,6 +454,19 @@ kable(tab_bledy, booktabs = TRUE, digits = 3,
                 latex_options = c("striped", "HOLD_position"),
                 stripe_color = "gray!10")
 ```
+
+powyzsza tabele przedstwai bledy klasyfikacji dla modeli linowego i
+wilomainowego dla zbiorz uczacych i testowych. widzimy ze blad modlu
+liniowny na zbiorze uczaycm ynosi 0.15 a testowym 0.14. TO swiadczy , ze
+dobrze generaalizuje lecz jest nie wystarczajaco uczy sie zlozonych
+zalenosci w danych. Natomaist blad modelu wiloemianeog na zbiorze ucacym
+wynosi 0.02 a na testowym 0.06. Wyzsza wartosc bledu na zbiorze
+testowtym sygnalizuje przeuczenie modleu. Oglnie model dobrze dopsaowal
+sie do danych treningowych lecz gorzej sobie poradizl na danych
+testowych. podsumowując model liniowy jest stabilniejszy lecz zbyt
+prosty co skutkuje bledami, antomaist wilomainoey lepiej dopasowuje sie
+do danych lecz traci zdolnosc generalizacj. Model liniowy jest
+bezpieczniejszym wyborem, pomimo wyzszego bledu trenignowego.
 
 # Częśc 2 - porównanie metod klasyfikacji
 
@@ -508,9 +547,6 @@ zmienimi typ na facotr.
 W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki
 czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja
 podstawowych nieprawidłowości.
-
-TUTAJ TRZEBA POPRAWIC TABELE BO JEST ZMIENIONIA NA FACTOR TA CLASS CECHA
-ALE W TEJ TAVELI GOWNO - chyba naprawiłam
 
 ```{r statystyki-opisowe-cech, echo=FALSE, results='asis'}
 dane2$class <- as.factor(dane2$class)
@@ -798,7 +834,7 @@ dokładnosci. Uzylismy metoy cross validation.
 ```{r funkcja-tabela-wynikow, echo=FALSE}
 # wyniki strojenia modelu caret::train jako tabela (Część 2)
 tabela_wynikow <- function(model, caption) {
-  kable(model$results, booktabs = TRUE, digits = 3, row.names = FALSE,
+  kable(model$results[, names(model$results)[1:2]], booktabs = TRUE, digits = 3, row.names = FALSE,
         caption = caption) %>%
     kable_styling(full_width = FALSE,
                   latex_options = c("striped", "scale_down", "HOLD_position"),
@@ -830,6 +866,23 @@ tabela_wynikow(knn_cv, "Wyniki 10-krotnej walidacji krzyżowej -- k-NN (wg param
 #cor(train_x)
 ```
 
+tu tabele na innym podzbiorze do prowniani
+
+```{r rozne-cech-ale-robimy-to-samo, echo=FALSE}
+train_small <- train_cv[, c("V3","V7","V8","V11","V12","Class")]
+
+knn_small <- train(
+  Class ~ .,
+  data = train_small,
+  method = "knn",
+  trControl = ctrl,
+  tuneLength = 5,
+  preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
+)
+
+tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
+```
+
 \textcolor{red}{[DO PRZEPISANIA: do CV k-NN dodano standaryzację (\texttt{preProcess}), bo wcześniej jej brakowało, a przy pojedynczym podziale była. Teraz CV k-NN daje najlepszy wynik (k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`) ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, czyli zbliżony do pojedynczego podziału (ok. `r round(100 * (1 - mean(knn_pred_test != test_y)), 1)`\%), a NIE 74\%. Dlatego poniższa interpretacja jest nieaktualna i wymaga zmiany: (1) spadek do 74\% NIE wynikał z optymizmu pojedynczego podziału, tylko z braku standaryzacji w CV; teraz oba schematy są spójne; (2) dokładność najlepszego k to ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, a nie 74\%; (3) zdanie, że dokładność „generalnie rośnie wraz z k", jest błędne — po standaryzacji najlepsze jest k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`.]}
 
 Wyniki uzyskane metodą cross-validation odnoszą się do zbioru
@@ -856,6 +909,8 @@ dokładność klasyfikacji generalnie rośnie, co sugeruje, że większa
 liczba sąsiadów stabilizuje decyzje klasyfikatora i zmniejsza wpływ
 szumu w danych.
 
+Następnie w tabeli przedstawiono wyniki klasyfikatora k-NN dla różnych wartości parametru k na zmniejszonym zbiorze cech. Najwyższą wartość accuracy uzyskano dla k = 9. Zaobserwowano również, że wartości accuracy na podzbiorze cech są niższe niż w przypadku pełnego zestawu danych. Wskazuje to, że redukcja liczby cech ogranicza ilość informacji dostępnej dla modelu, co wpływa na pogorszenie jakości klasyfikacji.
+
 ```{r wielokrotny-podzial-drzewo, echo=FALSE}
 tree_cv <- train(
   Class ~ .,
@@ -866,6 +921,18 @@ tree_cv <- train(
 
 tabela_wynikow(tree_cv, "Wyniki 10-krotnej walidacji krzyżowej -- drzewo (wg parametru cp)")
 
+```
+
+```{r rozne-cechy-drzewo, echo=FALSE}
+
+tree_small <- train(
+  Class ~ .,
+  data = train_small,
+  method = "rpart",
+  trControl = ctrl
+)
+
+tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
 W pojedynczym podzale accuracy wynioso 100 dla teset set. Wynik ten
@@ -896,8 +963,46 @@ nb_cv <- train(
   trControl = ctrl
 )
 
-tabela_wynikow(nb_cv, "Wyniki 10-krotnej walidacji krzyżowej -- naive Bayes")
+wyniki <- nb_cv$results[, c("usekernel", "Accuracy")]
 
+colnames(wyniki) <- c("Use kernel", "Accuracy")
+
+kable(wyniki,
+      booktabs = TRUE,
+      digits = 3,
+      row.names = FALSE,
+      caption = "Wyniki 10-krotnej walidacji krzyżowej -- Naive Bayes") %>%
+  kable_styling(
+    full_width = FALSE,
+    latex_options = c("striped", "scale_down", "HOLD_position"),
+    stripe_color = "gray!10"
+  )
+
+```
+
+```{r rozne-cechy-naive-bayes, echo=FALSE}
+
+nb_small <- train(
+  Class ~ .,
+  data = train_small,
+  method = "nb",
+  trControl = ctrl
+)
+
+wyniki <- nb_small$results[, c("usekernel", "Accuracy")]
+
+colnames(wyniki) <- c("Use kernel", "Accuracy")
+
+kable(wyniki,
+      booktabs = TRUE,
+      digits = 3,
+      row.names = FALSE,
+      caption = "Wyniki CV -- Naive Bayes na podzbiorze cech V3, V7, V8, V11, V12") %>%
+  kable_styling(
+    full_width = FALSE,
+    latex_options = c("striped", "scale_down", "HOLD_position"),
+    stripe_color = "gray!10"
+  )
 ```
 
 W celu oceny skuteczności klasyfikatora Naive Bayes zastosowano
@@ -917,45 +1022,35 @@ separowalne przy założeniu niezależności zmiennych, co sprzyja wysokiej
 skuteczności modelu Naive Bayes.
 
 ## Różne paramtery i podzbiory cech
+one przeniosone wyzej lepiej porwnywac 
 
-```{r rozne-cech-ale-robimy-to-samo, echo=FALSE}
-train_small <- train_cv[, c("V3","V7","V8","V11","V12","Class")]
-
-knn_small <- train(
-  Class ~ .,
-  data = train_small,
-  method = "knn",
-  trControl = ctrl,
-  tuneLength = 5,
-  preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
-)
-
-tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
+```{r rozne-cech-ale-robimy-to-samo-wyxej, echo=FALSE}
+# train_small <- train_cv[, c("V3","V7","V8","V11","V12","Class")]
+# 
+# knn_small <- train(
+#   Class ~ .,
+#   data = train_small,
+#   method = "knn",
+#   trControl = ctrl,
+#   tuneLength = 5,
+#   preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
+# )
+# 
+# tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
-```{r rozne-cechy-drzewo, echo=FALSE}
+```{r rozne-cechy-drzewo-wyzej, echo=FALSE}
 
-tree_small <- train(
-  Class ~ .,
-  data = train_small,
-  method = "rpart",
-  trControl = ctrl
-)
-
-tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
+# tree_small <- train(
+#   Class ~ .,
+#   data = train_small,
+#   method = "rpart",
+#   trControl = ctrl
+# )
+# 
+# tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
-```{r rozne-cechy-naive-bayes, echo=FALSE}
-
-nb_small <- train(
-  Class ~ .,
-  data = train_small,
-  method = "nb",
-  trControl = ctrl
-)
-
-tabela_wynikow(nb_small, "Wyniki CV -- naive Bayes na podzbiorze cech V3, V7, V8, V11, V12")
-```
 
 \textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V3, V7, V8, V11, V12 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników.]}
 
