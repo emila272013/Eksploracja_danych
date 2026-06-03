@@ -24,6 +24,8 @@ header-includes:
   - \definecolor{versicolor}{HTML}{5D00BE}
   - \definecolor{virginica}{HTML}{A68DE5}
   - \definecolor{ciemnyczerwony}{HTML}{8B0000}
+  - \definecolor{notatka}{HTML}{B8860B}
+  - \definecolor{darkgreen}{HTML}{228B22}
 fontsize: 12pt
 editor_options: 
   markdown: 
@@ -37,6 +39,12 @@ library(knitr)
 library(kableExtra)
 library(dplyr)
 library(showtext) # żeby były polskie znaki na wykresach
+library(HDclassif) # zbiór wine (Część 2)
+library(MASS)      # lda (ranking cech różnicujących)
+library(caret)     # podział danych i walidacja krzyżowa
+library(class)     # k-NN
+library(rpart)     # drzewa klasyfikacyjne
+library(e1071)     # naive Bayes
 showtext_auto()   #
 
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE, message = FALSE)
@@ -445,13 +453,12 @@ W nowym modelu wykres wskaźników klas wygląda dużo przyjemniej. Dla wszystki
 
 Wciąż jest odrobinę lepiej w przypadku \textcolor{setosa}{\textit{setosa}}, niż w przypadku \textcolor{versicolor}{\textit{versicolor}} i \textcolor{virginica}{\textit{virginica}}, lecz dwa ostatnie gatunki są o wiele lepiej traktowane niż w poprzednim modelu i tylko czasami są mylone.
 
-Ogółem, model rozszerzony o składniki wielomianowe stopnia 2 radzi sobie lepiej z klasyfikacją niż model bez tych składników, co pozwala nam na lepszą klasyfikację gatunków naszych kwiatów. Sprawia to że jesteśmy szczęśliwi.
+Ogółem, model rozszerzony o składniki wielomianowe stopnia 2 radzi sobie lepiej z klasyfikacją niż model bez tych składników, co pozwala nam na lepszą klasyfikację gatunków naszych kwiatów i sprawia że jesteśmy szczęśliwsi.
 
 
 # Część 2 - porównanie metod klasyfikacji
 
 ```{r setup2, echo=FALSE, warning=FALSE}
-library(HDclassif)
 data(wine)
 
 dane2 <- wine
@@ -460,19 +467,17 @@ dane2 <- wine
 
 ## Wstęp
 
-W tej części raportu będziemy pracować na zbiorze danych `Wine` z R-pakietu `HDcalssif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech róznych odmian.
+W tej części raportu będziemy pracować na zbiorze danych `Wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian. \textcolor{darkgreen}{jak będzie czas: jakie to odmiany?}
 
 Naszym zadaniem będzie zastosowanie i porównanie algorytmów klasyfikacji k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora Bayesowskiego na tym zbiorze danych.
 
 Cechą według której będziemy klasyfikować wina jest zmienna informująca o przynależności do odmiany wina.
 
-## Opis i wstępna analiza dancyh
+## Opis i wstępna analiza danych
 
 Dane zawierają informacje o `r nrow(dane2)` winach. Dla każdego z nich mamy informacje o `r ncol(dane2)` cechach.
 
-Cecha `class` będzie nas informować o przynależności do klasy, natomiast do klasyfikacji posłuży nam `r ncol(dane2)-1` pozostałych cech. Zmienna `class` zawiera informacje o przynależności do jednej z `r length(unique(dane2$class))` klas, czyli odmian wina.
-
-\textcolor{setosa}{--- dotąd zrobiłem, ide spać. to co jest dalej wygląda przerażająco. CZEMU SEKCJA Z OPISEM DANYCH MA 5 STRON???? AAAAAAAGHFASGHDGHKJASHJKAHAAAAA.}
+Cecha `class` będzie nas informować o przynależności do klasy, natomiast do klasyfikacji posłuży nam `r ncol(dane2)-1` pozostałych cech dotyczących różnych parametrów wina. Zmienna `class` zawiera informacje o przynależności do jednej z `r length(unique(dane2$class))` klas, czyli odmian wina.
 
 ```{r tebala-typow-cech-dane2, echo=FALSE}
 
@@ -514,17 +519,24 @@ kable(
   column_spec(2, width = "9cm")
 ```
 
-Na podstawie powyższej tabeli można stwerdzic ze wszystkie typy
-zmiennych zostały prawidłowo zakodowane, poza zmienną class. Dla której
-zmienimi typ na facotr.
+Na podstawie powyższej tabeli można stwierdzic że wszystkie typy
+zmiennych zostały prawidłowo zakodowane, poza zmienną `class`, która została wczytana jako typ `integer` zamiast `factor`.
 
-W poniżejsz tabli znajdują się statystyki opisowe zmiennych, dzięki
-czemu możliwe jest wstępne zapoznanie się z danymi oraz identyfikacja
+Zmienne `V5` (zawartość magnezu) oraz `V13` (zawartość proliny) zostały wczytane jako `integer`. Wynika to z tego, że w danych występują jedynie wartości całkowite, prawdopodobnie z powodu zaokrąglenia. Wartości tych cech jak najbardziej mogłyby być niecałkowite, więc bardziej pasuje typ `numeric`.
+
+Korektujemy typy wspomnianych zmiennych:
+
+```{r zmiana-typow}
+dane2$class <- as.factor(dane2$class)
+dane2$V5  <- as.numeric(dane2$V5)
+dane2$V13 <- as.numeric(dane2$V13)
+```
+
+W poniższej tabeli znajdują się statystyki opisowe zmiennych, dzięki
+którym możliwe będzie wstępne zapoznanie się z danymi oraz identyfikacja
 podstawowych nieprawidłowości.
 
 ```{r statystyki-opisowe-cech, echo=FALSE, results='asis'}
-dane2$class <- as.factor(dane2$class)
-
 tab_summary_2 <- summary(dane2)
 tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
 # wine ma 14 kolumn -> dzielimy na 3 części
@@ -568,66 +580,64 @@ for (i in seq_along(kawalki)) {
 }
 ```
 
-W danych nie występuja wartości NA. Na podstawie powyzszej tabeli
-moznarówniez stwierdzic brak występowania wartosic 0, poniewaz minimalna
-wartosc dla kazdej cechy jest rozna od 0. Jedynie zmienna v13 cechuje
-sie duza zmeinnosci w poronaiu do pozostalych zmeinnych.
+W danych nie występuja wartości `NA`. Braki zakodowane w inny sposób raczej nie występują – na pewno nie występują braki zapisane jako $0$, ponieważ wartości $0$ nie występują wcale. 
 
-```{r rozklad-klas, echo=FALSE}
+W podsumowaniu możemy zauważyć także znacząco różną zmienność w przypadku zmiennej `V13` (zawartość proliny) niż w przypadku pozostałych zmiennych. Może to wskazywać na ewentualną potrzebę standaryzacji przy niektórych metodach.
 
-library(ggplot2)
-
+```{r rozklad-klas, echo=FALSE, fig.cap="Rozkład liczności klas (odmian wina) w zbiorze \\texttt{wine}.", fig.width=5, fig.height=3}
 ggplot(dane2, aes(x = class)) +
-  geom_bar(fill = "steelblue") +
-  labs(title = "Rozkład klas w wine",
-       x = "Klasa",
-       y = "Liczność")
-
+  geom_bar(fill = "#713DC5") +
+  labs(x = "Klasa", y = "Liczność") +
+  theme_minimal(base_size = 11)
 ```
 
-Na powyzszym wykresie widzimy roklad przynależlonci poszczególnych
-obserwacji do danej klasy. Mozemy zauważyc, ze najwiecej obserwacji
-nalezy do kalsy 2, natomist najmnej do klast 3.
+Na powyższym wykresie widzimy rokład liczności klas. Możemy zauważyć, że najwięcej obserwacji należy do klasy 2, natomiast najmniej do klasy 3. Róznice nie są jednak znaczące, liczności klas są w miarę zbalansowane. 
 
-\textcolor{red}{[CO TU NAPISAĆ: (1) ocena rozkładu klas – czy są istotne dysproporcje liczebności (najwięcej obs. w klasie 2, najmniej w 3) i czy mają znaczenie; (2) baseline – jaki błąd dałby klasyfikator przypisujący wszystko do najliczniejszej klasy i interpretacja tej wartości jako punktu odniesienia dla właściwych modeli. Wartości \% wstawić inline R z policzonego błędu. (Sprawdzone: liczności 59/71/48; baseline jest już policzony inline niżej = ok. 60\% błędu / 40\% trafień, a akapity ciemnoczerwone niżej w większości to pokrywają – wystarczy je scalić i poprawić, nie pisać od zera.)]}
-
-\textcolor{ciemnyczerwony}{Oznacza to, że występują pewne dysproporcje w liczebności klas, jednak
-nie są one skrajne.}
-
-\textcolor{ciemnyczerwony}{Jeśli wszystkie obserwacje zostałyby przypisane do najczęściej
-występującej klasy (klasa 2), to błąd klasyfikacji wyniósłby:}
-
-$$ bląd = 1 - \frac{n_{max}}{n},  $$ gdzie: n\_{max} to liczba
-obserwacji na najliczniejszej klasie, a n to liczba wszystkich
-obserwacji.
-
-Bład wynosi `r 1 - max(table(wine$class)) / nrow(wine)`.
-
-\textcolor{ciemnyczerwony}{Oznacza to, że około 60\% obserwacji zostałoby błędnie sklasyfikowanych,
-a taki klasyfikator osiągnąłby jedynie około 40\% skuteczności.}
-
-```{r wariancja-cech, echo=FALSE}
-boxplot(dane2[, 2:14], col = rainbow(ncol(dane2)-1))
+```{r klasyfikator-max, echo=FALSE}
+blad_klasyfikatora_max <- 1 - max(table(wine$class))/nrow(wine)
 ```
 
-Na powyższym wykresie znajduja sie roklad wariancji dla wszystkich cech
-poza zmienną class. Możemy zauważyc, ze ostatnia zmienna cechuje sie
-najwyższą zmiennacia i konieczne jest zastrosowanie standaryzacji aby
+Klasyfikator przypisujący wszystkie obserwacje do najczęściej występującej klasy miałby błąd klasyfikacji na poziomie `r round(100*blad_klasyfikatora_max)`\%, czyli częściej by się mylił niż zgadywał dobrze.
+
+Na poniższym wykresie znajduja sie roklad wariancji dla wszystkich cech ilościowych:
+
+```{r wariancja-cech, echo=FALSE, fig.cap="Wykresy pudełkowe cech ilościowych przed standaryzacją.", fig.width=6, fig.height=4}
+boxplot(dane2[, 2:14], col = rainbow(ncol(dane2)-1), las = 2)
+```
+
+Jak już zauważyliśmy wcześniej, zmienna `V13` (zawartość proliny) cechuje sie
+znacznie wyższą zmiennością. W związku z tym konieczne jest zastosowanie standaryzacji aby
 algorytmy klasyfikujące działy poprawnie.
 
-```{r wariancaj-po-standaryzacji, echo=FALSE}
+```{r wariancaj-po-standaryzacji, echo=FALSE, fig.cap="Wykresy pudełkowe cech ilościowych po standaryzacji.", fig.width=6, fig.height=4}
 dane2_stand <- scale(dane2[, 2:14])
-boxplot(dane2_stand, col = rainbow(ncol(dane2_stand)))
+boxplot(dane2_stand, col = rainbow(ncol(dane2_stand)), las = 2)
 ```
 
-widzimy ze po standaryzacji zmeinne maja zblizone wariancjie, co
-pozytywnie wpłynie na dzialanie algorytmów.
+Widzimy, że po standaryzacji zmienne mają zbliżone wariancje, co
+pozytywnie wpłynie na działanie algorytmów.
+
+\textcolor{blue}{CO TO JEST TO LDAAAAAAAAAAA}
+
+\textcolor{notatka}{[LDA – sekcja zostaje. DECYZJA WDROŻONA: \texttt{lda} liczymy na danych ustandaryzowanych. Powód: standaryzacja nie zmienia ani klasyfikacji (błąd resubstytucji = 0), ani udziałów LD1/LD2 (68.75\%/31.25\%) – zmienia tylko wielkości współczynników \texttt{model\$scaling}, czyli ranking cech, czyniąc go interpretowalnym i niezależnym od skali. Ranking na danych std (V7, V13, V12, V1, V10) pokrywa się z niezależnym rankingiem opisowym ($\eta^2$ z jednoczynnikowej ANOVA), podczas gdy surowe \texttt{lda} wypychało do topu cechy słabo separujące (V3, V8) – artefakt jednostek pomiaru. Podzbiór V7, V13, V12, V1, V10 wdrożony w całej Części 2; wariant „bez standaryzacji" odrzucony.]}
+
+\textcolor{ciemnyczerwony}{W celu wskazania zmiennych o najlepszych zdolnościach dyskryminacyjnych
+zastosowano model liniowej analizy dyskryminacyjnej (LDA) na danych
+ustandaryzowanych. Model przekształca pierwotną przestrzeń cech w
+przestrzeń o niższej wymiarowości ($K-1$, gdzie $K$ to liczba klas).
+Ponieważ cechy wcześniej ustandaryzowano, wartości bezwzględne
+współczynników funkcji dyskryminacyjnych odzwierciedlają realną siłę
+dyskryminacyjną cech, a nie ich skalę (na surowych danych ranking byłby
+zaburzony jednostkami pomiaru).}
 
 ```{r zmienne-najlepiej-roznicojace, echo=FALSE}
+# standaryzujemy cechy przed LDA, żeby wielkości współczynników funkcji
+# dyskryminacyjnych odzwierciedlały realną siłę dyskryminacyjną cech, a nie
+# ich skalę (na surowych danych ranking jest zaburzony jednostkami pomiaru)
+dane2_std <- dane2
+dane2_std[, 2:14] <- scale(dane2[, 2:14])
 
-library(MASS)
-
-model <- lda(class ~ ., data = dane2)
+model <- lda(class ~ ., data = dane2_std)
 
 kable(model$scaling, booktabs = TRUE, digits = 3,
       caption = "Współczynniki funkcji dyskryminacyjnych LDA (LD1, LD2)") %>%
@@ -636,46 +646,17 @@ kable(model$scaling, booktabs = TRUE, digits = 3,
                 stripe_color = "gray!10")
 ```
 
-\textcolor{red}{[CO TU NAPISAĆ (jeden zwięzły akapit – poniższe wersje robocze AI do skasowania): które zmienne najlepiej różnicują klasy (wg wartości bezwzględnych współczynników LD1/LD2) oraz ile zmienności międzyklasowej wyjaśniają LD1 i LD2 – proporcje policzyć inline R z \texttt{model\$svd\textasciicircum 2 / sum(model\$svd\textasciicircum 2)} (wychodzi 68.75/31.25, ale niech liczy się samo, nie na sztywno). UWAGA – sprawdzone w R: kod liczy \texttt{lda} na SUROWYCH danych i to z nich wychodzi zestaw V3, V7, V8, V11, V12 (ten sam, którego używamy dalej jako podzbioru cech \texttt{train\_small}). Na surowych współczynnikach interpretacja „siły dyskryminacyjnej" jest myląca, bo zależy od skali/jednostek cech; po standaryzacji top zestaw jest INNY: V7, V13, V10, V12, V3. Stąd dawne sformułowanie „na danych ustandaryzowanych" było błędne. DECYZJA OTWARTA – DO SKONSULTOWANIA, na razie NIEROZSTRZYGNIĘTA: albo (a) zostawić surowe \texttt{lda}, skreślić „na danych ustandaryzowanych" i dopisać zastrzeżenie o skali, albo (b) ustandaryzować przed \texttt{lda} – ale wtedy trzeba zmienić podzbiór cech na nowy top zestaw (V7, V13, V10, V12, V3) w całej Części 2. Do czasu rozstrzygnięcia NIE ruszamy tego akapitu ani podzbioru cech. Z trzech wersji niżej zostawić docelowo jedną, własnymi słowami.]}
-
-\textcolor{ciemnyczerwony}{W celu znalezienia zmiennych, które charakteryzują się najlepszymi
-zdolnościami dyskryminacyjnymi, zastosowano model Liniowej Analizy
-Dyskryminacyjnej (LDA). Model ten dokonuje transformacji pierwotnej
-przestrzeni cech w nową przestrzeń o niższej wymiarowości ($K-1$, gdzie
-$K$ to liczba klas). największe wartości bezwzględne współczynników w
-funkcjach dyskryminacyjnych LDA.}
-
-\textcolor{ciemnyczerwony}{W szczególności zmienne V3, V7, V8, V11 oraz V12 wykazują największy
-wkład w separację klas, co oznacza, że najlepiej różnicują obserwacje
-należące do różnych grup.}
-
-\textcolor{ciemnyczerwony}{Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75\% zmienności między
-klasami, natomiast druga (LD2) 31.25\%, co oznacza, że większość
-informacji separacyjnej zawarta jest w LD1.}
-
-\textcolor{ciemnyczerwony}{geminik Analiza wag pokazała, że największe wartości bezwzględne
-współczynników w funkcjach dyskryminacyjnych LDA wykazują zmienne V3,
-V7, V8, V11 oraz V12. To one charakteryzują się największym wkładem w
-separację i najlepiej różnicują obserwacje. Ponieważ analiza została
-przeprowadzona na danych ustandaryzowanych, wielkości te bezpośrednio
-odzwierciedlają realną siłę dyskryminacyjną cech, a ich przeciwne znaki
-odpowiadają za rozsuwanie klas w przeciwległe krańce przestrzeni.}
-
-\textcolor{ciemnyczerwony}{Pierwsza funkcja dyskryminacyjna (LD1) wyjaśnia 68.75\% zmienności między
-klasami, natomiast druga (LD2) 31.25\%}
-
-\textcolor{ciemnyczerwony}{czat: Analiza LDA została wykorzystana do oceny zdolności
-dyskryminacyjnych zmiennych. Największy wpływ na separację klas mają
-zmienne V7, V8, V11, V12 oraz V3, ponieważ osiągnęły najwyższe wartości
-bezwzględne współczynników funkcji dyskryminacyjnych.}
-
-\textcolor{ciemnyczerwony}{Pierwsza funkcja dyskryminacyjna (LD1) odpowiada za 68.75\% całkowitej
-separacji klas, natomiast druga funkcja (LD2) za 31.25\%. Oznacza to, że
-większość informacji potrzebnej do rozróżniania klas zawiera się w LD1.}
-
-\textcolor{ciemnyczerwony}{Dodatkowo analiza średnich grupowych wskazuje, że wybrane zmienne
-przyjmują wyraźnie różne wartości w poszczególnych klasach, co
-potwierdza ich wysoką zdolność predykcyjną.}
+\textcolor{ciemnyczerwony}{Największy wkład w separację klas mają
+zmienne V7 (flawonoidy), V13 (zawartość proliny), V12 (OD280/OD315
+rozcieńczonych win), V1 (zawartość alkoholu) oraz V10 (intensywność
+barwy) – to one najlepiej różnicują
+obserwacje należące do różnych odmian. Pierwsza funkcja dyskryminacyjna
+(LD1) wyjaśnia `r round(100*model$svd[1]^2/sum(model$svd^2), 2)`\%
+zmienności między klasami, a druga (LD2)
+`r round(100*model$svd[2]^2/sum(model$svd^2), 2)`\%, co oznacza, że
+większość informacji separacyjnej zawarta jest w LD1. Ten zestaw pięciu
+cech wykorzystamy dalej do porównania metod klasyfikacji na zmniejszonej
+liczbie zmiennych.}
 
 ## Ocena dokładności klasyfikacji i porównanie metod
 
@@ -700,8 +681,6 @@ od czacika troche madre
 <!-- Różnica między błędem treningowym i testowym pozwala ocenić stopień przeuczenia modelu (overfitting). -->
 
 ```{r podzial-zb-na-pod-zb, echo=FALSE, warning=FALSE}
-library(caret)
-
 set.seed(67)
 
 index <- createDataPartition(dane2[,1], p = 0.7, list = FALSE)
@@ -712,8 +691,6 @@ test  <- dane2[-index, ]
 ```
 
 ```{r knn-klasyfikacja, echo=FALSE}
-library(class)
-
 train_x <- scale(train[, -1])
 test_x  <- scale(test[, -1],
                  center = attr(train_x, "scaled:center"),
@@ -750,13 +727,12 @@ tabela_cm(knn_pred_test,  test_y,  "Macierz pomyłek -- k-NN, zbiór testowy")
 Powyzsza tabela zawira wyniki dziala klasyfikatora knn dla 5 sa saidów
 dla widzimy ze macierz pomylek dla train i test nie zawiera maskowania
 dancyh na przekatnych znajduje sie wiekszosc informacji oraz blad
-klasyfikacji dla train wynosi 2.3 %b a dla tets 5.7 % wartosci sa
+klasyfikacji dla train wynosi `r round(100*mean(knn_pred_train != train_y), 1)`\% a dla tets `r round(100*mean(knn_pred_test != test_y), 1)`\% wartosci sa
 relatywnie zblizone do siebie co swiadczy ze mdoel nie jest
 przetrenowany. (tu sie zastanawiam czy czegos cjeszce nie odaodac z tych
 wyników)
 
 ```{r tree-klasyfikacja, echo=FALSE}
-library(rpart)
 #library(rpart.plot)
 
 tree <- rpart(as.factor(train[,1]) ~ ., data = train, method = "class")
@@ -777,13 +753,11 @@ tabela_cm(tree_pred_test,  test[,1],  "Macierz pomyłek -- drzewo, zbiór testow
 Otrzymane wyniki swiadcza o bezblednej klasyikacji zarowno na zbiorze
 uczacym jak i testowym, co swiadczy od bardzi=o dobrych wlasnoscich
 kalsyfikaycjnych algorytmu drzew decyzyjnych. Z uwagi na fakt podzial
-dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik 100%
+dancyh na zbior uczaci i testowy zostały wykonany porawnie a wynik `r round(100*mean(tree_pred_test == test[,1]))`\%
 wystepuje ronwiez na danych testowych, mozmy wykluczyc przetrenowanie
 modelu. - tego nie jestem pewna
 
 ```{r naive-bayes-klasyfikacja, echo=FALSE, warning=FALSE}
-library(e1071)
-
 nb <- naiveBayes(as.factor(train[,1]) ~ ., data = train)
 
 nb_pred_test <- predict(nb, test)
@@ -801,8 +775,8 @@ tabela_cm(nb_pred_test,  test[,1],  "Macierz pomyłek -- naive Bayes, zbiór tes
 ```
 
 Wyniki kalsyfikacji dla modelu naive bayes dla zbioru uczącego wykazuja
-100% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu
-dla ziboru testoego wynosi 1.92 co siwaddczy o bradzo dobrym dzialaniu
+`r round(100*mean(nb_pred_train == train[,1]))`\% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu
+dla ziboru testoego wynosi `r round(100*mean(nb_pred_test != test[,1]), 2)`\% co siwaddczy o bradzo dobrym dzialaniu
 modelu i braku przetrenowania go. Rowniez nie wsytepuje zjawisko
 maskowania klas na przekatnej macierzy znajduje sie zdecydowania
 wieksozc danych.
@@ -823,8 +797,6 @@ tabela_wynikow <- function(model, caption) {
 ```
 
 ```{r wielokrotny-podzial-knn, echo=FALSE}
-library(caret)
-
 set.seed(67)
 
 train_cv <- train
@@ -849,7 +821,7 @@ tabela_wynikow(knn_cv, "Wyniki 10-krotnej walidacji krzyżowej -- k-NN (wg param
 tu tabele na innym podzbiorze do prowniani
 
 ```{r rozne-cech-ale-robimy-to-samo, echo=FALSE}
-train_small <- train_cv[, c("V3","V7","V8","V11","V12","Class")]
+train_small <- train_cv[, c("V7","V13","V12","V1","V10","Class")]
 
 knn_small <- train(
   Class ~ .,
@@ -860,10 +832,8 @@ knn_small <- train(
   preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
 )
 
-tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
+tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V7 (flawonoidy), V13 (zawartość proliny), V12 (OD280/OD315 rozcieńczonych win), V1 (zawartość alkoholu), V10 (intensywność barwy)")
 ```
-
-\textcolor{red}{[DO PRZEPISANIA: do CV k-NN dodano standaryzację (\texttt{preProcess}), bo wcześniej jej brakowało, a przy pojedynczym podziale była. Teraz CV k-NN daje najlepszy wynik (k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`) ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, czyli zbliżony do pojedynczego podziału (ok. `r round(100 * (1 - mean(knn_pred_test != test_y)), 1)`\%), a NIE 74\%. Dlatego poniższa interpretacja jest nieaktualna i wymaga zmiany: (1) spadek do 74\% NIE wynikał z optymizmu pojedynczego podziału, tylko z braku standaryzacji w CV; teraz oba schematy są spójne; (2) dokładność najlepszego k to ok. `r round(100 * max(knn_cv$results$Accuracy), 1)`\%, a nie 74\%; (3) zdanie, że dokładność „generalnie rośnie wraz z k", jest błędne — po standaryzacji najlepsze jest k=`r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`.]}
 
 \textcolor{ciemnyczerwony}{Wyniki uzyskane metodą cross-validation odnoszą się do zbioru
 treningowego, który został wielokrotnie dzielony na części uczące i
@@ -871,25 +841,28 @@ walidacyjne. W związku z tym stanowią one bardziej stabilną ocenę modelu
 niż pojedynczy wynik na zbiorze treningowym, ale nadal nie są to wyniki
 na niezależnym zbiorze testowym.}
 
-\textcolor{ciemnyczerwony}{W przypadku pojedynczego podziału uzyskano bardzo wysoką dokładność
-klasyfikacji na poziomie około 94\% dla k = 5. Wynik ten może być jednak
-obarczony dużą zmiennością, ponieważ zależy od konkretnego losowego
-podziału danych.}
+\textcolor{ciemnyczerwony}{W przypadku pojedynczego podziału k-NN dla k = 5 uzyskano dokładność
+klasyfikacji na zbiorze testowym na poziomie
+`r round(100*mean(knn_pred_test == test_y), 1)`\%. Wynik ten może być
+jednak obarczony dużą zmiennością, ponieważ zależy od konkretnego
+losowego podziału danych.}
 
-\textcolor{ciemnyczerwony}{Natomiast zastosowanie 10-krotnej walidacji krzyżowej dało bardziej
-stabilną ocenę skuteczności modelu, gdzie dla k = 5 uzyskano średnią
-dokładność na poziomie około 74\%.}
+\textcolor{ciemnyczerwony}{Zastosowanie 10-krotnej walidacji krzyżowej dało zbliżoną, równie
+wysoką ocenę skuteczności – najlepszy wynik uzyskano dla
+k = `r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`, ze średnią
+dokładnością na poziomie `r round(100*max(knn_cv$results$Accuracy), 1)`\%.}
 
-\textcolor{ciemnyczerwony}{Różnica pomiędzy wynikami wskazuje, że pojedynczy podział może prowadzić
-do zawyżenia oceny jakości klasyfikatora, natomiast walidacja krzyżowa
-dostarcza bardziej wiarygodnej i uogólnionej oceny.}
+\textcolor{ciemnyczerwony}{Zbieżność obu ocen świadczy o tym, że wysoka skuteczność k-NN nie jest
+artefaktem jednego korzystnego podziału. Walidacja krzyżowa pozostaje
+przy tym oceną bardziej wiarygodną, ponieważ uśrednia wynik po wielu
+podziałach danych.}
 
-\textcolor{ciemnyczerwony}{Zaobserwowano również, że wraz ze wzrostem wartości parametru k
-dokładność klasyfikacji generalnie rośnie, co sugeruje, że większa
-liczba sąsiadów stabilizuje decyzje klasyfikatora i zmniejsza wpływ
-szumu w danych.}
+\textcolor{ciemnyczerwony}{Najlepszą dokładność osiągnięto dla niewielkiej liczby sąsiadów
+(k = `r knn_cv$results$k[which.max(knn_cv$results$Accuracy)]`); dokładność
+nie rośnie monotonicznie wraz z k – zbyt duże k nadmiernie wygładza
+granice decyzyjne i pogarsza klasyfikację.}
 
-\textcolor{ciemnyczerwony}{Następnie w tabeli przedstawiono wyniki klasyfikatora k-NN dla różnych wartości parametru k na zmniejszonym zbiorze cech. Najwyższą wartość accuracy uzyskano dla k = 9. Zaobserwowano również, że wartości accuracy na podzbiorze cech są niższe niż w przypadku pełnego zestawu danych. Wskazuje to, że redukcja liczby cech ogranicza ilość informacji dostępnej dla modelu, co wpływa na pogorszenie jakości klasyfikacji.}
+\textcolor{ciemnyczerwony}{Następnie w tabeli przedstawiono wyniki k-NN dla różnych wartości parametru k na podzbiorze pięciu cech wybranych przez LDA – V7 (flawonoidy), V13 (zawartość proliny), V12 (OD280/OD315 rozcieńczonych win), V1 (zawartość alkoholu) oraz V10 (intensywność barwy). Najwyższą dokładność uzyskano dla k = `r knn_small$results$k[which.max(knn_small$results$Accuracy)]`, a jej poziom (`r round(100*max(knn_small$results$Accuracy), 1)`\%) jest zbliżony do wyniku na pełnym zestawie cech (`r round(100*max(knn_cv$results$Accuracy), 1)`\%). Oznacza to, że te pięć cech niesie niemal całą informację różnicującą klasy, więc redukcja wymiaru praktycznie nie pogarsza jakości klasyfikacji.}
 
 ```{r wielokrotny-podzial-drzewo, echo=FALSE}
 tree_cv <- train(
@@ -912,12 +885,10 @@ tree_small <- train(
   trControl = ctrl
 )
 
-tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
+tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V7 (flawonoidy), V13 (zawartość proliny), V12 (OD280/OD315 rozcieńczonych win), V1 (zawartość alkoholu), V10 (intensywność barwy)")
 ```
 
-\textcolor{red}{[CO TU NAPISAĆ: porównanie drzewa na pojedynczym podziale vs w 10-krotnej CV. Zaznaczyć, że 100\% na pojedynczym teście jest zbyt optymistyczne (mały zbiór testowy / korzystny podział) i dlatego sięgamy po CV. Podać najlepsze \texttt{cp} oraz odpowiadającą dokładność i Kappa z CV (najlepiej inline R z obiektu \texttt{tree\_cv}), oraz wniosek, że zbyt duże \texttt{cp} = za mocne przycinanie i spadek jakości. (Sprawdzone: najlepsze \texttt{cp} ok. 0.079, dokładność ok. 88.1\%, Kappa ok. 0.821 – wartości wpisane na sztywno w akapicie niżej (88.7\%, 0.831) są lekko nieaktualne; inline R z \texttt{tree\_cv} to naprawi.)]}
-
-W pojedynczym podzale accuracy wynioso 100 dla teset set. \textcolor{ciemnyczerwony}{Wynik ten
+W pojedynczym podzale accuracy wynioso `r round(100*mean(tree_pred_test == test[,1]))`\% dla teset set. \textcolor{ciemnyczerwony}{Wynik ten
 wskazuje na bardzo wysoką skuteczność modelu drzewa decyzyjnego, jednak
 należy interpretować go ostrożnie, ponieważ może on wynikać z
 korzystnego podziału danych, niewielkiej liczby obserwacji w zbiorze
@@ -928,9 +899,9 @@ testowym lub łatwej separowalności klas.}
 testował różne wartości parametru cp (complexity parameter), który
 kontroluje stopień przycinania drzewa i jego złożoność.}
 
-\textcolor{ciemnyczerwony}{Najlepszy wynik uzyskano dla cp = 0.0789, dla którego model osiągnął
-dokładność klasyfikacji na poziomie około 88.7\% oraz współczynnik Kappa
-równy 0.831. Oznacza to bardzo dobrą zgodność klasyfikacji oraz wysoką
+\textcolor{ciemnyczerwony}{Najlepszy wynik uzyskano dla cp = `r round(tree_cv$results$cp[which.max(tree_cv$results$Accuracy)], 4)`, dla którego model osiągnął
+dokładność klasyfikacji na poziomie około `r round(100*max(tree_cv$results$Accuracy), 1)`\% oraz współczynnik Kappa
+równy `r round(tree_cv$results$Kappa[which.max(tree_cv$results$Accuracy)], 3)`. Oznacza to bardzo dobrą zgodność klasyfikacji oraz wysoką
 zdolność modelu do poprawnego rozróżniania klas.}
 
 \textcolor{ciemnyczerwony}{Wraz ze wzrostem wartości parametru cp obserwowano spadek skuteczności
@@ -938,12 +909,14 @@ modelu, co wskazuje, że zbyt silne przycinanie drzewa prowadzi do utraty
 informacji i pogorszenia jakości klasyfikacji.}
 
 ```{r wielokrotny-podzial-bayes, echo=FALSE, warning=FALSE}
-nb_cv <- train(
+# suppressWarnings: klaR (method="nb") ostrzega "Numerical 0 probability..."
+# przy resamplingu; warning=FALSE w chunku tego nie łapie, więc tłumimy u źródła
+nb_cv <- suppressWarnings(train(
   Class ~ .,
   data = train_cv,
   method = "nb",
   trControl = ctrl
-)
+))
 
 wyniki <- nb_cv$results[, c("usekernel", "Accuracy")]
 
@@ -962,14 +935,15 @@ kable(wyniki,
 
 ```
 
-```{r rozne-cechy-naive-bayes, echo=FALSE}
+```{r rozne-cechy-naive-bayes, echo=FALSE, warning=FALSE}
 
-nb_small <- train(
+# suppressWarnings jak wyżej (klaR ostrzega o zerowych prawdopodobieństwach)
+nb_small <- suppressWarnings(train(
   Class ~ .,
   data = train_small,
   method = "nb",
   trControl = ctrl
-)
+))
 
 wyniki <- nb_small$results[, c("usekernel", "Accuracy")]
 
@@ -979,7 +953,7 @@ kable(wyniki,
       booktabs = TRUE,
       digits = 3,
       row.names = FALSE,
-      caption = "Wyniki CV -- Naive Bayes na podzbiorze cech V3, V7, V8, V11, V12") %>%
+      caption = "Wyniki CV -- Naive Bayes na podzbiorze cech V7 (flawonoidy), V13 (zawartość proliny), V12 (OD280/OD315 rozcieńczonych win), V1 (zawartość alkoholu), V10 (intensywność barwy)") %>%
   kable_styling(
     full_width = FALSE,
     latex_options = c("striped", "scale_down", "HOLD_position"),
@@ -1009,7 +983,7 @@ skuteczności modelu Naive Bayes.}
 one przeniosone wyzej lepiej porwnywac 
 
 ```{r rozne-cech-ale-robimy-to-samo-wyxej, echo=FALSE}
-# train_small <- train_cv[, c("V3","V7","V8","V11","V12","Class")]
+# train_small <- train_cv[, c("V7","V13","V12","V1","V10","Class")]
 # 
 # knn_small <- train(
 #   Class ~ .,
@@ -1020,7 +994,7 @@ one przeniosone wyzej lepiej porwnywac
 #   preProcess = c("center", "scale") # standaryzacja jak w pełnym modelu k-NN
 # )
 # 
-# tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V3, V7, V8, V11, V12")
+# tabela_wynikow(knn_small, "Wyniki CV -- k-NN na podzbiorze cech V7, V13, V12, V1, V10")
 ```
 
 ```{r rozne-cechy-drzewo-wyzej, echo=FALSE}
@@ -1032,12 +1006,12 @@ one przeniosone wyzej lepiej porwnywac
 #   trControl = ctrl
 # )
 # 
-# tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
+# tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V7, V13, V12, V1, V10")
 ```
 
 
-\textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V3, V7, V8, V11, V12 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników. (Sprawdzone w CV: ograniczenie cech wyraźnie pogarsza k-NN (z ok. 97\% do ok. 88\%) i naive Bayes (z ok. 98\% do ok. 90\%), a drzewo prawie bez zmian (z ok. 88\% do ok. 87\%).)]}
+\textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V7, V13, V12, V1, V10 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników. (Sprawdzone w CV dla NOWEGO podzbioru 5 najlepszych cech wg LDA: ograniczenie cech prawie nie zmienia wyników – k-NN ok. 97\% $\to$ ok. 98\%, naive Bayes ok. 98\% $\to$ ok. 97\%, drzewo ok. 88\% $\to$ ok. 89\%. Wniosek: te 5 cech niesie niemal całą informację różnicującą, więc redukcja wymiaru praktycznie nic nie kosztuje – inaczej niż przy starym podzbiorze, który wyraźnie psuł k-NN i NB.)]}
 
 ## Podsumowanie
 
-\textcolor{red}{[DO NAPISANIA -- końcowe wnioski (Zadanie 2f), wymagane w treści listy. Odpowiedzieć na trzy pytania: (1) dla jakiego podzbioru cech i jakich parametrów (np. k w k-NN, cp w drzewie, usekernel w naive Bayes) wyniki są najlepsze; (2) która metoda klasyfikacji wypada najlepiej, a która najgorzej na zbiorze wine; (3) czy wybór schematu oceny (pojedynczy podział vs walidacja krzyżowa) wpłynął na wnioski o skuteczności metod. Można podeprzeć się tabelami wyżej. (Sprawdzone w R, CV pełny zestaw cech: naive Bayes ok. 97.6\% (najlepszy), k-NN ok. 96.9\%, drzewo ok. 88.1\% (najsłabsze); najlepsze parametry: k-NN \texttt{k=5}, drzewo \texttt{cp} ok. 0.079, naive Bayes \texttt{usekernel=FALSE}; pełny zestaw cech lepszy od podzbioru dla wszystkich metod poza drzewem; po dodaniu standaryzacji do CV oba schematy dają spójny ranking – wybór schematu NIE zmienia wniosków, jedynie pojedynczy podział był zbyt optymistyczny dla drzewa (100\% vs 88\% w CV).)]}
+\textcolor{red}{[DO NAPISANIA -- końcowe wnioski (Zadanie 2f), wymagane w treści listy. Odpowiedzieć na trzy pytania: (1) dla jakiego podzbioru cech i jakich parametrów (np. k w k-NN, cp w drzewie, usekernel w naive Bayes) wyniki są najlepsze; (2) która metoda klasyfikacji wypada najlepiej, a która najgorzej na zbiorze wine; (3) czy wybór schematu oceny (pojedynczy podział vs walidacja krzyżowa) wpłynął na wnioski o skuteczności metod. Można podeprzeć się tabelami wyżej. (Sprawdzone w R, CV pełny zestaw cech: naive Bayes ok. 97.6\% (najlepszy), k-NN ok. 96.9\%, drzewo ok. 88.1\% (najsłabsze); najlepsze parametry: k-NN \texttt{k=5}, drzewo \texttt{cp} ok. 0.079, naive Bayes \texttt{usekernel=FALSE}; po standaryzacji LDA podzbiór 5 najlepszych cech (V7, V13, V12, V1, V10) daje wyniki zbliżone do pełnego zestawu dla wszystkich metod (k-NN i NB praktycznie bez straty, drzewo bez zmian); po dodaniu standaryzacji do CV oba schematy dają spójny ranking – wybór schematu NIE zmienia wniosków, jedynie pojedynczy podział był zbyt optymistyczny dla drzewa (100\% vs 88\% w CV).)]}
