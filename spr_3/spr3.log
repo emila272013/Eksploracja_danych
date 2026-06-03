@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2026.4.26)  2 JUN 2026 22:14
+This is pdfTeX, Version 3.141592653-2.6-1.40.25 (TeX Live 2023) (preloaded format=pdflatex 2026.4.26)  3 JUN 2026 01:59
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -754,28 +754,28 @@ LaTeX Font Info:    External font `lmex10' loaded for size
 
 {/var/lib/texmf/fonts/map/pdftex/updmap/pdftex.map}{/usr/share/texlive/texmf-di
 st/fonts/enc/dvips/lm/lm-ec.enc}]
-<../../../../../tmp/RtmpGwEpC5/iris_setosa.jpg, id=39, 376.40625pt x 376.40625p
+<../../../../../tmp/Rtmp0etlYJ/iris_setosa.jpg, id=39, 376.40625pt x 376.40625p
 t>
-File: ../../../../../tmp/RtmpGwEpC5/iris_setosa.jpg Graphic file (type jpg)
-<use ../../../../../tmp/RtmpGwEpC5/iris_setosa.jpg>
-Package pdftex.def Info: ../../../../../tmp/RtmpGwEpC5/iris_setosa.jpg  used on
+File: ../../../../../tmp/Rtmp0etlYJ/iris_setosa.jpg Graphic file (type jpg)
+<use ../../../../../tmp/Rtmp0etlYJ/iris_setosa.jpg>
+Package pdftex.def Info: ../../../../../tmp/Rtmp0etlYJ/iris_setosa.jpg  used on
  input line 180.
 (pdftex.def)             Requested size: 150.32504pt x 150.33008pt.
-<../../../../../tmp/RtmpGwEpC5/iris_versicolor.jpg, id=40, 963.6pt x 963.6pt>
-File: ../../../../../tmp/RtmpGwEpC5/iris_versicolor.jpg Graphic file (type jpg)
+<../../../../../tmp/Rtmp0etlYJ/iris_versicolor.jpg, id=40, 963.6pt x 963.6pt>
+File: ../../../../../tmp/Rtmp0etlYJ/iris_versicolor.jpg Graphic file (type jpg)
 
-<use ../../../../../tmp/RtmpGwEpC5/iris_versicolor.jpg>
-Package pdftex.def Info: ../../../../../tmp/RtmpGwEpC5/iris_versicolor.jpg  use
+<use ../../../../../tmp/Rtmp0etlYJ/iris_versicolor.jpg>
+Package pdftex.def Info: ../../../../../tmp/Rtmp0etlYJ/iris_versicolor.jpg  use
 d on input line 180.
 (pdftex.def)             Requested size: 150.32504pt x 150.31216pt.
-<../../../../../tmp/RtmpGwEpC5/iris_virginica.jpg, id=41, 963.6pt x 963.6pt>
-File: ../../../../../tmp/RtmpGwEpC5/iris_virginica.jpg Graphic file (type jpg)
-<use ../../../../../tmp/RtmpGwEpC5/iris_virginica.jpg>
-Package pdftex.def Info: ../../../../../tmp/RtmpGwEpC5/iris_virginica.jpg  used
+<../../../../../tmp/Rtmp0etlYJ/iris_virginica.jpg, id=41, 963.6pt x 963.6pt>
+File: ../../../../../tmp/Rtmp0etlYJ/iris_virginica.jpg Graphic file (type jpg)
+<use ../../../../../tmp/Rtmp0etlYJ/iris_virginica.jpg>
+Package pdftex.def Info: ../../../../../tmp/Rtmp0etlYJ/iris_virginica.jpg  used
  on input line 180.
 (pdftex.def)             Requested size: 150.32504pt x 150.31216pt.
-[2 <../../../../../tmp/RtmpGwEpC5/iris_setosa.jpg> <../../../../../tmp/RtmpGwEp
-C5/iris_versicolor.jpg> <../../../../../tmp/RtmpGwEpC5/iris_virginica.jpg>]
+[2 <../../../../../tmp/Rtmp0etlYJ/iris_setosa.jpg> <../../../../../tmp/Rtmp0etl
+YJ/iris_versicolor.jpg> <../../../../../tmp/Rtmp0etlYJ/iris_virginica.jpg>]
 LaTeX Font Info:    Trying to load font information for T1+lmtt on input line 2
 37.
 (/usr/share/texlive/texmf-dist/tex/latex/lm/t1lmtt.fd
@@ -783,28 +783,34 @@ File: t1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
 )
 LaTeX Font Info:    Font shape `T1/lmtt/bx/n' in size <12> not available
 (Font)              Font shape `T1/lmtt/b/n' tried instead on input line 241.
-[3{/usr/share/texlive/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/t
-exlive/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc}{/usr/share/texlive/texmf-dist/f
-onts/enc/dvips/lm/lm-mathsy.enc}]
-<spr3_files/figure-latex/wykres-maskowania-lin-1.pdf, id=67, 423.5825pt x 242.9
-075pt>
+[3]
+LaTeX Font Info:    Trying to load font information for TS1+lmtt on input line 
+284.
+(/usr/share/texlive/texmf-dist/tex/latex/lm/ts1lmtt.fd
+File: ts1lmtt.fd 2015/05/01 v1.6.1 Font defs for Latin Modern
+) [4{/usr/share/texlive/texmf-dist/fonts/enc/dvips/lm/lm-ts1.enc}]
+<spr3_files/figure-latex/wykres-maskowania-lin-1.pdf, id=69, 423.5825pt x 245.9
+1875pt>
 File: spr3_files/figure-latex/wykres-maskowania-lin-1.pdf Graphic file (type pd
 f)
 <use spr3_files/figure-latex/wykres-maskowania-lin-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/wykres-maskowania-lin-1.pdf  u
-sed on input line 316.
-(pdftex.def)             Requested size: 423.58147pt x 242.90689pt.
-[4] [5 <./spr3_files/figure-latex/wykres-maskowania-lin-1.pdf>]
-<spr3_files/figure-latex/wykres-maskowania-poly-1.pdf, id=85, 423.5825pt x 242.
+sed on input line 352.
+(pdftex.def)             Requested size: 423.58147pt x 245.91814pt.
+[5{/usr/share/texlive/texmf-dist/fonts/enc/dvips/lm/lm-mathit.enc}{/usr/share/t
+exlive/texmf-dist/fonts/enc/dvips/lm/lm-rm.enc} <./spr3_files/figure-latex/wykr
+es-maskowania-lin-1.pdf>]
+<spr3_files/figure-latex/wykres-maskowania-poly-1.pdf, id=83, 423.5825pt x 242.
 9075pt>
 File: spr3_files/figure-latex/wykres-maskowania-poly-1.pdf Graphic file (type p
 df)
 <use spr3_files/figure-latex/wykres-maskowania-poly-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/wykres-maskowania-poly-1.pdf  
-used on input line 392.
+used on input line 408.
 (pdftex.def)             Requested size: 423.58147pt x 242.90689pt.
-[6] [7 <./spr3_files/figure-latex/wykres-maskowania-poly-1.pdf>]
-Overfull \hbox (25.46004pt too wide) in paragraph at lines 459--481
+[6{/usr/share/texlive/texmf-dist/fonts/enc/dvips/lm/lm-mathsy.enc}] [7 <./spr3_
+files/figure-latex/wykres-maskowania-poly-1.pdf>]
+Overfull \hbox (25.46004pt too wide) in paragraph at lines 445--467
  [][] 
  []
 
@@ -814,39 +820,38 @@ Overfull \hbox (25.46004pt too wide) in paragraph at lines 459--481
 File: spr3_files/figure-latex/rozklad-klas-1.pdf Graphic file (type pdf)
 <use spr3_files/figure-latex/rozklad-klas-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/rozklad-klas-1.pdf  used on in
-put line 550.
+put line 536.
 (pdftex.def)             Requested size: 352.31538pt x 278.03807pt.
-[9]
+[9 <./spr3_files/figure-latex/rozklad-klas-1.pdf>]
 
-LaTeX Warning: Command \k invalid in math mode on input line 564.
+LaTeX Warning: Command \k invalid in math mode on input line 550.
 
-<spr3_files/figure-latex/wariancja-cech-1.pdf, id=117, 299.1175pt x 183.68625pt
+<spr3_files/figure-latex/wariancja-cech-1.pdf, id=121, 299.1175pt x 183.68625pt
 >
 File: spr3_files/figure-latex/wariancja-cech-1.pdf Graphic file (type pdf)
 <use spr3_files/figure-latex/wariancja-cech-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/wariancja-cech-1.pdf  used on 
-input line 573.
+input line 559.
 (pdftex.def)             Requested size: 299.11676pt x 183.68578pt.
-[10 <./spr3_files/figure-latex/rozklad-klas-1.pdf>]
-<spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf, id=128, 299.1175pt x
+<spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf, id=122, 299.1175pt x
  183.68625pt>
 File: spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf Graphic file (ty
 pe pdf)
 <use spr3_files/figure-latex/wariancaj-po-standaryzacji-1.pdf>
 Package pdftex.def Info: spr3_files/figure-latex/wariancaj-po-standaryzacji-1.p
-df  used on input line 580.
+df  used on input line 566.
 (pdftex.def)             Requested size: 299.11676pt x 183.68578pt.
-[11 <./spr3_files/figure-latex/wariancja-cech-1.pdf> <./spr3_files/figure-latex
-/wariancaj-po-standaryzacji-1.pdf>] [12] [13] [14] [15] [16] [17] [18] (./spr3.
+[10 <./spr3_files/figure-latex/wariancja-cech-1.pdf>] [11 <./spr3_files/figure-
+latex/wariancaj-po-standaryzacji-1.pdf>] [12] [13] [14] [15] [16] [17] (./spr3.
 aux) ) 
 Here is how much of TeX's memory you used:
- 19022 strings out of 476041
- 312698 string characters out of 5793174
- 1869388 words of memory out of 6000000
- 38944 multiletter control sequences out of 15000+600000
- 570205 words of font info for 143 fonts, out of 8000000 for 9000
+ 19050 strings out of 476041
+ 313217 string characters out of 5793174
+ 1874388 words of memory out of 6000000
+ 38975 multiletter control sequences out of 15000+600000
+ 570205 words of font info for 141 fonts, out of 8000000 for 9000
  1137 hyphenation exceptions out of 8191
- 66i,11n,67p,1069b,530s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 66i,11n,67p,1001b,528s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmbx12.pfb></usr/sha
 re/texlive/texmf-dist/fonts/type1/public/lm/lmmi12.pfb></usr/share/texlive/texm
 f-dist/fonts/type1/public/lm/lmmi8.pfb></usr/share/texlive/texmf-dist/fonts/typ
@@ -854,13 +859,12 @@ e1/public/lm/lmr12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmr
 17.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmr8.pfb></usr/shar
 e/texlive/texmf-dist/fonts/type1/public/lm/lmri12.pfb></usr/share/texlive/texmf
 -dist/fonts/type1/public/lm/lmsy10.pfb></usr/share/texlive/texmf-dist/fonts/typ
-e1/public/lm/lmsy8.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmt
-k10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmtt12.pfb></usr/s
-hare/texlive/texmf-dist/fonts/type1/public/lm/lmtti10.pfb>
-Output written on spr3.pdf (18 pages, 954310 bytes).
+e1/public/lm/lmtk10.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lm
+tt12.pfb></usr/share/texlive/texmf-dist/fonts/type1/public/lm/lmtti10.pfb>
+Output written on spr3.pdf (17 pages, 896323 bytes).
 PDF statistics:
- 298 PDF objects out of 1000 (max. 8388607)
- 229 compressed objects within 3 object streams
- 60 named destinations out of 1000 (max. 500000)
+ 292 PDF objects out of 1000 (max. 8388607)
+ 225 compressed objects within 3 object streams
+ 58 named destinations out of 1000 (max. 500000)
  28817 words of extra memory for PDF output out of 29859 (max. 10000000)
 

@@ -163,38 +163,42 @@ Zbiór uczący zawiera `r nrow(train_set)` obserwacji, a zbiór testowy `r nrow(
 
 ## Konstrukcja klasyfikatora i wyznaczanie prognoz
 
-Na podstawie zbioru `train_set` będziemy estymować parametry modelu regresji liniowej w celu konstrukcji nastepnie
-sprawdzac i jakosc dopasowania do wartosci prawdziwej gatunku. Dla
-zbiory testowaego i wyuczonych parametrów bedziemy dopasujemy gatunek
-kwiata.
+Będziemy konstruować klasyfikator oparty na regresji liniowej. W tym celu na podstawie zbioru uczącego (`train_set`) będziemy estymować parametry modelu.
 
-\textcolor{red}{[WYMÓG 1c NIE jest spełniony. Kod jest \texttt{echo=FALSE}, więc w PDF nie widać nic poza tymi dwoma zniekształconymi zdaniami i tym placeholderem — metoda nie jest opisana. CO TRZEBA NAPISAĆ (kilka zdań): (1) że klasyfikator budujemy metodą regresji liniowej na zakodowanych binarnie klasach; (2) WYJAŚNIĆ kodowanie klas przez wskaźniki (\emph{class indicators}) — dla $K=3$ klas tworzymy macierz $Y$ o 3 kolumnach, gdzie w wierszu danego kwiatu jest 1 w kolumnie jego gatunku i 0 w pozostałych (treść listy wyraźnie tego wymaga — „Uwaga" przy 1c); (3) że estymujemy $\hat{B}=(X^\top X)^{-1}X^\top Y$, gdzie $X$ ma dodatkową kolumnę jedynek (wyraz wolny); (4) że dla nowego kwiatu liczymy $\hat{Y}=X\hat{B}$ i przypisujemy klasę o największej wartości (argmax wiersza). To samo trzeba zrobić dla zbioru uczącego i testowego. JAK: opisać to słowami nad chunkami \texttt{klasyfikacja-train}/\texttt{klasyfikacja-test} i usunąć ten placeholder oraz poprawić dwa zdania wyżej.]}
+Aby to zrobić, musimy najpierw zakodować klasy przy użyciu zmiennych binarnych (indykatory klas):
 
-```{r klasyfikacja-train, echo=FALSE}
-
-X.train <- cbind(1, train_set[,1:4])
-X.train <- as.matrix(X.train)
-
+```{r klasyfikacja-indykatory}
 etykietki.klas <- train_set$Species
 
-K <- length(unique(etykietki.klas))
-n.train <- nrow(train_set)
+K <- length(unique(etykietki.klas)) # liczba klas (gatunków)
+n.train <- nrow(train_set)          # liczba obserwacji uczących
 
+# tworzymy macierz wskaźników klas i przypisujemy jej odpowiednie wartości
 Y.train <- matrix(0, nrow = n.train, ncol = K)
-
 etykietki.num <- as.numeric(etykietki.klas)
-
 for(k in 1:K)
   Y.train[etykietki.num == k, k] <- 1
-
-B.hat <- solve(t(X.train) %*% X.train) %*%
-         t(X.train) %*% Y.train
-
-Y.hat.train <- X.train %*% B.hat
-pred.train <- apply(Y.hat.train, 1, which.max)
 ```
 
-```{r klasyfikacja-test, echo=FALSE}
+Następnie estymujemy parametry modelu za pomocą zbioru uczącego:
+
+```{r klasyfikacja-estymacja}
+# macierz cech z dodatkową kolumną jedynek (wyraz wolny)
+X.train <- as.matrix(cbind(1, train_set[,1:4]))
+
+# estymacja współczynników metodą najmniejszych kwadratów: B=(X'X)^(-1) X'Y
+B.hat <- solve(t(X.train) %*% X.train) %*%
+         t(X.train) %*% Y.train
+```
+
+Dla każdej obserwacji – zarówno ze zbioru uczącego i testowego – liczymy estymowane indykatory klas:
+
+```{r klasyfikacja-prognozy}
+# dopasowane wskaźniki klas dla zbioru uczącego
+Y.hat.train <- X.train %*% B.hat
+pred.train <- apply(Y.hat.train, 1, which.max) # klasa = kolumna z największą wartością
+
+# to samo dla zbioru testowego (kolumna jedynek jak w zbiorze uczącym)
 X.test <- cbind(1, test_set[,1:4])
 X.test <- as.matrix(X.test)
 
@@ -204,10 +208,16 @@ pred.test <- apply(Y.hat.test, 1, which.max)
 
 ## Ocena klasyfikacji
 
-nastepnei w celu oceny klasyfikacji została wyznaczona macierz pomyłek i
-bład klasyfikacji na zbiorze uczacym oarz testowym.
+W celu oceny klasyfikacji wyliczamy macierz pomyłek (ang. *confusion matrix*) oraz
+błąd klasyfikacji na zbiorze uczącym oraz testowym.
 
 ```{r macierz-pomylek-train, echo=FALSE, warning=FALSE}
+# nazwy gatunków z kolorem i kursywą do nagłówków tabel pomyłek
+gatunki_tex <- setNames(
+  sprintf("\\textcolor{%s}{\\textit{%s}}", levels(dane$Species), levels(dane$Species)),
+  levels(dane$Species)
+)
+
 conf.train <- table(
   Rzeczywiste = train_set$Species,
   Prognozowane = levels(train_set$Species)[pred.train]
@@ -217,20 +227,24 @@ blad.train <- mean(
   pred.train != as.numeric(train_set$Species)
 )
 
-kable(conf.train, booktabs = TRUE,
-      caption = "Macierz pomyłek dla zbioru uczącego (model liniowy)") %>%
+# podmiana nazw poziomów na wersje kolorowane/kursywne (escape = FALSE w kable)
+conf.train.tex <- conf.train
+rownames(conf.train.tex) <- gatunki_tex[rownames(conf.train.tex)]
+colnames(conf.train.tex) <- gatunki_tex[colnames(conf.train.tex)]
+
+kable(conf.train.tex, booktabs = TRUE, escape = FALSE,
+      caption = "Macierz pomyłek dla zbioru uczącego (model liniowy). Wiersz oznacza faktyczny gatunek, a kolumna estymowany.") %>%
   kable_styling(full_width = FALSE,
                 latex_options = c("striped", "HOLD_position"),
                 stripe_color = "gray!10")
 ```
 
-Na powyzesz tablie widzmimy wyniki oceny dopaswoanie gatunkow do
-kwiawtów. Analizuajc wyniki mozemy stwerdzic ze nie wystepuje zjawisko
-maskowania danych, poniewaz na przkatnej wartosci zdmonoway tabele oraz
-blad kalsyfikacji wynosi 15% co swaidczy o dbrym dzialalu klasyfikatora.
+Na powyższej tabeli widzimy wyniki dopasowania gatunków do
+kwiatów. Błąd klasyfikacji (proporcja źle sklasyfikowanych obserwacji do wszystkich obserwacji) wynosi `r round(100*blad.train)`%. Taka wysoka wartość wynika z mylenia przez model gatunków \textcolor{versicolor}{\textit{versicolor}} oraz \textcolor{virginica}{\textit{virginica}} – jak na to że jest to zbiór uczący, sugeruje to że ciężko jest te gatunki rozdzielić.
+
+Zjawisko maskowania klas nie występuje – gdyby występowało, któraś z klas byłaby przewidywana znacząco rzadziej niż występuje. W naszym przypadku tak nie jest. Pomaga nam to, że liczba $p = 4$ zmiennych objaśniających jest większa od liczby $K = 3$ klas, dzięki czemu „wymiarowość“ gra trochę na naszą korzyść.
 
 ```{r macierz-pomylek-test, echo=FALSE, warning=FALSE}
-
 conf.test <- table(
   Rzeczywiste = test_set$Species,
   Prognozowane = levels(test_set$Species)[pred.test]
@@ -240,22 +254,21 @@ blad.test <- mean(
   pred.test != as.numeric(test_set$Species)
 )
 
-kable(conf.test, booktabs = TRUE,
-      caption = "Macierz pomyłek dla zbioru testowego (model liniowy)") %>%
+conf.test.tex <- conf.test
+rownames(conf.test.tex) <- gatunki_tex[rownames(conf.test.tex)]
+colnames(conf.test.tex) <- gatunki_tex[colnames(conf.test.tex)]
+
+kable(conf.test.tex, booktabs = TRUE, escape = FALSE,
+      caption = "Macierz pomyłek dla zbioru testowego (model liniowy). Wiersz oznacza faktyczny gatunek, a kolumna estymowany.") %>%
   kable_styling(full_width = FALSE,
                 latex_options = c("striped", "HOLD_position"),
                 stripe_color = "gray!10")
 ```
 
-Dla zbioru testowego rozniez nie obesrujemy zjawiska maskowania danych i
-blad klasyfikajci wynia 14 %, zblizona wartosc bledow kalsyfikacji dla
-zbioryu uczacego i testowego swiadczy ze mdoel nie jest przetrenowany i
-dobrze kalsyfikuje dane. Na przekatnej znaduje sie zdecydowana wiekszosc
-wystapien co siwadczy o braku maskowania i dobrej klasyfikacji.
 
-\textcolor{red}{[Usunąć dopisek „to zdanie ggeminik" — to ślad roboczy. Samo zdanie poniżej jest poprawne (zweryfikowane: każda z 3 klas bywa prognozowana, żadna nie jest maskowana), wystarczy zostawić je bez prefiksu.]}
-to zdanie ggeminik Brak maskowania wynika z faktu wykorzystania w
-klasyfikatorze indykatorowym pełnego zestawu 4 cech irysa.
+Dla zbioru testowego błąd klasyfikacji wynosi `r round(100*blad.test)`%;
+zbliżona wartość błędów dla zbioru uczącego i testowego świadczy, że
+model nie jest przetrenowany i dobrze klasyfikuje dane.
 
 ```{r funkcja-wykres-maskowania, echo=FALSE}
 # funkcja rysująca wykres maskowania klas: dla każdego obiektu (uporządkowanego
@@ -279,41 +292,31 @@ wykres_maskowania <- function(Y.hat, gatunki) {
     geom_vline(xintercept = granice, linetype = "dashed", colour = "gray70") +
     geom_point() +
     scale_colour_manual(values = kolory_gatunkow) +
-    labs(x = "Numer obiektu (posortowane wg gatunku)",
+    labs(x = NULL,
          y = expression(hat(Y))) +
     theme_minimal(base_size = 11) +
     theme(legend.position = "top",
-          legend.background = element_rect(fill = kolor_tla_legendy, colour = NA))
+          legend.background = element_rect(fill = kolor_tla_legendy, colour = NA),
+          axis.text.x = element_blank(),
+          axis.ticks.x = element_blank())
 }
 ```
 
-```{r wykres-maskowania-lin, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu liniowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
+```{r wykres-maskowania-lin, echo=FALSE, cache=FALSE, fig.cap="Wartości wskaźników klas $\\hat{Y}$ (estymatorów indykatorów) dla modelu liniowego (zbiór uczący). Oś $x$ nic nie oznacza i ma na celu tylko rozdzielenie gatunków. Od lewej: \\textcolor{setosa}{\\textit{setosa}}, \\textcolor{versicolor}{\\textit{versicolor}}, \\textcolor{virginica}{\\textit{virginica}}.", fig.width=6, fig.height=3.5}
 wykres_maskowania(Y.hat.train, train_set$Species)
 ```
 
-Powyższy wykres został skonstruowany następująco: obiekty zostały
-uporządkowane tak, aby wszystkie próbki tego samego gatunku znajdowały
-się obok siebie. Następnie dla każdego obiektu przedstawiono wartości
-przypisane przez model do poszczególnych klas. Dodatkowo wprowadzono
-pionowe linie przerywane, które wyznaczają granice pomiędzy kolejnymi
-grupami gatunków.
+Na wykresie widać, że najlepszą separowalność uzyskano dla kwiatów z gatunku \textcolor{setosa}{\textit{setosa}}, o czym świadczą wysokie wartości wskaźników dla ich własnej klasy i niskie dla pozostałych.
 
-Na podstawie wykresu można zauważyć, że najlepszą separowalność uzyskano
-dla klasy Setosa, która tworzy wyraźnie odseparowany blok. Klasa
-Versicolor jest mniej jednoznaczna i częściowo nakłada się z pozostałymi
-klasami, co wskazuje na trudniejszą klasyfikację. Największe trudności
-model ma w rozróżnieniu klasy Virginica, która wykazuje największe
-podobieństwo do pozostałych klas, szczególnie w zakresie wartości
-predykcji.
+W przypadku \textcolor{versicolor}{\textit{versicolor}} i \textcolor{virginica}{\textit{virginica}}, wartości wskaźników właściwych klas są niższe niż w przypadku \textcolor{setosa}{\textit{setosa}}, niewiele większe od wartości wskaźników o drugich najwyższych wartościach – wskaźników \textcolor{virginica}{\textit{virginica}} w przypadku \textcolor{versicolor}{\textit{versicolor}} oraz vice versa. Powoduje to trudność w rozróżnieniu przez model kwiatów tych dwóch gatunków, co zostało zauważone już przy macierzy pomyłek.
 
 ## Model liniowy dla rozszerzonej przestrzeni klas
 
-Nastepnei przeprowadizmu klasyfikacie gatunków irysów na rozszerzonej
-przestrzeni cech. W tym celu zbudujemy nowy model liniowy dla tych cech
-i porowananymy dokładnosć klasyfiakcji z porzednim modelem. Nasza nowa
-przestrzen cech zawiera takie zmienne jak Pl\^2 tutaj dopisz to.
+Teraz przeprowadzimy klasyfikację gatunków irysów na rozszerzonej
+przestrzeni cech. W tym celu zbudujemy nowy model liniowy dla tych cech. Nasza nowa
+przestrzeń cech zawiera oryginalne zmienne $PL, PW, SL$ i $SW$ oraz składniki wielomianowe stopnia 2: $PL^2, PW^2, SL^2, SW^2, PL\cdot PW, PL\cdot SL, PL\cdot SW, PW\cdot SL, PW\cdot SW$ oraz $SL\cdot SW$.
 
-\textcolor{red}{[Dokończyć ten akapit i usunąć „tutaj dopisz to". Wymóg 1e JEST spełniony w kodzie (14 cech: 4 oryginalne + 4 kwadraty + 6 iloczynów par), brakuje tylko opisu. CO WPISAĆ: kwadraty $PL^2, PW^2, SL^2, SW^2$ oraz iloczyny par $PL\cdot PW, PL\cdot SL, PL\cdot SW, PW\cdot SL, PW\cdot SW, SL\cdot SW$.]}
+Model konstruujemy analogicznie jak poprzednio z uprzednim dodaniem nowych cech.
 
 ```{r nowy-data-frame, echo=FALSE,warning=FALSE}
 
@@ -389,6 +392,8 @@ Y2.hat.test <- X2.test %*% B2.hat
 pred2.test <- apply(Y2.hat.test, 1, which.max)
 ```
 
+W celu porównania dokładności klasyfikacji modelu z poprzednim, przeanalizujemy wyniki klasyfikacji w podobny sposób jak wcześniejsze, zaczynając od analizy macierzy pomyłek oraz błędów klasyfikacji.
+
 ```{r macierz-pomylek-train-2, echo=FALSE, warning=FALSE}
 conf2.train <- table(
   Rzeczywiste = train_set$Species,
@@ -406,14 +411,11 @@ kable(conf2.train, booktabs = TRUE,
                 stripe_color = "gray!10")
 ```
 
-W tabieli zstały przedstawone wyniki dla macierzy pomylek i bład
-klasyfikacji widizmy ze nie wsytepuje zjawisko maskowania danych,
-ponwiwaz na przekatnej znaduja zdecydowana wiekszosc danych, co swiadczy
-o jej doobrym skasyfkiowaniu. Blad kalsyfikacji wynosi 0.02 co siwdczy o
-bardzo dobrym dopasowaniu gatunkow to kawitów. Blad kalsyfikacji jest
-znaczaco mniejszy niz dla porzedniego moedlu, co swiadczy ze zaleznosci
-gatunków miedzy irysami nie sa liniowe, powieaz wprowadznie dodatkowych
-cech pozwolilo na lepsze odseparownie klas.
+Od razu widzimy lepszą separowalność gatunków dla samego zbioru uczącego niż w przypadku poprzedniego modelu – błąd klasyfikacji wynosi jedynie `r round(100*blad2.train)`% w porównaniu do wcześniejszych `r round(100*blad.train)`%. Sugeruje to, że zależności
+gatunków między irysami nie są liniowe, ponieważ wprowadzenie dodatkowych
+cech pozwoliło na lepsze odseparowanie klas.
+
+Ponownie nie występuje zjawisko maskowania klas.
 
 ```{r macierz-pomylek-test-2, echo=FALSE, warning=FALSE}
 
@@ -433,55 +435,18 @@ kable(conf2.test, booktabs = TRUE,
                 stripe_color = "gray!10")
 ```
 
-dla zbioru testowego rozniwaz nie wystepuej zjawisko maskowania
-zmiennych zdecydowana wikszosc zostala dobrze sklasyfkowana. Na zbiorze
-testowym błąd klasyfikacji wynosi 0.06, co oznacza, że większość
-obserwacji została poprawnie sklasyfikowana. Jednak w porównaniu do
-błędu na zbiorze treningowym (0.02) widoczna jest różnica, co wskazuje
-na umiarkowane przeuczenie modelu. Model wielomianowy (stopnia 2) lepiej
-odwzorowuje nieliniowe zależności niż model liniowy, ale kosztem
-mniejszej stabilności na danych testowych.
+Na zbiorze testowym błąd klasyfikacji wynosi `r round(100*blad2.test)`%. Jest to gorszy wynik niż w zbiorze uczącym. Może to sugerować drobne przeuczenie modelu, lecz może równie dobrze być to błąd statystyczny wynikający z małej liczebności próby. Wynik ten wciąż jest lepszy od wyniku w poprzednim modelu (`r round(100*blad.test)`%).
 
-```{r wykres-maskowania-poly, echo=FALSE, fig.cap="Dopasowane wartości wskaźników klas $\\hat{Y}$ dla modelu wielomianowego (zbiór uczący), obiekty uporządkowane wg gatunku.", fig.width=6, fig.height=3.5}
+```{r wykres-maskowania-poly, echo=FALSE, cache=FALSE, fig.cap="Wartości wskaźników klas $\\hat{Y}$ (estymatorów indykatorów) dla modelu wielomianowego (zbiór uczący). Oś $x$ nic nie oznacza i ma na celu tylko rozdzielenie gatunków. Od lewej: \\textcolor{setosa}{\\textit{setosa}}, \\textcolor{versicolor}{\\textit{versicolor}}, \\textcolor{virginica}{\\textit{virginica}}.", fig.width=6, fig.height=3.5}
 wykres_maskowania(Y2.hat.train, train_set$Species)
 ```
 
-na podstawie powyzszego wykresu mozna zauwazyc ze setosa klasyfiukejse w
-pierszej grupie w drugim segmencie versicolocr a w trzecim virginica i
-widzmy zdecydoanwie bardziej wyronijace sie klasy w 2 i 3 segmencie co
-siwadczy ze model wielomianowy lepiej poradzil soebie z zadaniem
-kalsyfikacji nwm czy nei pisze bzdur zapytac czata czy czegos jak to
-dobzrze opsiac
+W nowym modelu wykres wskaźników klas wygląda dużo przyjemniej. Dla wszystkich gatunków wartości właściwych wskaźników są prawie wszystkie w okolicy $1$, a niewłaściwych w okolicy $0$.
 
-\textcolor{red}{[Usunąć dopisek „nwm czy nei pisze bzdur...". Treść jest merytorycznie OK — model wielomianowy wyraźniej separuje versicolor i virginica (zgodne z wykresem i ze spadkiem błędu z 0.14 do 0.06). Wystarczy dokończyć/wygładzić ten akapit. Wymóg 1d/1e (ilustracja maskowania dla modelu rozszerzonego) jest spełniony.]}
+Wciąż jest odrobinę lepiej w przypadku \textcolor{setosa}{\textit{setosa}}, niż w przypadku \textcolor{versicolor}{\textit{versicolor}} i \textcolor{virginica}{\textit{virginica}}, lecz dwa ostatnie gatunki są o wiele lepiej traktowane niż w poprzednim modelu i tylko czasami są mylone.
 
-```{r tabela-porownanie-bledow, echo=FALSE, warning=FALSE}
-tab_bledy <- data.frame(
-  Model = c("liniowy", "wielomianowy (st. 2)"),
-  `Zbiór uczący` = c(blad.train, blad2.train),
-  `Zbiór testowy` = c(blad.test, blad2.test),
-  check.names = FALSE
-)
+Ogółem, model rozszerzony o składniki wielomianowe stopnia 2 radzi sobie lepiej z klasyfikacją niż model bez tych składników, co pozwala nam na lepszą klasyfikację gatunków naszych kwiatów. Sprawia to że jesteśmy szczęśliwi.
 
-kable(tab_bledy, booktabs = TRUE, digits = 3,
-      caption = "Porównanie błędu klasyfikacji: model liniowy vs wielomianowy") %>%
-  kable_styling(full_width = FALSE,
-                latex_options = c("striped", "HOLD_position"),
-                stripe_color = "gray!10")
-```
-
-powyzsza tabele przedstwai bledy klasyfikacji dla modeli linowego i
-wilomainowego dla zbiorz uczacych i testowych. widzimy ze blad modlu
-liniowny na zbiorze uczaycm ynosi 0.15 a testowym 0.14. TO swiadczy , ze
-dobrze generaalizuje lecz jest nie wystarczajaco uczy sie zlozonych
-zalenosci w danych. Natomaist blad modelu wiloemianeog na zbiorze ucacym
-wynosi 0.02 a na testowym 0.06. Wyzsza wartosc bledu na zbiorze
-testowtym sygnalizuje przeuczenie modleu. Oglnie model dobrze dopsaowal
-sie do danych treningowych lecz gorzej sobie poradizl na danych
-testowych. podsumowując model liniowy jest stabilniejszy lecz zbyt
-prosty co skutkuje bledami, antomaist wilomainoey lepiej dopasowuje sie
-do danych lecz traci zdolnosc generalizacj. Model liniowy jest
-bezpieczniejszym wyborem, pomimo wyzszego bledu trenignowego.
 
 # Częśc 2 - porównanie metod klasyfikacji
 
@@ -845,7 +810,7 @@ Wyniki kalsyfikacji dla modelu naive bayes dla zbioru uczącego wykazuja
 100% dokladnosci model bezlednie dopasował dane, natomiast wynik bledu
 dla ziboru testoego wynosi 1.92 co siwaddczy o bradzo dobrym dzialaniu
 modelu i braku przetrenowania go. Rowniez nie wsytepuje zjawisko
-maskowania dancyh na przekatnej macierzy znajduje sie zdecydowania
+maskowania klas na przekatnej macierzy znajduje sie zdecydowania
 wieksozc danych.
 
 Nastepnei w celu porwniaia dziala algorytmow przeprowadizmy
