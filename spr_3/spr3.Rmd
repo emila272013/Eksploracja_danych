@@ -26,6 +26,9 @@ header-includes:
   - \definecolor{ciemnyczerwony}{HTML}{8B0000}
   - \definecolor{notatka}{HTML}{B8860B}
   - \definecolor{darkgreen}{HTML}{228B22}
+  - \definecolor{barolo}{HTML}{933525}
+  - \definecolor{grignolino}{HTML}{BD6065}
+  - \definecolor{barbera}{HTML}{912061}
 fontsize: 12pt
 editor_options: 
   markdown: 
@@ -463,11 +466,23 @@ data(wine)
 
 dane2 <- wine
 
+# kolory odmian (klasa 1=Barolo, 2=Grignolino, 3=Barbera)
+kolory_odmian     <- c(Barolo = "#C06554", Grignolino = "#E88E90", Barbera = "#B54C84") # wykres (jaśniejsze)
+kolory_odmian_txt <- c(Barolo = "#933525", Grignolino = "#BD6065", Barbera = "#912061") # etykiety tekstowe (ciemniejsze)
+# kolorowane nazwy odmian do nagłówków tabel (wymaga escape = FALSE)
+odmiany_tex <- c(
+  Barolo     = "\\textcolor{barolo}{\\textit{Barolo}}",
+  Grignolino = "\\textcolor{grignolino}{\\textit{Grignolino}}",
+  Barbera    = "\\textcolor{barbera}{\\textit{Barbera}}"
+)
+
 ```
 
 ## Wstęp
 
-W tej części raportu będziemy pracować na zbiorze danych `Wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian. \textcolor{darkgreen}{jak będzie czas: jakie to odmiany?}
+W tej części raportu będziemy pracować na zbiorze danych `Wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian.
+
+W naszym zbiorze danych, ani na jego stronie nie ma informacji o tym jakie to są odmiany, jednak w [\textcolor{magenta}{innym wariancie zbioru}](https://search.r-project.org/CRAN/refmans/ContaminatedMixt/html/wine.html) są podane ich nazwy: \textcolor{barolo}{\textit{Barolo}}, \textcolor{grignolino}{\textit{Grignolino}} oraz \textcolor{barbera}{\textit{Barbera}}.
 
 Naszym zadaniem będzie zastosowanie i porównanie algorytmów klasyfikacji k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora Bayesowskiego na tym zbiorze danych.
 
@@ -475,9 +490,7 @@ Cechą według której będziemy klasyfikować wina jest zmienna informująca o 
 
 ## Opis i wstępna analiza danych
 
-Dane zawierają informacje o `r nrow(dane2)` winach. Dla każdego z nich mamy informacje o `r ncol(dane2)` cechach.
-
-Cecha `class` będzie nas informować o przynależności do klasy, natomiast do klasyfikacji posłuży nam `r ncol(dane2)-1` pozostałych cech dotyczących różnych parametrów wina. Zmienna `class` zawiera informacje o przynależności do jednej z `r length(unique(dane2$class))` klas, czyli odmian wina.
+Dane zawierają informacje o `r nrow(dane2)` winach. Dla każdego z nich mamy informacje o `r ncol(dane2)` cechach:
 
 ```{r tebala-typow-cech-dane2, echo=FALSE}
 
@@ -519,15 +532,24 @@ kable(
   column_spec(2, width = "9cm")
 ```
 
-Na podstawie powyższej tabeli można stwierdzic że wszystkie typy
-zmiennych zostały prawidłowo zakodowane, poza zmienną `class`, która została wczytana jako typ `integer` zamiast `factor`.
+Cecha `class` będzie nas informować o przynależności do klasy, natomiast do klasyfikacji posłuży nam `r ncol(dane2)-1` pozostałych cech dotyczących różnych parametrów wina. Zmienna `class` zawiera informacje o przynależności do jednej z `r length(unique(dane2$class))` klas, czyli odmian wina.
 
-Zmienne `V5` (zawartość magnezu) oraz `V13` (zawartość proliny) zostały wczytane jako `integer`. Wynika to z tego, że w danych występują jedynie wartości całkowite, prawdopodobnie z powodu zaokrąglenia. Wartości tych cech jak najbardziej mogłyby być niecałkowite, więc bardziej pasuje typ `numeric`.
+Porównując nasz zbiór ze wspomnianym wcześniej wariantem można się dowiedzieć, że klasa zakodowana u nas jako `1` to odmiana \textcolor{barolo}{\textit{Barolo}}, klasa zakodowana jako `2` to \textcolor{grignolino}{\textit{Grignolino}}, a klasa zakodowana jako `3` to \textcolor{barbera}{\textit{Barbera}}.
 
-Korektujemy typy wspomnianych zmiennych:
+Zmieniamy odpowiednio etykiety w naszym zbiorze:
 
-```{r zmiana-typow}
-dane2$class <- as.factor(dane2$class)
+```{r etykiety-odmian}
+dane2$class <- factor(
+  dane2$class,
+  labels = c("Barolo", "Grignolino", "Barbera")
+)
+```
+
+Alternatywny zbiór zawiera także opisowe nazwy zmiennych, jednak zachowujemy nazwy numeryczne aby nie utrudniać pracy na danych.
+
+Zmienne `V5` (zawartość magnezu) oraz `V13` (zawartość proliny) zostały wczytane jako `integer`. Wynika to z tego, że w danych występują jedynie wartości całkowite, prawdopodobnie z powodu zaokrąglenia. Wartości tych cech jak najbardziej mogłyby być niecałkowite, więc zmieniamy ich typ na `numeric`.
+
+```{r zmiana-typow, echo=FALSE}
 dane2$V5  <- as.numeric(dane2$V5)
 dane2$V13 <- as.numeric(dane2$V13)
 ```
@@ -584,14 +606,16 @@ W danych nie występuja wartości `NA`. Braki zakodowane w inny sposób raczej n
 
 W podsumowaniu możemy zauważyć także znacząco różną zmienność w przypadku zmiennej `V13` (zawartość proliny) niż w przypadku pozostałych zmiennych. Może to wskazywać na ewentualną potrzebę standaryzacji przy niektórych metodach.
 
-```{r rozklad-klas, echo=FALSE, fig.cap="Rozkład liczności klas (odmian wina) w zbiorze \\texttt{wine}.", fig.width=5, fig.height=3}
-ggplot(dane2, aes(x = class)) +
-  geom_bar(fill = "#713DC5") +
-  labs(x = "Klasa", y = "Liczność") +
-  theme_minimal(base_size = 11)
+```{r rozklad-klas, echo=FALSE, warning=FALSE, fig.cap="Rozkład liczności odmian w zbiorze \\texttt{wine}. Kolory słupków odpowiadają odmianom: \\textcolor{barolo}{\\textit{Barolo}}, \\textcolor{grignolino}{\\textit{Grignolino}}, \\textcolor{barbera}{\\textit{Barbera}}.", fig.width=5, fig.height=3}
+ggplot(dane2, aes(x = class, fill = class)) +
+  geom_bar() +
+  scale_fill_manual(values = kolory_odmian, guide = "none") +
+  labs(x = "Odmiana", y = "Liczność") +
+  theme_minimal(base_size = 11) +
+  theme(axis.text.x = element_text(colour = kolory_odmian_txt[levels(dane2$class)], face = "italic"))
 ```
 
-Na powyższym wykresie widzimy rokład liczności klas. Możemy zauważyć, że najwięcej obserwacji należy do klasy 2, natomiast najmniej do klasy 3. Róznice nie są jednak znaczące, liczności klas są w miarę zbalansowane. 
+Na powyższym wykresie widzimy rokład liczności odmian. Możemy zauważyć, że najwięcej obserwacji należy do odmiany \textcolor{grignolino}{\textit{Grignolino}}, natomiast najmniej do odmiany \textcolor{barbera}{\textit{Barbera}}. Róznice nie są jednak znaczące, liczności klas są w miarę zbalansowane.
 
 ```{r klasyfikator-max, echo=FALSE}
 blad_klasyfikatora_max <- 1 - max(table(wine$class))/nrow(wine)
@@ -706,10 +730,12 @@ knn_pred_train <- knn(train_x, train_x, train_y, k = 5)
 ```
 
 ```{r funkcja-tabela-cm, echo=FALSE}
-# macierz pomyłek jako tabela (Część 2)
+# macierz pomyłek jako tabela (Część 2); nazwy odmian kolorujemy w nagłówkach
 tabela_cm <- function(pred, ref, caption) {
   cm <- table(Rzeczywiste = ref, Prognozowane = pred)
-  kable(cm, booktabs = TRUE, caption = caption) %>%
+  rownames(cm) <- odmiany_tex[rownames(cm)]
+  colnames(cm) <- odmiany_tex[colnames(cm)]
+  kable(cm, booktabs = TRUE, escape = FALSE, caption = caption) %>%
     kable_styling(full_width = FALSE,
                   latex_options = c("striped", "HOLD_position"),
                   stripe_color = "gray!10")
