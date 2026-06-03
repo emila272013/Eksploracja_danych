@@ -448,25 +448,9 @@ Wciąż jest odrobinę lepiej w przypadku \textcolor{setosa}{\textit{setosa}}, n
 Ogółem, model rozszerzony o składniki wielomianowe stopnia 2 radzi sobie lepiej z klasyfikacją niż model bez tych składników, co pozwala nam na lepszą klasyfikację gatunków naszych kwiatów. Sprawia to że jesteśmy szczęśliwi.
 
 
-# Częśc 2 - porównanie metod klasyfikacji
+# Część 2 - porównanie metod klasyfikacji
 
-## Wstęp
-
-W następnej częsci raporu bedzimy pracowac na zbiorze danych Wine z
-bibloteki HDcalssif. Naszym zsadaniem będzie zastosanie i porownanaie
-algorytmów klasyifkacji takich jak metoda k-najblizszych sasiadów,
-drzewa klasyfikacyjnego oraz naiwnego klasyfikatora baysowskiego na
-zaimportoanej bazie danych.
-
-## Opis i wstępna analiza dancyh
-
-Baza danych na kótrej bedziemy pracować zawiera infomacje o wynikach
-analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz
-pochodzacych z trzech róznych odmian. Chechą dzięki której bedziemy
-klasyfikować dane wino jest zmienna informująca o przynależnosci do
-odmainy wina.
-
-```{r pobranie-danych, echo=FALSE, warning=FALSE}
+```{r setup2, echo=FALSE, warning=FALSE}
 library(HDclassif)
 data(wine)
 
@@ -474,11 +458,21 @@ dane2 <- wine
 
 ```
 
-Dane zaiwreją informacje o `r nrow(dane2)`winach, dal kazdego z nich
-mamy `r ncol(dane2)` cech. Checa class bedzie nas informowac o
-przynaleznosci do klasy natomiast klasyfikacji posłuży nam 13
-pozostałych cefch. zmienna class zawiera `r length(unique(dane2$class))`
-kals sluzcych do pogrupowania win.
+## Wstęp
+
+W tej części raportu będziemy pracować na zbiorze danych `Wine` z R-pakietu `HDcalssif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech róznych odmian.
+
+Naszym zadaniem będzie zastosowanie i porównanie algorytmów klasyfikacji k-najblizszych sasiadów, drzewa klasyfikacyjnego oraz naiwnego klasyfikatora Bayesowskiego na tym zbiorze danych.
+
+Cechą według której będziemy klasyfikować wina jest zmienna informująca o przynależności do odmiany wina.
+
+## Opis i wstępna analiza dancyh
+
+Dane zawierają informacje o `r nrow(dane2)` winach. Dla każdego z nich mamy informacje o `r ncol(dane2)` cechach.
+
+Cecha `class` będzie nas informować o przynależności do klasy, natomiast do klasyfikacji posłuży nam `r ncol(dane2)-1` pozostałych cech. Zmienna `class` zawiera informacje o przynależności do jednej z `r length(unique(dane2$class))` klas, czyli odmian wina.
+
+\textcolor{setosa}{--- dotąd zrobiłem, ide spać. to co jest dalej wygląda przerażająco. CZEMU SEKCJA Z OPISEM DANYCH MA 5 STRON???? AAAAAAAGHFASGHDGHKJASHJKAHAAAAA.}
 
 ```{r tebala-typow-cech-dane2, echo=FALSE}
 
@@ -595,7 +589,7 @@ Na powyzszym wykresie widzimy roklad przynależlonci poszczególnych
 obserwacji do danej klasy. Mozemy zauważyc, ze najwiecej obserwacji
 nalezy do kalsy 2, natomist najmnej do klast 3.
 
-\textcolor{red}{[CO TU NAPISAĆ: (1) ocena rozkładu klas — czy są istotne dysproporcje liczebności (najwięcej obs. w klasie 2, najmniej w 3) i czy mają znaczenie; (2) baseline — jaki błąd dałby klasyfikator przypisujący wszystko do najliczniejszej klasy i interpretacja tej wartości jako punktu odniesienia dla właściwych modeli. Wartości \% najlepiej wstawić inline R z policzonego błędu.]}
+\textcolor{red}{[CO TU NAPISAĆ: (1) ocena rozkładu klas – czy są istotne dysproporcje liczebności (najwięcej obs. w klasie 2, najmniej w 3) i czy mają znaczenie; (2) baseline – jaki błąd dałby klasyfikator przypisujący wszystko do najliczniejszej klasy i interpretacja tej wartości jako punktu odniesienia dla właściwych modeli. Wartości \% wstawić inline R z policzonego błędu. (Sprawdzone: liczności 59/71/48; baseline jest już policzony inline niżej = ok. 60\% błędu / 40\% trafień, a akapity ciemnoczerwone niżej w większości to pokrywają – wystarczy je scalić i poprawić, nie pisać od zera.)]}
 
 \textcolor{ciemnyczerwony}{Oznacza to, że występują pewne dysproporcje w liczebności klas, jednak
 nie są one skrajne.}
@@ -642,7 +636,7 @@ kable(model$scaling, booktabs = TRUE, digits = 3,
                 stripe_color = "gray!10")
 ```
 
-\textcolor{red}{[CO TU NAPISAĆ (jeden zwięzły akapit — poniższe to wersje robocze AI do skasowania): które zmienne najlepiej różnicują klasy, na podstawie wartości bezwzględnych współczynników funkcji dyskryminacyjnych LDA policzonych na danych ustandaryzowanych (wychodzą V3, V7, V8, V11, V12), oraz ile zmienności międzyklasowej wyjaśniają LD1 i LD2. Te \% policzyć inline R z \texttt{model\$svd\textasciicircum 2 / sum(model\$svd\textasciicircum 2)}, nie wpisywać 68.75/31.25 na sztywno. Z trzech wersji poniżej (zwykła, „geminik", „czat:") zostawić jedną, napisaną własnymi słowami.]}
+\textcolor{red}{[CO TU NAPISAĆ (jeden zwięzły akapit – poniższe wersje robocze AI do skasowania): które zmienne najlepiej różnicują klasy (wg wartości bezwzględnych współczynników LD1/LD2) oraz ile zmienności międzyklasowej wyjaśniają LD1 i LD2 – proporcje policzyć inline R z \texttt{model\$svd\textasciicircum 2 / sum(model\$svd\textasciicircum 2)} (wychodzi 68.75/31.25, ale niech liczy się samo, nie na sztywno). UWAGA – sprawdzone w R: kod liczy \texttt{lda} na SUROWYCH danych i to z nich wychodzi zestaw V3, V7, V8, V11, V12 (ten sam, którego używamy dalej jako podzbioru cech \texttt{train\_small}). Na surowych współczynnikach interpretacja „siły dyskryminacyjnej" jest myląca, bo zależy od skali/jednostek cech; po standaryzacji top zestaw jest INNY: V7, V13, V10, V12, V3. Stąd dawne sformułowanie „na danych ustandaryzowanych" było błędne. DECYZJA OTWARTA – DO SKONSULTOWANIA, na razie NIEROZSTRZYGNIĘTA: albo (a) zostawić surowe \texttt{lda}, skreślić „na danych ustandaryzowanych" i dopisać zastrzeżenie o skali, albo (b) ustandaryzować przed \texttt{lda} – ale wtedy trzeba zmienić podzbiór cech na nowy top zestaw (V7, V13, V10, V12, V3) w całej Części 2. Do czasu rozstrzygnięcia NIE ruszamy tego akapitu ani podzbioru cech. Z trzech wersji niżej zostawić docelowo jedną, własnymi słowami.]}
 
 \textcolor{ciemnyczerwony}{W celu znalezienia zmiennych, które charakteryzują się najlepszymi
 zdolnościami dyskryminacyjnymi, zastosowano model Liniowej Analizy
@@ -693,7 +687,7 @@ bibiloteka caret zachowujaca proporcjie w danych.
 
 od czacika troche madre
 
-\textcolor{red}{[OPIS POJEDYNCZEGO PODZIAŁU (część wymogu 2d) praktycznie nie istnieje w renderowanym tekście: jest tylko placeholder „od czacika troche madre", a właściwy opis siedzi PONIŻEJ w komentarzu HTML (\texttt{<!-- ... -->}), więc NIE pojawia się w PDF. CO ZROBIĆ: usunąć placeholder, a treść z komentarzy przepisać do normalnego tekstu (po polsku, bez błędów) — że podziału na 70/30 dokonano funkcją \texttt{createDataPartition} z zachowaniem proporcji klas, że dane standaryzujemy (k-NN opiera się na odległościach), oraz że dla każdej metody liczymy macierz pomyłek i błąd na zbiorze uczącym i testowym, a różnica między nimi mówi o przeuczeniu. Trzeba też zaznaczyć, że k-NN liczymy dla $k=5$.]}
+\textcolor{red}{[OPIS POJEDYNCZEGO PODZIAŁU (część wymogu 2d): zarys JEST już w akapicie wyżej (70\%, \texttt{createDataPartition}, caret, proporcje klas), ale w błędach i z placeholderem „od czacika troche madre" do usunięcia. Pełniejsza, poprawna wersja siedzi PONIŻEJ w komentarzu HTML (\texttt{<!-- ... -->}) i NIE renderuje się w PDF. CO ZROBIĆ: scalić to w jeden poprawny akapit (po polsku, bez błędów), a duplikaty – placeholder i komentarze HTML – skasować. Treść: podział 70/30 \texttt{createDataPartition} z zachowaniem proporcji klas; standaryzacja cech (k-NN działa na odległościach); dla każdej metody macierz pomyłek + błąd na zbiorze uczącym i testowym, a różnica między nimi mówi o przeuczeniu; k-NN liczymy dla $k=5$.]}
 
 <!-- W celu oceny skuteczności klasyfikatora kNN dokonano podziału zbioru danych na część uczącą (70%) oraz testową (30%) przy użyciu funkcji createDataPartition, zapewniającej zachowanie proporcji klas w obu zbiorach. -->
 
@@ -921,7 +915,7 @@ tree_small <- train(
 tabela_wynikow(tree_small, "Wyniki CV -- drzewo na podzbiorze cech V3, V7, V8, V11, V12")
 ```
 
-\textcolor{red}{[CO TU NAPISAĆ: porównanie drzewa na pojedynczym podziale vs w 10-krotnej CV. Zaznaczyć, że 100\% na pojedynczym teście jest zbyt optymistyczne (mały zbiór testowy / korzystny podział) i dlatego sięgamy po CV. Podać najlepsze \texttt{cp} oraz odpowiadającą dokładność i Kappa z CV (najlepiej inline R z obiektu \texttt{tree\_cv}), oraz wniosek, że zbyt duże \texttt{cp} = za mocne przycinanie i spadek jakości.]}
+\textcolor{red}{[CO TU NAPISAĆ: porównanie drzewa na pojedynczym podziale vs w 10-krotnej CV. Zaznaczyć, że 100\% na pojedynczym teście jest zbyt optymistyczne (mały zbiór testowy / korzystny podział) i dlatego sięgamy po CV. Podać najlepsze \texttt{cp} oraz odpowiadającą dokładność i Kappa z CV (najlepiej inline R z obiektu \texttt{tree\_cv}), oraz wniosek, że zbyt duże \texttt{cp} = za mocne przycinanie i spadek jakości. (Sprawdzone: najlepsze \texttt{cp} ok. 0.079, dokładność ok. 88.1\%, Kappa ok. 0.821 – wartości wpisane na sztywno w akapicie niżej (88.7\%, 0.831) są lekko nieaktualne; inline R z \texttt{tree\_cv} to naprawi.)]}
 
 W pojedynczym podzale accuracy wynioso 100 dla teset set. \textcolor{ciemnyczerwony}{Wynik ten
 wskazuje na bardzo wysoką skuteczność modelu drzewa decyzyjnego, jednak
@@ -1042,8 +1036,8 @@ one przeniosone wyzej lepiej porwnywac
 ```
 
 
-\textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V3, V7, V8, V11, V12 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników.]}
+\textcolor{red}{[DO NAPISANIA -- komentarz do tabel na podzbiorze cech: porównać dokładność modeli na pełnym zestawie cech vs na podzbiorze V3, V7, V8, V11, V12 dla każdej z metod (k-NN, drzewo, naive Bayes); napisać, czy ograniczenie cech pomogło, zaszkodziło, czy nie zmieniło wyników. (Sprawdzone w CV: ograniczenie cech wyraźnie pogarsza k-NN (z ok. 97\% do ok. 88\%) i naive Bayes (z ok. 98\% do ok. 90\%), a drzewo prawie bez zmian (z ok. 88\% do ok. 87\%).)]}
 
 ## Podsumowanie
 
-\textcolor{red}{[DO NAPISANIA -- końcowe wnioski (Zadanie 2f), wymagane w treści listy. Odpowiedzieć na trzy pytania: (1) dla jakiego podzbioru cech i jakich parametrów (np. k w k-NN, cp w drzewie, usekernel w naive Bayes) wyniki są najlepsze; (2) która metoda klasyfikacji wypada najlepiej, a która najgorzej na zbiorze wine; (3) czy wybór schematu oceny (pojedynczy podział vs walidacja krzyżowa) wpłynął na wnioski o skuteczności metod. Można podeprzeć się tabelami wyżej.]}
+\textcolor{red}{[DO NAPISANIA -- końcowe wnioski (Zadanie 2f), wymagane w treści listy. Odpowiedzieć na trzy pytania: (1) dla jakiego podzbioru cech i jakich parametrów (np. k w k-NN, cp w drzewie, usekernel w naive Bayes) wyniki są najlepsze; (2) która metoda klasyfikacji wypada najlepiej, a która najgorzej na zbiorze wine; (3) czy wybór schematu oceny (pojedynczy podział vs walidacja krzyżowa) wpłynął na wnioski o skuteczności metod. Można podeprzeć się tabelami wyżej. (Sprawdzone w R, CV pełny zestaw cech: naive Bayes ok. 97.6\% (najlepszy), k-NN ok. 96.9\%, drzewo ok. 88.1\% (najsłabsze); najlepsze parametry: k-NN \texttt{k=5}, drzewo \texttt{cp} ok. 0.079, naive Bayes \texttt{usekernel=FALSE}; pełny zestaw cech lepszy od podzbioru dla wszystkich metod poza drzewem; po dodaniu standaryzacji do CV oba schematy dają spójny ranking – wybór schematu NIE zmienia wniosków, jedynie pojedynczy podział był zbyt optymistyczny dla drzewa (100\% vs 88\% w CV).)]}
