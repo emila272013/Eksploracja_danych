@@ -68,7 +68,7 @@ odmiany_tex <- c(
 
 # Wstęp i opis danych
 
-W obu częściach sprawozdania pracujemy na zbiorze danych `wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian.
+W obu częściach sprawozdania pracujemy na zbiorze danych `wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian: \textcolor{barolo}{\textit{Barolo}}, \textcolor{grignolino}{\textit{Grignolino}} oraz \textcolor{barbera}{\textit{Barbera}}.
 
 Dokładniejszy opis danych znajduje się w poprzedniej części sprawozdania. Przypomnienie podstawowych informacji znajduje się poniżej
 
