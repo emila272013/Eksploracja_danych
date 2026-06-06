@@ -1,0 +1,256 @@
+---
+title: "Sprawozdanie 4"
+subtitle: "Eksploracja danych"
+author: "Emilia Porczyńska, Michał Szostak"
+date: "`r Sys.Date()`"
+output:
+  bookdown::pdf_document2:
+    toc: true
+    fig_caption: yes
+    fig_width: 5
+    fig_height: 4
+    number_sections: true
+    keep_tex: false
+header-includes:
+  - \usepackage[utf8]{inputenc}
+  - \usepackage[polish]{babel}
+  - \usepackage{graphicx}
+  - \usepackage{xcolor}
+  - \usepackage{hyperref}
+  - \usepackage{floatrow}
+  - \floatsetup[table]{capposition=bottom}
+  - \usepackage{caption}
+  - \definecolor{barolo}{HTML}{933525}
+  - \definecolor{grignolino}{HTML}{BD6065}
+  - \definecolor{barbera}{HTML}{912061}
+  - \definecolor{notatka}{HTML}{B8860B}
+fontsize: 12pt
+editor_options:
+  markdown:
+    wrap: none
+---
+
+```{r setup, echo=FALSE, warning=FALSE, message=FALSE}
+library(ggplot2)
+library(knitr)
+library(kableExtra)
+library(dplyr)
+library(showtext)   # żeby były polskie znaki na wykresach
+library(HDclassif)  # zbiór wine
+showtext_auto()
+
+# Pakiety potrzebne w dalszych częściach (doinstaluj/odkomentuj w miarę potrzeb):
+#  Zad 1a (ensemble): ipred, rpart, rpart.plot, randomForest, adabag
+#  Zad 1b (SVM):      e1071
+#  Zad 1  (ocena):    caret
+#  Zad 2  (skupienia): cluster, factoextra, clValid, e1071 (matchClasses)
+
+knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE, message = FALSE)
+```
+
+```{r setup-wine, echo=FALSE, warning=FALSE}
+data(wine)
+
+dane2 <- wine
+
+# kolory odmian
+kolory_odmian     <- c(Barolo = "#C06554", Grignolino = "#E88E90", Barbera = "#B54C84") # wykres (jaśniejsze)
+kolory_odmian_txt <- c(Barolo = "#933525", Grignolino = "#BD6065", Barbera = "#912061") # tekst (ciemniejsze)
+# kolorowane nazwy odmian do nagłówków tabel (wymaga escape = FALSE)
+odmiany_tex <- c(
+  Barolo     = "\\textcolor{barolo}{\\textit{Barolo}}",
+  Grignolino = "\\textcolor{grignolino}{\\textit{Grignolino}}",
+  Barbera    = "\\textcolor{barbera}{\\textit{Barbera}}"
+)
+```
+
+\newpage
+
+# Wstęp i opis danych
+
+W obu częściach sprawozdania pracujemy na zbiorze danych `wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian.
+
+Dokładniejszy opis danych znajduje się w poprzedniej części sprawozdania. Przypomnienie podstawowych informacji znajduje się poniżej
+
+## Przypomnienie informacji o zbiorze danych
+
+Dokonujemy takiej samej obróbce danych jak w poprzedniej części, czyli zmieniamy typy wszystkich parametrów cech na `numeric`, a numeryczne etykiety klas zmieniamy na prawdziwe nazwy odmian – `1` na \textcolor{barolo}{\textit{Barolo}}, `2` na \textcolor{grignolino}{\textit{Grignolino}}, a `3` na \textcolor{barbera}{\textit{Barbera}}.
+
+```{r korekty}
+dane2$class <- factor(
+  dane2$class,
+  labels = c("Barolo", "Grignolino", "Barbera")
+)
+
+dane2$V5  <- as.numeric(dane2$V5)
+dane2$V13 <- as.numeric(dane2$V13)
+```
+
+Dane zawierają informacje o `r nrow(dane2)` winach. Dla każdego z nich mamy informacje o `r ncol(dane2)` cechach:
+
+```{r tebala-typow-cech-dane2, echo=FALSE}
+
+tab_cechy_2 <- data.frame(
+  Typ = sapply(wine, class),
+  Opis = c(
+    "przynależność do klasy wina",
+    "zawartość alkoholu",
+    "kwas jabłkowy",
+    "zawartość popiołu",
+    "alkaliczność popiołu",
+    "zawartość magnezu",
+    "łączna zawartość fenoli",
+    "flawonoidy",
+    "fenole nieflawonoidowe",
+    "proantocyjaniny",
+    "intensywność barwy",
+    "odcień koloru",
+    "OD280/OD315 rozcieńczonych win",
+    "zawartość proliny"
+  )
+)
+
+# escape=FALSE -- żeby \textit zadziałał
+rownames(tab_cechy_2) <- gsub("_", "\\\\_", rownames(tab_cechy_2))
+
+kable(
+  tab_cechy_2,
+  caption = "Typy oraz opisy cech zbioru wine",
+  booktabs = TRUE,
+  escape = FALSE,
+  align = "l"
+) %>%
+  kable_styling(
+    full_width = FALSE,
+    latex_options = c("striped", "HOLD_position"),
+    stripe_color = "gray!10"
+  ) %>%
+  column_spec(2, width = "9cm")
+```
+
+Statystyki opisowe zmiennych:
+
+```{r statystyki-opisowe-cech, echo=FALSE, results='asis'}
+tab_summary_2 <- summary(dane2)
+tab_summary_2[is.na(tab_summary_2)] <- "" # usunięcie niepotrzebnych "NA" zaśmiecających tabelę
+# wine ma 14 kolumn -> dzielimy na 3 części
+kawalki <- list(
+  1:5,
+  6:10,
+  11:14
+)
+
+for (i in seq_along(kawalki)) {
+
+  kawalek_tabeli <- tab_summary_2[, kawalki[[i]], drop = FALSE]
+
+  # usunięcie pustych wierszy
+  kawalek_tabeli <- kawalek_tabeli[
+    rowSums(kawalek_tabeli != "") > 0,
+    ,
+    drop = FALSE
+  ]
+
+  caption_i <- if (i == length(kawalki)) {
+    "Podsumowanie danych zbioru wine"
+  } else {
+    NULL
+  }
+
+  tabela <- kable(
+    kawalek_tabeli,
+    booktabs = TRUE,
+    caption = caption_i
+  ) %>%
+    kable_styling(
+      latex_options = c(
+        "striped",
+        "scale_down",
+        "HOLD_position"
+      )
+    )
+
+  print(tabela)
+}
+```
+
+Na wykresie poniżej znajduje się rozkład liczności odmian:
+
+```{r rozklad-klas, echo=FALSE, warning=FALSE, fig.cap="Rozkład liczności odmian w zbiorze \\texttt{wine}. Kolory słupków odpowiadają odmianom: \\textcolor{barolo}{\\textit{Barolo}}, \\textcolor{grignolino}{\\textit{Grignolino}}, \\textcolor{barbera}{\\textit{Barbera}}.", fig.width=5, fig.height=3}
+ggplot(dane2, aes(x = class, fill = class)) +
+  geom_bar() +
+  scale_fill_manual(values = kolory_odmian, guide = "none") +
+  labs(x = "Odmiana", y = "Liczność") +
+  theme_minimal(base_size = 11) +
+  theme(axis.text.x = element_text(colour = kolory_odmian_txt[levels(dane2$class)], face = "italic"))
+```
+
+
+# Część 1 – zaawansowane metody klasyfikacji
+
+\textcolor{red}{Celem analizy jest zastosowanie (wybranych) zaawansowanych metod klasyfikacji. Zadanie to jest kontynuacją zad.2 z listy 3 i wykonujemy je dla uprzednio wybranych danych.}
+
+## Rodziny klasyfikatorów / uczenie zespołowe
+
+\textcolor{red}{– Zastosuj przynajmniej dwa algorytmy typu ensemble learning (tzn. takie metody jak bagging, boosting i random forest) do konstrukcji reguł klasyfikacyjnych oraz zbadaj ich dokładność\textsuperscript{1}. Czy otrzymujemy istotną redukcję błędu klasyfikacji w porównaniu do klasyfikatora bazowego (tj. pojedynczego drzewa klasyfikacyjnego)? Czy występują istotne różnice w dokładności klasyfikacji pomiędzy różnymi metodami konstrukcji klasyfikatorów złożonych?}
+
+\textcolor{red}{\textsuperscript{1} Do oceny dokładności klasyfikacji można zastosować taki sam schemat, jak w przypadku zad.2 z listy nr 3}
+
+## Metoda wektorów nośnych (SVM)
+
+\textcolor{red}{– Wykorzystując algorytm SVM, zbuduj klasyfikatory dla różnych funkcji jądrowych (np. jądro liniowe, wielomianowe i radialne) i porównaj ich skuteczność. Czy i w jakim stopniu wybór funkcji jądrowej oraz wybór parametru kosztu C wpływa na dokładność metody SVM?}
+
+\textcolor{red}{– Dla jądra radialnego postaraj się „dostroić" jednocześnie parametry $\gamma$ i C. Porównaj dokładność klasyfikacji dla modelu z optymalnie wybranymi parametrami oraz modelu skonstruowanego dla domyślnych parametrów. Czy optymalizacja parametrów pozwoliła na poprawę skuteczności skonstruowanego klasyfikatora?}
+
+## Porównanie skuteczności metod
+
+\textcolor{red}{– Porównując wyniki uzyskane w punktach a) i b), postaraj się rozstrzygnąć, która z rozważanych metod wykazała najlepszą skuteczność.}
+
+
+# Część 2 – analiza skupień
+
+\textcolor{red}{Celem zadania jest zastosowanie poznanych algorytmów analizy skupień (ang. clustering) oraz ocena i porównanie jakości grupowania. Przeprowadzając analizę, należy zastosować przynajmniej jedną wybraną metodę grupującą (np. algorytm PAM) oraz przynajmniej jedną metodę hierarchiczną (np. algorytm AGNES).}
+
+## Wybór i przygotowanie danych
+
+\textcolor{red}{– Do analizy wybieramy jeden ze zbiorów wymienionych w zad.2/lista 3. Uwaga: Można wybrać ten sam albo inny zbiór niż w przypadku porównywania metod klasyfikacji.}
+
+\textcolor{red}{– Aby ułatwić wizualizację wyników, w przypadku „większych" danych losujemy podzbiór zawierający 200 rekordów (wierszy).}
+
+\textcolor{red}{– Przed zastosowaniem metod analizy skupień usuwamy zmienną grupującą zawierającą etykietki klas (grup). Zmienna ta powinna być jednak później wykorzystana do oceny jakości grupowania ($\rightarrow$ zewnętrzne wskaźniki walidacyjne).}
+
+\textcolor{red}{– Postaraj się rozstrzygnąć, czy konieczne będzie zastosowanie standaryzacji przed wyznaczeniem macierzy odległości/odmienności.}
+
+## Wizualizacja wyników grupowania
+
+\textcolor{red}{Przyjmując liczbę skupień K równą rzeczywistej liczbie klas:}
+
+\textcolor{red}{– Zilustruj otrzymane wyniki (podział na skupienia) na wykresach rozrzutu, zaznaczając (np. różnymi kolorami) przynależność do poszczególnych skupisk. Dodatkowo, uzupełnij wykresy o informacje nt. rzeczywistej przynależności obiektów do grup/klas (np. różne kolory mogą oznaczać różne skupienia, a różne symbole – przynależność do klas).}
+
+\textcolor{red}{$\ast$ Wskazówka 1: Aby przedstawić dane na dwuwymiarowym wykresie rozproszenia, można wykorzystać odpowiednią metodę redukcji wymiaru (np. PCA lub MDS).}
+
+\textcolor{red}{$\ast$ Wskazówka 2: W przypadku algorytmu hierarchicznego, aby otrzymać partycję dla ustalonej liczby skupień K można wykorzystać funkcję cutree().}
+
+\textcolor{red}{– W przypadku metody hierarchicznej porównaj dendrogramy otrzymane dla różnych metod łączenia skupień (ang. linkage methods) Dla chętnych: można zastosować także odpowiednie kolorowanie liści dendrogramów, zgodnie z rzeczywistą przynależnością obiektów do klas.}
+
+\textcolor{red}{– Co można powiedzieć o podstawowych własnościach otrzymanych skupień (np. jednorodność/zwartość, separacja itp.)?}
+
+\textcolor{red}{– Czy i w jakim stopniu otrzymany podział na klastry zgadza się z rzeczywistą przynależnością obiektów do klas?}
+
+## Ocena jakości grupowania, wybór liczby skupień i porównanie metod
+
+\textcolor{red}{Dla ustalonego zakresu liczby skupień (K $\in$ \{2, 3, \ldots, K.max\}) wykonaj poniższe kroki:}
+
+\textcolor{red}{– wskaźniki wewnętrzne: Wykorzystaj średnią wartość indeksu silhouette do porównania wyników otrzymanych dla różnych algorytmów analizy skupień (np. algorytmy PAM i AGNES) oraz różnej liczby skupień K.}
+
+\textcolor{red}{– wskaźniki zewnętrzne: Wykorzystaj wybraną miarę zgodności dwóch partycji (np. funkcja matchClasses()\{e1071\}) do porównania wyników grupowania z rzeczywistą przynależnością do klas.}
+
+\textcolor{red}{Na podstawie otrzymanych wyników spróbuj rozstrzygnąć, który algorytm lepiej poradził sobie z grupowaniem danych oraz jaka liczba klastrów jest optymalna.}
+
+## Interpretacja wyników grupowania – charakterystyki skupień
+
+\textcolor{red}{– Wykorzystując wnioski z poprzedniego punktu, wyznacz podział na skupienia dla optymalnej liczby skupień K.}
+
+\textcolor{red}{– Analizując podstawowe charakterystyki poszczególnych cech, zbadaj czym wyróżniają się obiekty należące do danego skupienia (np. dla obiektów należących do poszczególnych skupień można wyznaczyć średnie wartości cech, porównać wykresy pudełkowe itp.).}
+
+\textcolor{red}{– W przypadku metody PAM sprawdź także, które obiekty są medoidami (reprezentantami skupień) i co je wyróżnia.}
