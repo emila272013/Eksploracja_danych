@@ -24,6 +24,7 @@ header-includes:
   - \definecolor{grignolino}{HTML}{BD6065}
   - \definecolor{barbera}{HTML}{912061}
   - \definecolor{notatka}{HTML}{B8860B}
+  - \definecolor{aikod}{HTML}{1C5BD8}
 fontsize: 12pt
 editor_options:
   markdown:
@@ -41,6 +42,8 @@ library(rpart)
 library(randomForest)
 library(gbm)
 library(caret)
+library(ipred)      # bagging, errorest (.632+)
+library(e1071)      # svm, tune
 showtext_auto()
 
 # Pakiety potrzebne w dalszych częściach (doinstaluj/odkomentuj w miarę potrzeb):
@@ -66,6 +69,27 @@ odmiany_tex <- c(
   Grignolino = "\\textcolor{grignolino}{\\textit{Grignolino}}",
   Barbera    = "\\textcolor{barbera}{\\textit{Barbera}}"
 )
+
+# pomocnicza: kable z niebieskim tekstem (kolor aikod) -> oznaczenie, że tabelę
+# z surowego printu zrobił AI; caption wstawiamy już owinięte w \textcolor{aikod}{}
+tab_ai <- function(x, caption = NULL, col.names = NULL, digits = 3,
+                   row.label = NULL, align = "c") {
+  df <- if (is.matrix(x) || is.table(x)) as.data.frame.matrix(x)
+        else as.data.frame(x, check.names = FALSE)
+  if (!is.null(row.label)) {
+    df <- cbind(rownames(df), df)
+    names(df)[1] <- row.label
+  }
+  rownames(df) <- NULL
+  cn <- if (is.null(col.names)) names(df) else col.names
+  k <- kable(df, caption = caption, booktabs = TRUE, col.names = cn,
+             digits = digits, escape = FALSE, align = align,
+             row.names = FALSE, linesep = "") %>%
+    kable_styling(full_width = FALSE, latex_options = c("HOLD_position")) %>%
+    row_spec(0, bold = TRUE, color = "aikod")
+  if (nrow(df) >= 1) k <- row_spec(k, seq_len(nrow(df)), color = "aikod")
+  k
+}
 ```
 
 \newpage
@@ -194,6 +218,12 @@ ggplot(dane2, aes(x = class, fill = class)) +
 
 W pierwszej części raportu przedstawimy metody Bagging i Random Forest oraz dokonamy oceny dokładności ich klasyfikacji. Następnie przeprowadzimy analizę metody maszyn wektorów nośnych (SVM) z wykorzystaniem różnych funkcji jądrowych. Na końcu porównamy wyniki wszystkich modeli w celu oceny ich skuteczności.
 
+\textcolor{notatka}{Ocena Części 1 (po przeliczeniu): wymagania listy są w większości spełnione. a) ensemble: bagging + random forest = dwie metody, dokładność oceniona estymatorem .632+ tym samym schematem co lista 3 – jest redukcja błędu (drzewo ~10\% -> bagging ~4\% -> RF ~1,2\%) i RF wyraźnie bije bagging. b) SVM: są trzy jądra (liniowe, wielomianowe, radialne), wpływ kosztu C (pokazany dla liniowego) i jednoczesne dostrojenie gamma + C dla radialnego. c) porównanie istnieje. Same obliczenia są poprawne – liczby z prozy zgadzają się z wynikami chunków.}
+
+\textcolor{notatka}{Nie znalazłem poważnych błędów rachunkowych. Dwa realne problemy MERYTORYCZNE są wskazane czerwonymi uwagami niżej: (1) narracja o tuningu SVM – optymalizacja nie poprawia wyniku na teście, a zhardkodowane C/gamma były błędne; (2) RF i SVM porównywane różnymi miarami (.632+ vs jeden podział testowy).}
+
+\textcolor{red}{Do poprawy redakcyjnie (drobne, nie błędy merytoryczne): w całej Części 1 sporo literówek i braków interpunkcji – do doczyszczenia przed oddaniem. `gbm` i `caret` są ładowane w `setup`, ale nieużywane (nie ma boostingu) – usuń albo dodaj metodę boostingu.}
+
 ## Rodziny klasyfikatorów / uczenie zespołowe
 
 Na początku analizy zbiór Wine podzielono na zbiór uczący i testowy w proporcji 70% do 30%, co miało na celu rzetelną ocenę zdolności generalizacji modeli. W przypadku metod Bagging oraz Random Forest zamiast jednorazowego podziału wykorzystano wielokrotne próbkowanie bootstrapowe. Każde drzewo było budowane na losowo wybranej próbie uczącej, a jako miarę jakości zastosowano błąd klasyfikacji wyznaczany na obserwacjach niewykorzystanych podczas budowy danego drzewa (Out-of-Bag, OOB). Takie podejście pozwala na ocenę skuteczności modeli bez konieczności wydzielania osobnego zbioru walidacyjnego oraz zapewnia bardziej stabilną estymację błędu klasyfikacji.
@@ -215,77 +245,109 @@ nastepnie przeprwadzamy predykscie na pojedynczym drzew w celu porpwania czy uzy
 tree_model <- rpart(class ~ ., data = train_set, method = "class")
 tree_pred <- predict(tree_model, test_set, type = "class")
 
-# Dodaj wyświetlenie wyniku, żeby móc go porównać z RF!
-table(tree_pred, test_set$class)
+# Macierz pomyłek na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista)
+cm.tree <- table(tree_pred, test_set$class)
+
+# wartości do tekstu
+acc.tree.split <- mean(tree_pred == test_set$class)
+err.tree.split <- 1 - acc.tree.split
+barolo.err <- sum(cm.tree[, "Barolo"]) - cm.tree["Barolo", "Barolo"]
+barolo.tot <- sum(cm.tree[, "Barolo"])
 ```
-Powyzej widzimy tabele pomyllek. Widzimy ze algorytm dobrze sobie poradzil z klasyfikacjia typow grignolino i brarbera gdzie pomylism nie wiecej niz dwa razy. natomaist klasyfikacji barolo pomylil sie az 5 razy na 18. dokloadnosc wyniosla okolo 85%, natomiast wspolczynnik bledu 15%, co nie jest zadowalajacym wynikiem. to do poprwamy chyba zle czytalam tabele
+
+```{r pojedyncze-drzewo-tab, echo=FALSE}
+tab_ai(cm.tree, row.label = "Predykcja",
+       caption = "\\textcolor{aikod}{Macierz pomyłek pojedynczego drzewa na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).}")
+```
+Powyzej widzimy tabele pomyllek. Widzimy ze algorytm dobrze sobie poradzil z klasyfikacjia typow grignolino i brarbera gdzie pomylism nie wiecej niz dwa razy. natomaist klasyfikacji barolo pomylil sie az `r barolo.err` razy na `r barolo.tot`. dokloadnosc wyniosla okolo `r round(100*acc.tree.split)`%, natomiast wspolczynnik bledu `r round(100*err.tree.split)`%, co nie jest zadowalajacym wynikiem.
 
 ```{r bagging, echo=FALSE}
-library(ipred)
-btree <- bagging(class ~ ., data = dane2, nbagg = 25, 
+# Bagging z 25 drzewami; coob=TRUE -> liczony błąd Out-of-Bag
+btree <- bagging(class ~ ., data = dane2, nbagg = 25, coob = TRUE,
                  control = rpart.control(minsplit = 1, cp = 0))
-print(btree)
 
-# 2. Badanie wpływu liczby replikacji B na błąd klasyfikacji (estymator .632+)
+# Badanie wpływu liczby replikacji B na błąd klasyfikacji (estymator .632+)
 B.vector <- c(1, 5, 10, 20, 30, 40, 50, 100)
 
 bagging.error.rates <- sapply(B.vector, function(b) {
-  print(paste0('B=', b))
-  
-  # Przekazujemy minsplit i cp wewnątrz funkcji errorest za pomocą control
-  err <- errorest(class ~ ., data = dane2, model = bagging, nbagg = b, 
-                  estimator = "632plus", 
+  # minsplit i cp przekazujemy do errorest przez argument control
+  err <- errorest(class ~ ., data = dane2, model = bagging, nbagg = b,
+                  estimator = "632plus",
                   est.para = control.errorest(nboot = 20),
                   control = rpart.control(minsplit = 1, cp = 0))
-  return(err$error)
+  err$error
 })
+```
 
-# 3. Wykres zależności błędu od B
-plot(B.vector, bagging.error.rates, xlab = "Liczba replikacji B (nbagg)", 
-     ylab = "Błąd klasyfikacji (.632+)",
-     main = "Bagging (Wine): error rate vs. B", type = "b", col = "blue", pch = 19)
+```{r bagging-tab, echo=FALSE}
+tab_ai(data.frame("Liczba drzew (nbagg)" = 25, "Błąd OOB" = btree$err,
+                  check.names = FALSE),
+       caption = "\\textcolor{aikod}{Bagging: błąd klasyfikacji Out-of-Bag dla 25 drzew.}")
+```
+
+```{r bagging-plot, echo=FALSE, fig.width=6, fig.height=4, fig.cap="\\textcolor{aikod}{Bagging: błąd klasyfikacji (estymator .632+) w funkcji liczby drzew B. Błąd maleje do ok. 40 drzew, a następnie się stabilizuje.}"}
+plot(B.vector, bagging.error.rates, xlab = "Liczba replikacji B (nbagg)",
+     ylab = "Błąd klasyfikacji (.632+)", type = "b", col = "#1C5BD8", pch = 19)
 grid()
 ```
-Powyzszy wykres przestawai zaleznosc bledy klasyfikacji .632+ od liczby drzew, widzimy ze do 40 tendencja jest spadkowa wraz ze wzrostem liczby replikacji blad spada az do 4%, dzieki czemu mozemy stwardzic ze algorytm zlozony bagging istotnie redukuje blad klasyfikacji w porowaniu do pojedynczego drzewa gdzie blad wyniosl 15%. Widzimy ze powyzej warotosc 40 az do 100 nie zauwazmy dalszego spadku bledu zaczyna sie stabliizowac blad co swiadczy ze dla naszego zbioru wine najlepszym wyborem jest liczba drzew okolo 40. Wiksza ilosc drze zwiksza jedynie koszt oblczeniowu i czas wykonania programu , nie wnoszzac juz istotnej porwany dokladnosci lasyfikacji.
+Powyzszy wykres przestawai zaleznosc bledy klasyfikacji .632+ od liczby drzew, widzimy ze do 40 tendencja jest spadkowa wraz ze wzrostem liczby replikacji blad spada az do `r round(100*min(bagging.error.rates))`%, dzieki czemu mozemy stwardzic ze algorytm zlozony bagging istotnie redukuje blad klasyfikacji w porowaniu do pojedynczego drzewa gdzie blad wyniosl `r round(100*err.tree.split)`%. Widzimy ze powyzej warotosc 40 az do 100 nie zauwazmy dalszego spadku bledu zaczyna sie stabliizowac blad co swiadczy ze dla naszego zbioru wine najlepszym wyborem jest liczba drzew okolo 40. Wiksza ilosc drze zwiksza jedynie koszt oblczeniowu i czas wykonania programu , nie wnoszzac juz istotnej porwany dokladnosci lasyfikacji.
 
 ```{r random-forest, echo=FALSE}
 p <- ncol(dane2) - 1
 
-# 2. Model rf.1: Jedno drzewo (wszystkie cechy)
-rf.1 <- randomForest(class ~ ., data = dane2, ntree = 1, mtry = p, importance = TRUE)
-print(rf.1)
+# rf.2: klasyczny Random Forest (100 drzew, mtry = sqrt(p))
+set.seed(67) # ziarno -> powtarzalny las niezależnie od wcześniejszych losowań
+rf.2 <- randomForest(class ~ ., data = train_set, ntree = 100,
+                     mtry = floor(sqrt(p)), importance = TRUE)
 
-# 3. Model rf.2: Klasyczny Random Forest (100 drzew)
-rf.2 <- randomForest(class ~ ., data = train_set, ntree = 100, mtry = floor(sqrt(p)), importance = TRUE)
-print(rf.2)
-
-# 4. Prognozowane klasy dla zbioru TESTOWEGO (wtedy porównanie z drzewem ma sens!)
+# Prognoza i macierz pomyłek na zbiorze testowym
 pred.labels <- predict(rf.2, newdata = test_set, type = "class")
-real.labels <- test_set$class 
-
+real.labels <- test_set$class
 confusion.matrix <- table(pred.labels, real.labels)
-print("Macierz pomyłek dla zbioru testowego (Random Forest):")
-print(confusion.matrix)
 
-# 5. Prognozowane prawdopodobieństwa a posteriori
+# Prognozowane prawdopodobieństwa a posteriori (pokazujemy pierwsze obserwacje)
 pred.probs <- predict(rf.2, newdata = dane2, type = "prob")
-head(pred.probs) 
 
-# 6. Macierz pomyłek na bazie OOB (Out-Of-Bag)
-print("Macierz pomyłek OOB (Out-Of-Bag):")
-print(rf.2$confusion)
-
-# 7. Wykres błędu klasyfikacji w zależności od liczby drzew
-plot(rf.2, main = "Random Forest (Wine): Błąd klasyfikacji vs. Liczba drzew")
-legend("topright", legend = colnames(rf.2$err.rate), col = 1:ncol(rf.2$err.rate), lty = 1:ncol(rf.2$err.rate))
-
-# 8. Ranking ważności cech (Variable Importance Plot)
-varImpPlot(rf.2, main = "Ranking ważności cech dla zbioru Wine")
+# wartości do tekstu
+rf.test.err  <- mean(pred.labels != test_set$class)        # błąd na zbiorze testowym
+rf.test.nerr <- sum(pred.labels != test_set$class)         # liczba pomyłek na teście
+oob.final    <- rf.2$err.rate[nrow(rf.2$err.rate), "OOB"]  # błąd OOB dla pełnego lasu
 ```
 
-Na powyzszym wykresie widizmy ogolny zaleznosc bledu klasyfikacji od liczby drzew dla calkowitego bledu (czarna linie) oraz blady dla poszczegolnych trech odmin. Widzimy ze dla okolo 40 drzew nastepuje stabilizacja. Dla oglnego bledu od 40 drzew blad sie stabilizuje i wystepuje na pziomie okolo 3%. widizmyz e okolo 50 jest wystarczaja ca dla klasyfikacji. nastepnie dla odmianny barbera po okolo 20 drze schodzi do 0 co oznacza ze modle idelanie klasyfikiuje ten batunek. Natomiast najtrudniejsza do klasyfikacji okazuje sie odamiana grignolino blad utrzuje sia na posomie okolo 7%. 
+```{r rf-tab-test, echo=FALSE}
+tab_ai(confusion.matrix, row.label = "Predykcja",
+       caption = "\\textcolor{aikod}{Random Forest: macierz pomyłek na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).}")
+```
 
-Porwonojac bledy dla pojednczego otzrmalismy blad na poziomie 15%, natomaist osatteczna macierz pomylek dla lasu losowego widzimyz e pomylil sie tylko raz dzieki czemu blady klasyfikazci wynosi tylko 1.89 %. Natomiast blad baggingu wynosil okolo 3% co rowniez widzimyze ze obecnie tzrmalismy duzy spadek do porpzedniej metdy.
+```{r rf-tab-oob, echo=FALSE}
+tab_ai(rf.2$confusion, row.label = "Klasa",
+       col.names = c("Klasa", "Barolo", "Grignolino", "Barbera", "Błąd klasy"),
+       caption = "\\textcolor{aikod}{Random Forest: macierz pomyłek OOB z błędem klasyfikacji w podziale na odmiany (kolumna „Błąd klasy”).}")
+```
+
+```{r rf-tab-prob, echo=FALSE}
+tab_ai(head(pred.probs), row.label = "Obs.",
+       caption = "\\textcolor{aikod}{Random Forest: prognozowane prawdopodobieństwa a posteriori dla pierwszych sześciu win.}")
+```
+
+```{r rf-plot-error, echo=FALSE, fig.width=6.5, fig.height=4.2, fig.cap="\\textcolor{aikod}{Random Forest: błąd klasyfikacji (OOB oraz w podziale na odmiany) w funkcji liczby drzew. Błąd ogólny stabilizuje się od ok. 40 drzew.}"}
+# matplot zamiast plot.randomForest -> kontrola nad polskimi etykietami osi
+err <- rf.2$err.rate   # kolumny: OOB, Barolo, Grignolino, Barbera
+matplot(1:nrow(err), err, type = "l", lty = 1:ncol(err), col = 1:ncol(err),
+        xlab = "Liczba drzew", ylab = "Błąd klasyfikacji")
+legend("topright", legend = colnames(err),
+       col = 1:ncol(err), lty = 1:ncol(err), bg = "white", cex = 0.85)
+```
+
+```{r rf-plot-varimp, echo=FALSE, fig.width=6.5, fig.height=4.5, fig.cap="\\textcolor{aikod}{Random Forest: ranking ważności cech (średni spadek dokładności po permutacji wartości cechy).}"}
+# dotchart zamiast varImpPlot -> polski opis osi (type=1: średni spadek dokładności)
+imp <- sort(importance(rf.2, type = 1)[, 1])
+dotchart(imp, xlab = "Średni spadek dokładności po permutacji", pch = 1)
+```
+
+Na powyzszym wykresie widizmy ogolny zaleznosc bledu klasyfikacji od liczby drzew dla calkowitego bledu (czarna linie) oraz blady dla poszczegolnych trech odmin. Widzimy ze dla okolo 40 drzew nastepuje stabilizacja. Dla oglnego bledu od 40 drzew blad sie stabilizuje i wystepuje na pziomie okolo `r round(100*oob.final)`%. widizmyz e okolo 50 jest wystarczaja ca dla klasyfikacji. nastepnie dla odmianny barbera po okolo 20 drze schodzi do 0 co oznacza ze modle idelanie klasyfikiuje ten batunek. Natomiast najtrudniejsza do klasyfikacji okazuje sie odamiana grignolino blad utrzuje sia na posomie okolo 7%. 
+
+Porwonojac bledy dla pojednczego otzrmalismy blad na poziomie `r round(100*err.tree.split)`%, natomaist osatteczna macierz pomylek dla lasu losowego widzimyz e pomylil sie tylko `r rf.test.nerr` raz dzieki czemu blady klasyfikazci wynosi tylko `r round(100*rf.test.err, 2)`%. Natomiast blad baggingu wynosil okolo `r round(100*min(bagging.error.rates))`% co rowniez widzimyze ze obecnie tzrmalismy duzy spadek do porpzedniej metdy.
 
 
 ```{r poprwanie-metod, echo=FALSE}
@@ -306,21 +368,24 @@ error.bagging <- errorest(class ~ ., data = dane2, model = ipred::bagging,
 error.randomForest <- errorest(class ~ ., data = dane2, model = randomForest,
                                estimator = "632plus", est.para = control.errorest(nboot = 20))
 
-# 3. Wyświetlenie czystych współczynników błędu
-print(paste("Błąd Pojedynczego Drzewa:", round(error.tree$error, 4)))
-print(paste("Błąd Baggingu:", round(error.bagging$error, 4)))
-print(paste("Błąd Random Forest:", round(error.randomForest$error, 4)))
-
-# 4. Względna redukcja błędu klasyfikacji (w %) - KLUCZ DO TWOJEGO POLECENIA
+# Względna redukcja błędu klasyfikacji (w %) względem pojedynczego drzewa
 redukcja.bagging <- (error.tree$error - error.bagging$error) / error.tree$error * 100
 redukcja.rf      <- (error.tree$error - error.randomForest$error) / error.tree$error * 100
-
-print(paste0("Względna redukcja błędu przez Bagging vs. Drzewo: ", round(redukcja.bagging, 2), "%"))
-print(paste0("Względna redukcja błędu przez Random Forest vs. Drzewo: ", round(redukcja.rf, 2), "%"))
 ```
-Pozwej widzmy wyniki odumowuywykacja dziala metod. Widzimy ze blad klasyfikacji spada drastycznie z oko 10% do 1.2 % dla metody random forest. Stosujac te metode otzrmamy o wilele lepsze wyniki. Zlozone algorytmy popraez urednianie setek drzew eliminuja wysoka wariancjie jak byla obecja dla pojedynczego drzewa i stabilizuja reguly decyzyjne i podnosza zdolnosci generalizacji modleu.
 
-Rownizez widizmy isitona roznice medzy modelami zlozonymi dla baggingu blad wyniosl 3% natomaist dla random forest 1.2%. Róznica ta wynika z odmiennej techniki budowy drzew. W baggingu kazde drzew analizuje wszystkie dosteone cechy. W zb wine kilka paramterow silnie roznicuje kalsy wiec wiekszosc drzew w baggingu wybiera te same zminenne przec co drzewa sa mocno ze soba skorelowane. Natomiast random forest wporadza dodatkowy lemnet losowwosci w kazdym wezle losuje tylko maly podzbior cech, przez co zmusza drzewo do szukania aletrenatywnych wzorców i regul. dzieki czemu drzewa nie sa ze soba skorelowane .
+```{r poprwanie-metod-tab, echo=FALSE}
+tab_ai(data.frame(
+  Metoda = c("Pojedyncze drzewo", "Bagging", "Random Forest"),
+  "Błąd .632+" = sprintf("%.4f", c(error.tree$error, error.bagging$error,
+                                   error.randomForest$error)),
+  "Redukcja błędu vs drzewo [\\%]" = c("–", sprintf("%.2f", redukcja.bagging),
+                                       sprintf("%.2f", redukcja.rf)),
+  check.names = FALSE),
+  caption = "\\textcolor{aikod}{Porównanie błędu klasyfikacji (estymator .632+) oraz względnej redukcji błędu względem pojedynczego drzewa.}")
+```
+Pozwej widzmy wyniki odumowuywykacja dziala metod. Widzimy ze blad klasyfikacji spada drastycznie z oko `r round(100*error.tree$error)`% do `r round(100*error.randomForest$error, 1)`% dla metody random forest. Stosujac te metode otzrmamy o wilele lepsze wyniki. Zlozone algorytmy popraez urednianie setek drzew eliminuja wysoka wariancjie jak byla obecja dla pojedynczego drzewa i stabilizuja reguly decyzyjne i podnosza zdolnosci generalizacji modleu.
+
+Rownizez widizmy isitona roznice medzy modelami zlozonymi dla baggingu blad wyniosl `r round(100*error.bagging$error, 1)`% natomaist dla random forest `r round(100*error.randomForest$error, 1)`%. Róznica ta wynika z odmiennej techniki budowy drzew. W baggingu kazde drzew analizuje wszystkie dosteone cechy. W zb wine kilka paramterow silnie roznicuje kalsy wiec wiekszosc drzew w baggingu wybiera te same zminenne przec co drzewa sa mocno ze soba skorelowane. Natomiast random forest wporadza dodatkowy lemnet losowwosci w kazdym wezle losuje tylko maly podzbior cech, przez co zmusza drzewo do szukania aletrenatywnych wzorców i regul. dzieki czemu drzewa nie sa ze soba skorelowane .
 
 
 ## Metoda wektorów nośnych (SVM)
@@ -328,8 +393,6 @@ Rownizez widizmy isitona roznice medzy modelami zlozonymi dla baggingu blad wyni
 NAtepnie wykorzystujac metode wekotrow noscnych porowanym kalsyfikatory dla roznych funckji jadrowych.
 
 ```{r przygotowanie-zb, echo=FALSE, warning=FALSE}
-library(e1071)
-#dane2 <- na.omit(wine)
 dane2$class <- as.factor(dane2$class)
 
 set.seed(67) 
@@ -357,11 +420,13 @@ pred.svm.lin10  <- predict(svm.linear.C10, newdata = test.set)
 acc.lin0.1 <- sum(diag(table(pred.svm.lin0.1, real.labels))) / n.test
 acc.lin1   <- sum(diag(table(pred.svm.lin1, real.labels))) / n.test
 acc.lin10  <- sum(diag(table(pred.svm.lin10, real.labels))) / n.test
+```
 
-print(paste("Dokładność jądra liniowego (C=0.1):", round(acc.lin0.1, 4)))
-print(paste("Dokładność jądra liniowego (C=1.0):", round(acc.lin1, 4)))
-print(paste("Dokładność jądra liniowego (C=10.0):", round(acc.lin10, 4)))
-
+```{r jadro-liniowe-tab, echo=FALSE}
+tab_ai(data.frame("Koszt C" = c(0.1, 1, 10),
+                  "Dokładność (test)" = c(acc.lin0.1, acc.lin1, acc.lin10),
+                  check.names = FALSE), digits = 4,
+       caption = "\\textcolor{aikod}{SVM z jądrem liniowym: dokładność na zbiorze testowym dla różnych wartości kosztu C.}")
 ```
 Powyzej znajduja sie wyniki dokladnosci dla jadra linowego w zalezcnosci od ronzych wartosci paramtru c, ktory kontroluje kompromis miedzy szerekoascia marginesu separujacego a liczba bledow dopuszczalnych na zb testowym. Widzimyz ze dla jadra linowego zmiana prarametru c od 0.1 do 10 nie wpynela na dokaldnosc klasyfikacji na zb testowym. JEst to skutego tego ze w zb wine w przestrzeni wilowyniarowje nasz zb cechuje sie linoiowa odseparawalonscia klas. co skutkuje ze granica decyzyjna wyznaczona przez svm jest na tyle stablina ze zmiana marginesu nie przesuja jej w sposob, ktroy zminil by klasufukacjie. 
 
@@ -380,11 +445,14 @@ pred.svm.radial <- predict(svm.radial, newdata = test.set)
 acc.svm.poly2  <- sum(diag(table(pred.svm.poly2, real.labels))) / n.test
 acc.svm.poly4  <- sum(diag(table(pred.svm.poly4, real.labels))) / n.test
 acc.svm.radial <- sum(diag(table(pred.svm.radial, real.labels))) / n.test
+```
 
-print("--- Porównanie jąder (parametry domyślne) ---")
-print(paste("Jądro wielomianowe (deg=2):", round(acc.svm.poly2, 4)))
-print(paste("Jądro wielomianowe (deg=4):", round(acc.svm.poly4, 4)))
-print(paste("Jądro radialne (domyślne):", round(acc.svm.radial, 4)))
+```{r jadra-inne-tab, echo=FALSE}
+tab_ai(data.frame(
+  "Jądro" = c("wielomianowe (deg = 2)", "wielomianowe (deg = 4)", "radialne (domyślne)"),
+  "Dokładność (test)" = c(acc.svm.poly2, acc.svm.poly4, acc.svm.radial),
+  check.names = FALSE), digits = 4, align = "lc",
+  caption = "\\textcolor{aikod}{SVM: dokładność na zbiorze testowym dla różnych funkcji jądrowych przy parametrach domyślnych.}")
 ```
 Powyzej znajduja sie wyniki dla roznych funkcji jader. Jadro radianlne okazuje sie idelanym wyborem dla naszego zioru wine, poniewaz bezlednie sklasyfikowal zb. NAstepnie jadro liniowe wspomniane wczescniej rozniwez bardzo dobrze poraddzilo sb z klasyfikacja. Natomiast jadrwa wilowymiraowe radza sobe gorzej a zwikeszanie stopnia wielomianu jeszcze bardziej oblizna doklasnosc.
 
@@ -398,43 +466,66 @@ X_train <- training.set[, colnames(training.set) != "class"]
 y_train <- training.set$class
 
 # Automatyczny dobór parametrów metodą sprawdzianu krzyżowego (Cross-Validation)
+set.seed(67) # tune() losowo dzieli dane na podzbiory CV -> ziarno dla powtarzalności
 radial.tune <- tune(svm, train.x = X_train, train.y = y_train,
                     kernel = "radial",
                     ranges = list(cost = C.range, gamma = gamma.range))
 
-print("--- Wyniki optymalizacji jądra radialnego ---")
-print(radial.tune)
-
-# Wykresy profilu błędu
-plot(radial.tune, transform.x = log2, transform.y = log2, color.palette = topo.colors)
-plot(radial.tune, type = "perspective")
-
-# Budowa ostatecznego modelu z najlepszymi parametrami C i gamma
+# Najlepsze parametry znalezione przez tune()
 C.best     <- radial.tune$best.parameters[["cost"]]
 gamma.best <- radial.tune$best.parameters[["gamma"]]
 
+# Ostateczny model z najlepszymi parametrami i ocena na zbiorze testowym
 svm.radial.tuned <- svm(class ~ ., data = training.set, kernel = "radial",
                         cost = C.best, gamma = gamma.best)
-
-# Prognozowanie na bazie optymalnego modelu i ocena
 pred.svm.radial.tuned <- predict(svm.radial.tuned, newdata = test.set)
 acc.svm.radial.tuned  <- sum(diag(table(pred.svm.radial.tuned, real.labels))) / n.test
-
-print("--- Wynik końcowy ---")
-print(paste("Jądro radialne przed tuningiem:", round(acc.svm.radial, 4)))
-print(paste("Jądro radialne po tuningu:", round(acc.svm.radial.tuned, 4)))
 ```
-Powyzej mamy wynki dla jadra radnialenog przed i po tunigiem wynosi 1. Mimo ze skutecznosc klasyfikacji na zb testowym wynosi w obu przypdakach 100% to opytmalizacja dala nam model bezpieczniejszy i bardziej stabilny. Algorytm optymalizacyjn wskazal ze lesza wartoscia jest mniejszy koszt c=0.5. 
+
+```{r optymalizacja-tab, echo=FALSE}
+tab_ai(data.frame("Najlepszy koszt C" = C.best, "Najlepsza gamma" = gamma.best,
+                  "Błąd CV (10-fold)" = radial.tune$best.performance,
+                  check.names = FALSE), digits = 5,
+       caption = "\\textcolor{aikod}{SVM radialne: najlepsze parametry C i gamma z walidacji krzyżowej oraz odpowiadający im błąd CV.}")
+```
+
+```{r optymalizacja-tab2, echo=FALSE}
+tab_ai(data.frame(
+  "Model" = c("radialne (domyślne)", "radialne (dostrojone)"),
+  "Dokładność (test)" = c(acc.svm.radial, acc.svm.radial.tuned),
+  check.names = FALSE), digits = 4, align = "lc",
+  caption = "\\textcolor{aikod}{SVM radialne: dokładność na zbiorze testowym przed i po dostrojeniu C oraz gamma.}")
+```
+
+```{r optymalizacja-plot1, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="\\textcolor{aikod}{SVM radialne: błąd walidacji krzyżowej w przestrzeni parametrów (osie w skali log2 dla C i gamma). Ciemniejsze pola oznaczają niższy błąd.}"}
+plot(radial.tune, transform.x = log2, transform.y = log2, color.palette = topo.colors,
+     main = "Błąd walidacji krzyżowej (SVM radialne)",
+     xlab = "koszt C (log2)", ylab = "gamma (log2)")
+```
+
+```{r optymalizacja-plot2, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="\\textcolor{aikod}{SVM radialne: powierzchnia błędu walidacji krzyżowej w funkcji C i gamma (widok perspektywiczny).}"}
+plot(radial.tune, type = "perspective",
+     main = "Powierzchnia błędu walidacji krzyżowej (SVM radialne)",
+     xlab = "koszt C", ylab = "gamma")
+```
+Powyzej mamy wynki dla jadra radnialenog przed i po tunigiem. Skutecznosc klasyfikacji na zb testowym wynosi w obu przypdakach `r round(100*acc.svm.radial.tuned)`%. Algorytm optymalizacyjn wskazal jako najlepsze parametry koszt c=`r C.best` oraz gamma=`r signif(gamma.best, 3)`.
+
+\textcolor{red}{Uwaga merytoryczna: dostrojony koszt (`r C.best`) wychodzi równy domyślnemu, a jądro radialne i tak klasyfikuje zbiór testowy bezbłędnie już przed tuningiem – więc na zbiorze testowym optymalizacja NIE poprawiła skuteczności. Trzeba to napisać wprost (lista pyta wprost: „czy optymalizacja pozwoliła poprawić skuteczność?"), zamiast obecnej narracji o „modelu bezpieczniejszym / szerokim marginesie". Ewentualną przewagę można pokazać tylko na poziomie błędu CV z `tune()`, nie na teście.}
 
 ## Porównanie skuteczności metod
 
-Podsumowujac klazyfikator bazowy (pojedyncze drzewo) charakteryzuje sie najnizsza dokladnosci z podowu skonnosci do przeuczneia i wysokiej wariancji. Zastoswoanie metod zlozonych i svm drastycznie obniza blad klasyfikajci. Najlepsza metoda jest random forest dla 100 drzew gdzie blad dokaldnosc wynosla 98.11 oraz svm dla jadra radialengo gdzie byla 100 dolakdnaocis. Równiez bardza dobra metoda jest svm dla jadra liniowego 
+Podsumowujac klazyfikator bazowy (pojedyncze drzewo) charakteryzuje sie najnizsza dokladnosci z podowu skonnosci do przeuczneia i wysokiej wariancji. Zastoswoanie metod zlozonych i svm drastycznie obniza blad klasyfikajci. Najlepsza metoda jest random forest dla 100 drzew gdzie dokaldnosc wynosla `r round(100*(1-rf.test.err), 2)`% oraz svm dla jadra radialengo gdzie byla `r round(100*acc.svm.radial.tuned)`% dolakdnaocis. Równiez bardza dobra metoda jest svm dla jadra liniowego (dokladnosc `r round(100*acc.lin1, 2)`%). \textcolor{red}{Dokończ zdanie / akapit – urywa się.}
 
-to dodac do opisu wyzej 
+\textcolor{red}{Uwaga merytoryczna do porównania a) vs b): RF oceniasz błędem .632+ (`r round(100*error.randomForest$error, 1)`\%), a SVM tylko dokładnością na jednym podziale 70/30 (`r round(100*acc.svm.radial.tuned)`\%). To nie jest ta sama miara – żeby uczciwie wskazać „najlepszą" metodę, najlepiej policzyć dla SVM ten sam estymator .632+ (errorest) co dla drzew, albo dla wszystkich metod podać dokładność na tym samym zbiorze testowym.}
+
+\textcolor{red}{Poniższe dwa akapity to robocze notatki do wkomponowania w porównanie powyżej (a nie osobny tekst). Uwaga: zhardkodowane „$C=0.5$ i $\gamma=0.03125$" są nieaktualne – po dodaniu ziarna wychodzi $C=`r C.best`$, $\gamma=`r signif(gamma.best,3)`$; popraw albo zastąp inline.}
+
 JAko jedyny model bezbłędnie sklasyfikował wszystkie próbki w zbiorze testowym. Jądro radialne potrafi w sposób ciągły i gładki wyginać granice decyzyjne w wielowymiarowej przestrzeni, idealnie dopasowując się do specyfiki chemicznej win.Dodatkowy atut: Dzięki przeprowadzonej optymalizacji (tuningowi) wiesz, że parametry $C=0.5$ i $\gamma=0.03125$ dają modelowi bardzo szeroki margines bezpieczeństwa, co czyni go najbardziej stabilnym na przyszłość
 Ustępuje SVM zaledwie o jeden mały błąd na zbiorze testowym (pomylił jedno wino Barolo z Grignolino). To potężny i niezwykle bezobsługowy algorytm, który rewelacyjnie uśrednia decyzje setek drzew, ale w tym konkretnym, czystym zbiorze minimalnie przegrał z idealnie dopasowaną geometrią SVM
 
 # Część 2 – analiza skupień
+
+tam klaudiusz jakieś rzeczy napisał do tej pierwszej części coś
 
 \textcolor{red}{Celem zadania jest zastosowanie poznanych algorytmów analizy skupień (ang. clustering) oraz ocena i porównanie jakości grupowania. Przeprowadzając analizę, należy zastosować przynajmniej jedną wybraną metodę grupującą (np. algorytm PAM) oraz przynajmniej jedną metodę hierarchiczną (np. algorytm AGNES).}
 
