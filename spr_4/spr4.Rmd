@@ -527,43 +527,230 @@ Ustępuje SVM zaledwie o jeden mały błąd na zbiorze testowym (pomylił jedno 
 
 tam klaudiusz jakieś rzeczy napisał do tej pierwszej części coś
 
-\textcolor{red}{Celem zadania jest zastosowanie poznanych algorytmów analizy skupień (ang. clustering) oraz ocena i porównanie jakości grupowania. Przeprowadzając analizę, należy zastosować przynajmniej jedną wybraną metodę grupującą (np. algorytm PAM) oraz przynajmniej jedną metodę hierarchiczną (np. algorytm AGNES).}
+W drugiej czesci raprtu zastosujemy algorytm grupujacy PAM oraz chierahiczny agnes na zbiorze danych kteoy zostal uzyty w pierwzej czesci.
 
 ## Wybór i przygotowanie danych
 
-\textcolor{red}{– Do analizy wybieramy jeden ze zbiorów wymienionych w zad.2/lista 3. Uwaga: Można wybrać ten sam albo inny zbiór niż w przypadku porównywania metod klasyfikacji.}
+```{r, echo=FALSE, warning=FALSE}
+czesc_2_cechy <- subset(dane2, select = -class)
+czesc_2_klasa <- dane2$class
 
-\textcolor{red}{– Aby ułatwić wizualizację wyników, w przypadku „większych" danych losujemy podzbiór zawierający 200 rekordów (wierszy).}
+```
 
-\textcolor{red}{– Przed zastosowaniem metod analizy skupień usuwamy zmienną grupującą zawierającą etykietki klas (grup). Zmienna ta powinna być jednak później wykorzystana do oceny jakości grupowania ($\rightarrow$ zewnętrzne wskaźniki walidacyjne).}
+Do analizy skupien bedziemy uzywac wysztkich rekordów, ktorych jest `r nrow(dane2)`, podzielimy zbor danych na ceche class oraz pozostale `r ncol(czesc_2_cechy)` cech. 
 
-\textcolor{red}{– Postaraj się rozstrzygnąć, czy konieczne będzie zastosowanie standaryzacji przed wyznaczeniem macierzy odległości/odmienności.}
+Nastepnie zweryfikujemy czy konieczne bedzie zastosowanie standaryzaci do meaciezrzy odmiennosci w tym celu zrobilismy wkres rozrzutu wszystkich cech.
+
+```{r, echo=FALSE, warning=FALSE}
+boxplot(czesc_2_cechy)
+
+```
+Na podstawie powyzszego wykresu, wnioskujemy ze standaryzacja jest konieczna ze wzgledu na ostatnia zmienna ktora chechuje sie zdecydowanie wieksza zmiennacia od pozostalych. 
+
+Poniez znajduje sie wykres po przeprowadznej standaryzacji. 
+
+```{r, echo=FALSE, warning=FALSE}
+czesc_2_cechy_std <- as.data.frame(scale(czesc_2_cechy))
+boxplot(czesc_2_cechy_std)
+
+```
 
 ## Wizualizacja wyników grupowania
 
-\textcolor{red}{Przyjmując liczbę skupień K równą rzeczywistej liczbie klas:}
+Nastepnie na danych bez zmiennej klas zastosowalismy algorytm grupujacy PAM. 
 
-\textcolor{red}{– Zilustruj otrzymane wyniki (podział na skupienia) na wykresach rozrzutu, zaznaczając (np. różnymi kolorami) przynależność do poszczególnych skupisk. Dodatkowo, uzupełnij wykresy o informacje nt. rzeczywistej przynależności obiektów do grup/klas (np. różne kolory mogą oznaczać różne skupienia, a różne symbole – przynależność do klas).}
+```{r, echo=FALSE, warning=FALSE}
+library(cluster)
+library(factoextra)
 
-\textcolor{red}{$\ast$ Wskazówka 1: Aby przedstawić dane na dwuwymiarowym wykresie rozproszenia, można wykorzystać odpowiednią metodę redukcji wymiaru (np. PCA lub MDS).}
+czesc_2_cechy_std_macierz <- as.matrix(czesc_2_cechy_std)
+                        
+wino.odleglosci <- dist(czesc_2_cechy_std)
+wino.pam2 <- pam(x = wino.odleglosci, diss = TRUE, k = 3)
 
-\textcolor{red}{$\ast$ Wskazówka 2: W przypadku algorytmu hierarchicznego, aby otrzymać partycję dla ustalonej liczby skupień K można wykorzystać funkcję cutree().}
+wino.pca <- prcomp(czesc_2_cechy_std)
 
-\textcolor{red}{– W przypadku metody hierarchicznej porównaj dendrogramy otrzymane dla różnych metod łączenia skupień (ang. linkage methods) Dla chętnych: można zastosować także odpowiednie kolorowanie liści dendrogramów, zgodnie z rzeczywistą przynależnością obiektów do klas.}
+symbole <- c(15, 16, 17)
+klasy_fact <- as.factor(dane2$class)
 
-\textcolor{red}{– Co można powiedzieć o podstawowych własnościach otrzymanych skupień (np. jednorodność/zwartość, separacja itp.)?}
 
-\textcolor{red}{– Czy i w jakim stopniu otrzymany podział na klastry zgadza się z rzeczywistą przynależnością obiektów do klas?}
+plot(wino.pca$x[, 1], wino.pca$x[, 2], 
+     col = wino.pam2$clustering,          
+     pch = symbole[klasy_fact],           
+     xlab = "Główna Składowa 1 (PC1)", 
+     ylab = "Główna Składowa 2 (PC2)",
+     main = "Wizualizacja klastrów PAM vs Oryginalne Klasy (PCA)",
+     cex = 1.3)
+
+legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "PAM (Kolory)")
+legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy oryginalne")
+
+
+```
+
+na powyzszym wykresie mamy wkres zaleznosc pc1 od pc2 gdzie kolorami zaznaczone sa przynaleznosci do klas po zastosowaniu algorytmu pam natomiast same ksztaly informuja nas o rzeczywistej przynaleznosci. Algorytm podzielil przestzrean dwuwymairowana na trzy wyrazne, zawarte bloki. punkty o tym samym kolorze leza blisko siebie. Granice pomiedzy skupisakmi sa dobrze zarysowane. Najlepiej algorytm poradzil soeb ie z klasyfikacja klasy Barbera na zielono zaznaczone sa jego wszystkie rekordy z kikloma wyjatkami z grupy Grignolino. Oznacza to ze ta odmiana wina wyrozniaja szczegolne wartosc poszczeglonych cech.
+NAstepnie klasa Barolo tzn 
+czarne kwadraty w ktorej wystepuja glownie kwadray co swiadczy o bardzo dobrej klasyfikacji. Grupa Grignilino tzn roznowe kolka czesc z nich zosatla skalsyfikowana jakos barolo. jest to spowodoane tym ze algrytm pam dazy do tworzenia kulistych skupien przez co te punkty zostaly odciete 
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+
+wino.agnes.avg <- agnes(x=wino.odleglosci,diss=TRUE, method="average")
+wino.agnes.single <- agnes(x=wino.odleglosci,diss=TRUE, method="single")
+wino.agnes.complete <- agnes(x=wino.odleglosci,diss=TRUE, method="complete")
+
+# Odcinamy drzewa na poziomie 3 skupień (k = 3)
+klastry_avg <- cutree(wino.agnes.avg, k = 3)
+klastry_single <- cutree(wino.agnes.single, k = 3)
+klastry_complete <- cutree(wino.agnes.complete, k = 3)
+
+# Definiujemy symbole dla klas (tak jak wcześniej)
+symbole <- c(15, 16, 17)
+klasy_fact <- as.factor(dane2$class)
+
+# --- WYKRES 1: AGNES Average Linkage ---
+X11()
+plot(wino.pca$x[, 1], wino.pca$x[, 2], 
+     col = klastry_avg, # Kolory z metody average
+     pch = symbole[klasy_fact], 
+     xlab = "PC1", ylab = "PC2",
+     main = "AGNES (Average) vs Oryginalne Klasy", cex = 1.3)
+legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
+legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+
+# --- WYKRES 2: AGNES Single Linkage ---
+X11()
+plot(wino.pca$x[, 1], wino.pca$x[, 2], 
+     col = klastry_single, # Kolory z metody single
+     pch = symbole[klasy_fact], 
+     xlab = "PC1", ylab = "PC2",
+     main = "AGNES (Single) vs Oryginalne Klasy", cex = 1.3)
+legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
+legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+
+# --- WYKRES 3: AGNES Complete Linkage ---
+X11()
+plot(wino.pca$x[, 1], wino.pca$x[, 2], 
+     col = klastry_complete, # Kolory z metody complete
+     pch = symbole[klasy_fact], 
+     xlab = "PC1", ylab = "PC2",
+     main = "AGNES (Complete) vs Oryginalne Klasy", cex = 1.3)
+legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
+legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+
+```
+
+Na powyzszych wykresach widzimy rezulata uzycia algorytmu hierarchicznego agnes ze wzegluda na trz jego typy.
+
+Piwrweszym z nich jest single linkage jest to najgorszy podial, widzimy ze praktycznie wszystkie  rekordy zosatly przypisane do jednego klastra poza 4. wystepuje skrany efekt lancuczowy punkty blisko siebie zostaly polaczone w jedna klase. 
+
+Metoda srednie wizanaia rozniez nie poradzila sobie z klasyfikacja praktycznie wszystkie punkty zosatly sklasyfikowane jako jedno. Wystepuje wyrazna zwartosc i speraracja lecz punkty sa zle skalsyofkowane.
+
+Natomiast dla metody complete algortym znacznie lepiej poradzil sobie z klasyfikacja w porowniu do dwoch wczesniejszych metod. Wszytkie dane z klasy barbera zosatly sklasyfikowane jako jedna z kilkoma z girgniolono. Lecz w dowch pozosatlych klasach wystepuje wieksze wymieszanie. 
+
+
+
+
+```{r, echo=FALSE, warning=FALSE}
+# 1. Instalacja i załadowanie pakietu do modyfikacji dendrogramów
+if(!require(dendextend)) install.packages("dendextend")
+library(dendextend)
+
+# 2. Konwersja obiektów AGNES na klasyczne dendrogramy
+dend_avg      <- as.dendrogram(wino.agnes.avg)
+dend_single   <- as.dendrogram(wino.agnes.single)
+dend_complete <- as.dendrogram(wino.agnes.complete)
+
+# 3. Przygotowanie kolorów na podstawie prawdziwych klas (dane2$class)
+# Dopasowujemy kolory dokładnie do kolejności obiektów w zbiorze danych
+kolory_klas <- as.numeric(as.factor(dane2$class)) 
+
+# 4. Kolorowanie liści dendrogramów zgodnie z prawdziwą klasą
+labels_colors(dend_avg)      <- kolory_klas[order.dendrogram(dend_avg)]
+labels_colors(dend_single)   <- kolory_klas[order.dendrogram(dend_single)]
+labels_colors(dend_complete) <- kolory_klas[order.dendrogram(dend_complete)]
+
+# 5. Wyświetlenie 3 dendrogramów obok siebie do porównania
+graphics.off()
+par(mfrow = c(1, 3), mar = c(2, 4, 3, 1))
+
+plot(dend_single, main = "Single Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
+plot(dend_complete, main = "Complete Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
+plot(dend_avg, main = "Average Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
+
+```
+
+Na powyzszych wykresach znajduja sie dendrogramy dla trzech roznych metod klasyfikatora agnes. Pierwszy przedstawia drzewo dla metody single liknage obiekty sa dolaczne do drzewa jeden po drugim. brakuje wyraznych odrebnych poddrzew. 
+
+Nastepna metoda complete linkage, widzmy ze drzewo jest podzielone na wyrazne pod drzewa, co widzmlismy na porzednich wykresach ze kalsyfikator dosc dobrze podzielil dane na trzy klastry. 
+
+Osatni dendrogram obrazuje metode average linkage jest to kombinacja porzednch algorytmow widzimy ze drzwa wzrastaja na prawy skos.
+
+Porownujac te trzy metody widzimyz e najlepiej poradzila sobie metoda complete lingae stworzyla ona zrownowaznoe, wysokie i wyrazne odsepraowne galezie. W metodzi sigle widzimy wyrazna wade tego algorytmu na naszyhc danych. natomiast averge stworzyla silna asymetryczna struktore, co uniemozliwily prawidlowa klasyfikacje. 
 
 ## Ocena jakości grupowania, wybór liczby skupień i porównanie metod
 
-\textcolor{red}{Dla ustalonego zakresu liczby skupień (K $\in$ \{2, 3, \ldots, K.max\}) wykonaj poniższe kroki:}
+nastepnie dla zkaleru liczby skupien od 1 do 10 wykorzystamy srednia liczbe indeksu sihuette do porwnania wynikow otrzymanych dla roznych algorytmow analizy skupien. 
 
-\textcolor{red}{– wskaźniki wewnętrzne: Wykorzystaj średnią wartość indeksu silhouette do porównania wyników otrzymanych dla różnych algorytmów analizy skupień (np. algorytmy PAM i AGNES) oraz różnej liczby skupień K.}
+```{r, echo=FALSE, warning=FALSE}
+# Załadowanie potrzebnych pakietów
+library(cluster)
+library(mclust) # Do Adjusted Rand Index (ARI)
 
-\textcolor{red}{– wskaźniki zewnętrzne: Wykorzystaj wybraną miarę zgodności dwóch partycji (np. funkcja matchClasses()\{e1071\}) do porównania wyników grupowania z rzeczywistą przynależnością do klas.}
+K_max <- 8
+wyniki <- data.frame(K = 2:K_max, 
+                     PAM_sil = NA, PAM_ari = NA,
+                     AGNES_sil = NA, AGNES_ari = NA)
 
-\textcolor{red}{Na podstawie otrzymanych wyników spróbuj rozstrzygnąć, który algorytm lepiej poradził sobie z grupowaniem danych oraz jaka liczba klastrów jest optymalna.}
+# Pętla po kolejnych liczbach skupień K
+for(k in 2:K_max) {
+  
+  # 1. Uruchomienie algorytmów dla danego K
+  pam_obj <- pam(wino.odleglosci, diss = TRUE, k = k)
+  agnes_klastry <- cutree(wino.agnes.complete, k = k)
+  
+  # 2. Wskaźniki Wewnętrzne (Silhouette)
+  # Wyciągamy średnią wartość (avg.width) z profilu sylwetkowego
+  pam_sil_obj <- silhouette(pam_obj$clustering, wino.odleglosci)
+  wyniki$PAM_sil[wyniki$K == k] <- mean(pam_sil_obj[, "sil_width"])
+  
+  agnes_sil_obj <- silhouette(agnes_klastry, wino.odleglosci)
+  wyniki$AGNES_sil[wyniki$K == k] <- mean(agnes_sil_obj[, "sil_width"])
+  
+  # 3. Wskaźniki Zewnętrzne (Adjusted Rand Index - ARI)
+  # Porównujemy wyznaczone klastry z prawdziwą zmienną dane2$class
+  wyniki$PAM_ari[wyniki$K == k] <- adjustedRandIndex(pam_obj$clustering, dane2$class)
+  wyniki$AGNES_ari[wyniki$K == k] <- adjustedRandIndex(agnes_klastry, dane2$class)
+}
+
+# Wyświetlamy tabelę z wynikami
+print(wyniki)
+
+```
+
+Powysza tabela przedstaiw wyniki dla algorytmi pam i agnes complete dla wskaznika wewnterznetgo silhouette i zwntetrzenego ari dla roznych wartsoci poczatkowej liczby klastów. Dla algrytmu pam najwyzsza warosc wskanicka wewnetrzego otrzmuje dla K=3 i wynosi ona 0.267 natomosyut dla tego wskanika lecz dla metody hierarczinej otrzmalismy wartosc0.203 dla K = 3, co swidczy ze najlepszy podzial danych jest dla 3 klastor co jest zgodne z rzeczywsitoscia. natomiast dla wskaznika zewwnetrzego najwyzesz wartosci dla algorytmu pam dsoatjemy dla k=3. natomiast dla algorytmu agenes dla wskaznika ari widzimy ze wraz ze wzrotstem liczby klastór rosnie wartosc wskaznika sa to bledne wartosci, ktre wynikaja z dzialania algorytmu ktory odcina pojedyncze punkty odstajace na obrzezach, zamiast dziedlisc cala chmure punktow. 
+
+```{r, echo=FALSE, warning=FALSE}
+
+par(mfrow = c(1, 2))
+
+# Wykres 1: Silhouette (Im wyżej, tym lepsza jakość/zwartość klastrów)
+plot(wyniki$K, wyniki$PAM_sil, type="b", col="blue", pch=16, ylim=c(0, 0.6),
+     xlab="Liczba skupień K", ylab="Średni Silhouette", main="Wskaźnik Wewnętrzny")
+lines(wyniki$K, wyniki$AGNES_sil, type="b", col="red", pch=17)
+legend("topright", legend=c("PAM", "AGNES Complete"), col=c("blue", "red"), pch=c(16, 17))
+
+# Wykres 2: Adjusted Rand Index (Im bliżej 1, tym lepsza zgodność z prawdą)
+plot(wyniki$K, wyniki$PAM_ari, type="b", col="blue", pch=16, ylim=c(0, 1),
+     xlab="Liczba skupień K", ylab="Adjusted Rand Index", main="Wskaźnik Zewnętrzny")
+lines(wyniki$K, wyniki$AGNES_ari, type="b", col="red", pch=17)
+legend("topright", legend=c("PAM", "AGNES Complete"), col=c("blue", "red"), pch=c(16, 17)) 
+```
+
+Powyzsze wykresy bardzo dobrze obrazuja nam warosci poszczegównych wskaniczkow dla algorytmow pam i agnec complete. Widzimy na wykresie po lewj stornie ze najwysza wartosc obywda algorytmu przyjmuja dla K= 3, co pokrywa sie z rzeczywista liczba klas w danych.
+
+Natomiast dla wykresu po prawej stornie widzimy ze algorytm pam osiaga najwyazsz wartosc wskanica ari dla K=3, a potem drastycznie spada, co dobrze odgadlo strukture rzeczywistych danych. Natomiast wskanizk ari dla algorytmu agnes wrasata, co przdstawai sztuczna stabilizacje na wysokim pozmoie dla wyzszych wartosci K. 
 
 ## Interpretacja wyników grupowania – charakterystyki skupień
 
@@ -572,3 +759,54 @@ tam klaudiusz jakieś rzeczy napisał do tej pierwszej części coś
 \textcolor{red}{– Analizując podstawowe charakterystyki poszczególnych cech, zbadaj czym wyróżniają się obiekty należące do danego skupienia (np. dla obiektów należących do poszczególnych skupień można wyznaczyć średnie wartości cech, porównać wykresy pudełkowe itp.).}
 
 \textcolor{red}{– W przypadku metody PAM sprawdź także, które obiekty są medoidami (reprezentantami skupień) i co je wyróżnia.}
+
+```{r, echo=FALSE, warning=FALSE}
+# 1. Zapisujemy ostateczny, optymalny podział PAM (K = 3) do naszych danych
+# (Upewnij się, że dane_oryginalne to Twoja ramka z cechami przed standaryzacją, np. bez kolumny 'class')
+
+
+# 2. Wyznaczamy średnie wartości cech w każdym skupieniu (Profilowanie)
+profile_skupien <- aggregate(czesc_2_cechy, 
+                             by = list(Skupienie = wino.pam2$clustering), 
+                             FUN = mean)
+print("--- ŚREDNIE WARTOŚCI CECH W SKUPIENIACH ---")
+print(profile_skupien)
+
+# 3. Identyfikacja medoidów (reprezentantów skupień)
+indeksy_medoidow <- wino.pam2$id.med # Indeksy wierszy, które są medoidami
+medoidy_wartosci <- czesc_2_cechy[indeksy_medoidow, ]
+
+print("--- NUMERY OBIEKTÓW BĘDĄCYCH MEDOIDAMI ---")
+print(indeksy_medoidow)
+print("--- WARTOŚCI CECH DLA MEDOIDÓW ---")
+print(medoidy_wartosci)
+
+# 4. Wykresy pudełkowe (Boxploty) dla kluczowych cech (np. pierwszych czterech)
+# Funkcja par(mfrow) pozwoli wyświetlić kilka cech na raz
+graphics.off()
+par(mfrow = c(2, 2))
+
+for(i in 1:13) {
+  boxplot(czesc_2_cechy[, i] ~ wino.pam2$clustering,
+          main = paste("Cecha:", colnames(czesc_2_cechy)[i]),
+          xlab = "Skupienie (PAM)", ylab = "Wartość",
+          col = c("black", "red", "green"))
+}
+```
+Podsumowujac najlepszym algorytmem klastyzyjacym dane wine jest PAM dla liczby klastorw rownej 3.
+
+
+W tabeli profile skupien.
+Wartości w wierszu 1 odpowiadają Skupieniu 1, które jak wykazano na wykresie rozrzutu, reprezentuje odmianę Barolo. Wiersz 2 (Skupienie 2) odpowiada odmianie Grignolino, natomiast wiersz 3 (Skupienie 3) reprezentuje chemiczny profil odmiany Barbera. W tabeli widzimy wartosc dla kazdej z grup dla kazdej zmiennej widzimyz zegrupa 2 przyjmje najszesciej najwizsze wartosci natomiwa grupa 1 najwyzsze. Widzimy ze najwieksze ronice wystepjce 
+
+Widzimy te rozrzuty dla kazdej z grup dla kazdej zmiennej na box plotach. Zmienne ktroe idelanie separuja grupy to cecha V13 barolo znajduje się drastycznie wyżej niż dla pozostałych dwóch grup. Pokazuje to, że ta odmiana wina posiada unikalnie wysoką wartość tego parametru, co pozwala ją natychmiast bezbłędnie zidentyfikować. nastepnie cecha V7 tutaj widzimy, schodkową separację bez wzajemnego nakładania się pudełek. Skupienie 1 ma wartości najwyższe, Skupienie 2 (Grignolino) średnie, a Skupienie 3 (Barbera) skrajnie niskie. oraz cecha V12 podobnie jak przy V7, Skupienie 3 dramatycznie odstaje na dole od reszty stawki, podczas gdy Skupienie 1 i 2 utrzymują się na wyższych poziomach.
+
+Nastpeni cechy ktroe wyrozniaja konkretna odamine to V2 wyrqaznie wyorznia Skupieni 3 Barolo, które osiąga znacznie wyższe wartości kwasowości i jego pudełko jest mocno przesunięte w górę w stosunku do klastrów 1 i 2. anstepnie cecha V1 dobrze wyorzna skupienie 1. Dla skupienie 2 nie mamy kontrenej jednej cechy ktorej rozrzut dla skupienia 2 wyraznie rozni sie od dwoch pozosatlych skupien. 
+
+
+Mediodidami, czyli nahvardzoej reprezentatywnymi obiektami wewnatrz klastór, okazaly sie rekoryd `r print(indeksy_medoidow)`. porownujac tabele wartosci medowidow dla kazdej zmiennej i sredniej punktow skupien widzimy ze sa bardzo podbne, co oznacza ze te konkrten wina sa reprezantantami przecetnechy win w poszczegonych winach. 
+
+
+
+
+
