@@ -547,7 +547,7 @@ z <- matrix(NA, length(cs), length(gs))
 z[cbind(match(perf$cost, cs), match(perf$gamma, gs))] <- perf$error
 x <- log2(cs); y <- log2(gs)
 
-# wygładzenie: interpolacja na gęstszą siatkę monotonicznym splinem (gładko, bez przestrzeliwań przy urwisku)
+# wygładzenie powierzchni - interpolacja na gęstszą siatkę
 nx <- 46; ny <- 46
 fx <- seq(min(x), max(x), length.out = nx)
 fy <- seq(min(y), max(y), length.out = ny)
@@ -560,7 +560,7 @@ zfacet <- (zf[-1, -1] + zf[-1, -nc] + zf[-nr, -1] + zf[-nr, -nc]) / 4
 pal <- hcl.colors(40, "YlGnBu")
 facetcol <- pal[cut(zfacet, 40, include.lowest = TRUE)]
 
-# zlab rysujemy sami przy osi Z (wbudowany zlab persp nachodzi na liczby podziałki)
+# podpis osi Z rysujemy sami, bo domyślny nachodzi na liczby
 par(mar = c(1.5, 2, 3, 1))
 pm <- persp(fx, fy, zf,
             theta = -35, phi = 25, expand = 0.6, d = 2,
@@ -626,10 +626,9 @@ czesc_2_cechy <- subset(dane2, select = -class)
 czesc_2_klasa <- dane2$class
 
 # kolory skupień do wykresów Części 2 (celowo inne niż kolory odmian)
-kolory_skupien <- c("#BB574C", "#498C3E", "#8A64B9") # czerwony, zielony, fioletowy (odcienie w stronę logo Julii, wyrównane w OKLCH - te same L i C)
+kolory_skupien <- c("#BB574C", "#498C3E", "#8A64B9") # czerwony, zielony, fioletowy (jak w logu Julii)
 
-# tęcza do pudełek cech - pełna, ale nie jaskrawa (jasność zależna od odcienia: żółcie jasne, błękity ciemniejsze,
-# ~70% maksymalnej chromy sRGB), żeby żółcie/zielenie nie wychodziły musztardowo-oliwkowe jak przy stałej L
+# kolory pudełek dla 13 cech
 kolory_cech <- c("#E1524F", "#E78F55", "#ECBC65", "#EDEC77", "#A1F673", "#7BF3BF",
                  "#7EF5EF", "#6ACDEA", "#519FE0", "#3F41CC", "#8D4AD7", "#E65FDF", "#E25390")
 ```
