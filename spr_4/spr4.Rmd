@@ -23,8 +23,6 @@ header-includes:
   - \definecolor{barolo}{HTML}{933525}
   - \definecolor{grignolino}{HTML}{BD6065}
   - \definecolor{barbera}{HTML}{912061}
-  - \definecolor{notatka}{HTML}{B8860B}
-  - \definecolor{aikod}{HTML}{1C5BD8}
 fontsize: 12pt
 editor_options:
   markdown:
@@ -40,17 +38,13 @@ library(showtext)   # żeby były polskie znaki na wykresach
 library(HDclassif)  # zbiór wine
 library(rpart)
 library(randomForest)
-library(gbm)
-library(caret)
 library(ipred)      # bagging, errorest (.632+)
-library(e1071)      # svm, tune
+library(e1071)      # svm, tune; matchClasses (Część 2)
+library(cluster)    # pam, agnes, silhouette (Część 2)
+library(factoextra) # fviz_silhouette (Część 2)
+library(dendextend) # kolorowanie dendrogramów (Część 2)
+library(mclust)     # adjustedRandIndex (Część 2)
 showtext_auto()
-
-# Pakiety potrzebne w dalszych częściach (doinstaluj/odkomentuj w miarę potrzeb):
-#  Zad 1a (ensemble): ipred, rpart, rpart.plot, randomForest, adabag
-#  Zad 1b (SVM):      e1071
-#  Zad 1  (ocena):    caret
-#  Zad 2  (skupienia): cluster, factoextra, clValid, e1071 (matchClasses)
 
 knitr::opts_chunk$set(fig.pos = "H", out.extra = "", cache = TRUE, message = FALSE)
 ```
@@ -70,9 +64,9 @@ odmiany_tex <- c(
   Barbera    = "\\textcolor{barbera}{\\textit{Barbera}}"
 )
 
-# pomocnicza: kable z niebieskim tekstem (kolor aikod) -> oznaczenie, że tabelę
-# z surowego printu zrobił AI; caption wstawiamy już owinięte w \textcolor{aikod}{}
-tab_ai <- function(x, caption = NULL, col.names = NULL, digits = 3,
+# funkcja do ładnych tabelek (kable) - pogrubiony nagłówek, reszta czarna;
+# kolorowe nazwy odmian w nagłówkach same się kolorują (mają swój \textcolor)
+tabelka <- function(x, caption = NULL, col.names = NULL, digits = 3,
                    row.label = NULL, align = "c") {
   df <- if (is.matrix(x) || is.table(x)) as.data.frame.matrix(x)
         else as.data.frame(x, check.names = FALSE)
@@ -86,23 +80,24 @@ tab_ai <- function(x, caption = NULL, col.names = NULL, digits = 3,
              digits = digits, escape = FALSE, align = align,
              row.names = FALSE, linesep = "") %>%
     kable_styling(full_width = FALSE, latex_options = c("HOLD_position")) %>%
-    row_spec(0, bold = TRUE, color = "aikod")
-  if (nrow(df) >= 1) k <- row_spec(k, seq_len(nrow(df)), color = "aikod")
+    row_spec(0, bold = TRUE)
   k
 }
 ```
 
 \newpage
 
+\setcounter{section}{-1}
+
 # Wstęp i opis danych
 
 W obu częściach sprawozdania pracujemy na zbiorze danych `wine` z R-pakietu `HDclassif`. Zbiór danych zawiera informacje o wynikach analizy chemicznej win uprawianych w tych samych regionach Włoch, lecz będących trzech różnych odmian: \textcolor{barolo}{\textit{Barolo}}, \textcolor{grignolino}{\textit{Grignolino}} oraz \textcolor{barbera}{\textit{Barbera}}.
 
-Dokładniejszy opis danych znajduje się w poprzedniej części sprawozdania. Przypomnienie podstawowych informacji znajduje się poniżej
+Dokładniejszy opis danych znajduje się w poprzedniej części sprawozdania. Przypomnienie podstawowych informacji znajduje się poniżej.
 
 ## Przypomnienie informacji o zbiorze danych
 
-Dokonujemy takiej samej obróbce danych jak w poprzedniej części, czyli zmieniamy typy wszystkich parametrów cech na `numeric`, a numeryczne etykiety klas zmieniamy na prawdziwe nazwy odmian – `1` na \textcolor{barolo}{\textit{Barolo}}, `2` na \textcolor{grignolino}{\textit{Grignolino}}, a `3` na \textcolor{barbera}{\textit{Barbera}}.
+Dokonujemy takiej samej obróbki danych jak w poprzedniej części, czyli zmieniamy typy wszystkich parametrów cech na `numeric`, a numeryczne etykiety klas zmieniamy na prawdziwe nazwy odmian: `1` na \textcolor{barolo}{\textit{Barolo}}, `2` na \textcolor{grignolino}{\textit{Grignolino}}, a `3` na \textcolor{barbera}{\textit{Barbera}}.
 
 ```{r korekty}
 dane2$class <- factor(
@@ -204,7 +199,7 @@ for (i in seq_along(kawalki)) {
 
 Na wykresie poniżej znajduje się rozkład liczności odmian:
 
-```{r rozklad-klas, echo=FALSE, warning=FALSE, fig.cap="Rozkład liczności odmian w zbiorze \\texttt{wine}. Kolory słupków odpowiadają odmianom: \\textcolor{barolo}{\\textit{Barolo}}, \\textcolor{grignolino}{\\textit{Grignolino}}, \\textcolor{barbera}{\\textit{Barbera}}.", fig.width=5, fig.height=3}
+```{r rozklad-klas, echo=FALSE, warning=FALSE, fig.cap="Rozkład liczności odmian w zbiorze \\texttt{wine}.", fig.width=5, fig.height=3}
 ggplot(dane2, aes(x = class, fill = class)) +
   geom_bar() +
   scale_fill_manual(values = kolory_odmian, guide = "none") +
@@ -216,18 +211,13 @@ ggplot(dane2, aes(x = class, fill = class)) +
 
 # Część 1 – zaawansowane metody klasyfikacji
 
-W pierwszej części raportu przedstawimy metody Bagging i Random Forest oraz dokonamy oceny dokładności ich klasyfikacji. Następnie przeprowadzimy analizę metody maszyn wektorów nośnych (SVM) z wykorzystaniem różnych funkcji jądrowych. Na końcu porównamy wyniki wszystkich modeli w celu oceny ich skuteczności.
+Na początku, będziemy klasyfikować wina przy użyciu metod uczenia zespołowego (ang. *ensemble learning*) – *bagging* i *random forest* – oraz dokonamy oceny ich dokładności i porównamy je z klasyfikatorem złożonym z pojedyńczego drzewa.
 
-\textcolor{notatka}{Ocena Części 1 (po przeliczeniu): wymagania listy są w większości spełnione. a) ensemble: bagging + random forest = dwie metody, dokładność oceniona estymatorem .632+ tym samym schematem co lista 3 – jest redukcja błędu (drzewo ~10\% -> bagging ~4\% -> RF ~1,2\%) i RF wyraźnie bije bagging. b) SVM: są trzy jądra (liniowe, wielomianowe, radialne), wpływ kosztu C (pokazany dla liniowego) i jednoczesne dostrojenie gamma + C dla radialnego. c) porównanie istnieje. Same obliczenia są poprawne – liczby z prozy zgadzają się z wynikami chunków.}
+Następnie, wypróbujemy metodę wektorów nośnych (SVM) z różnymi funkcjami jądrowymi (liniowe, wielomianowe i radialne) oraz zbadamy wpływ jądra i parametru kosztu $C$ na jakość klasyfikacji. W szczególności, zajmiemy się zagadnieniem doboru parametrów $gamma$ i $C$ dla jądra radialnego i zbadaniem efektów ich optymalizacji.
 
-\textcolor{notatka}{Nie znalazłem poważnych błędów rachunkowych. Dwa realne problemy MERYTORYCZNE są wskazane czerwonymi uwagami niżej: (1) narracja o tuningu SVM – optymalizacja nie poprawia wyniku na teście, a zhardkodowane C/gamma były błędne; (2) RF i SVM porównywane różnymi miarami (.632+ vs jeden podział testowy).}
-
-\textcolor{red}{Do poprawy redakcyjnie (drobne, nie błędy merytoryczne): w całej Części 1 sporo literówek i braków interpunkcji – do doczyszczenia przed oddaniem. `gbm` i `caret` są ładowane w `setup`, ale nieużywane (nie ma boostingu) – usuń albo dodaj metodę boostingu.}
+Na koniec porównamy wyniki wszystkich metod i ocenimy ich skuteczność.
 
 ## Rodziny klasyfikatorów / uczenie zespołowe
-
-Na początku analizy zbiór Wine podzielono na zbiór uczący i testowy w proporcji 70% do 30%, co miało na celu rzetelną ocenę zdolności generalizacji modeli. W przypadku metod Bagging oraz Random Forest zamiast jednorazowego podziału wykorzystano wielokrotne próbkowanie bootstrapowe. Każde drzewo było budowane na losowo wybranej próbie uczącej, a jako miarę jakości zastosowano błąd klasyfikacji wyznaczany na obserwacjach niewykorzystanych podczas budowy danego drzewa (Out-of-Bag, OOB). Takie podejście pozwala na ocenę skuteczności modeli bez konieczności wydzielania osobnego zbioru walidacyjnego oraz zapewnia bardziej stabilną estymację błędu klasyfikacji.
-
 
 ```{r podzail-danych-zb-ucz-zb-test, echo=FALSE, warning=FALSE}
 set.seed(67) 
@@ -239,13 +229,19 @@ train_set <- dane2[train_index, ]
 test_set  <- dane2[-train_index, ]
 ```
 
-nastepnie przeprwadzamy predykscie na pojedynczym drzew w celu porpwania czy uzycie bardziej zlozonych algorytmow bedzie skuteczniejsze w metdzie klasyfikacji
+Dzielimy zbiór na podzbiór uczący i podzbiór testowy w proporcji 70/30, co daje liczności zbioru uczącego i zbioru testowego odpowiednio `r nrow(train_set)` i `r nrow(test_set)` obserwacji. Na zbiorze uczącym będziemy budować klasyfikatory a na zbiorze testowym będziemy sprawdzać ich skuteczność. 
+
+Metody *bagging* oraz *random forest* będziemy dodatkowo oceniać za pomocą próbkowania bootstrapowego – każde drzewo będziemy budować na losowo wybranej próbie uczącej, a jako miarę jakości zastosujemy błąd klasyfikacji wyznaczony na obserwacjach niewykorzystanych podczas budowy danego drzewa (*Out-of-Bag*, OOB). Takie podejście pozwala na ocenę skuteczności modeli bez konieczności wydzielania osobnego zbioru walidacyjnego oraz zapewnia bardziej stabilną estymację błędu klasyfikacji.
+
+Zastosujemy także ocenę przy użyciu estymatora błędu .632+.
+
+Najpierw zaczniemy od przeprowadzenia klasyfikacji za pomocą pojedynczego drzewa (`rpart`, parametry domyślne) jako ono punkt odniesienia.
 
 ```{r pojedyncze-drzewo, echo=FALSE}
 tree_model <- rpart(class ~ ., data = train_set, method = "class")
 tree_pred <- predict(tree_model, test_set, type = "class")
 
-# Macierz pomyłek na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista)
+# macierz pomyłek na tescie, w wierszach predykcja a w kolumnach prawdziwa klasa
 cm.tree <- table(tree_pred, test_set$class)
 
 # wartości do tekstu
@@ -256,56 +252,71 @@ barolo.tot <- sum(cm.tree[, "Barolo"])
 ```
 
 ```{r pojedyncze-drzewo-tab, echo=FALSE}
-tab_ai(cm.tree, row.label = "Predykcja",
-       caption = "\\textcolor{aikod}{Macierz pomyłek pojedynczego drzewa na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).}")
+tabelka(cm.tree, row.label = "Predykcja",
+       caption = "Macierz pomyłek pojedynczego drzewa na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).")
 ```
-Powyzej widzimy tabele pomyllek. Widzimy ze algorytm dobrze sobie poradzil z klasyfikacjia typow grignolino i brarbera gdzie pomylism nie wiecej niz dwa razy. natomaist klasyfikacji barolo pomylil sie az `r barolo.err` razy na `r barolo.tot`. dokloadnosc wyniosla okolo `r round(100*acc.tree.split)`%, natomiast wspolczynnik bledu `r round(100*err.tree.split)`%, co nie jest zadowalajacym wynikiem.
+
+Powyżej widzimy macierz pomyłek. Z macierzy pomyłek widzimy, że drzewo dobrze rozpoznaje odmiany \textcolor{grignolino}{\textit{Grignolino}} i \textcolor{barbera}{\textit{Barbera}} (odpowiednio `r sum(cm.tree[, "Grignolino"]) - cm.tree["Grignolino", "Grignolino"]` i `r sum(cm.tree[, "Barbera"]) - cm.tree["Barbera", "Barbera"]` pomyłki), natomiast aż `r barolo.err` z `r barolo.tot` win odmiany \textcolor{barolo}{\textit{Barolo}} klasyfikuje błędnie.
+Dokładność wynosi `r round(100*acc.tree.split, 1)`\%, czyli błąd klasyfikacji `r round(100*err.tree.split, 1)`\% – wynik przeciętny, z wyraźnym polem do poprawy dla metod zespołowych.
+
+Pierwszą metodą zespołową jest *bagging* (*bootstrap aggregating*).
+Z danych losujemy ze zwracaniem wiele prób uczących, na każdej budujemy pełne, nieprzycinane drzewo (temu służą parametry `minsplit = 1` i `cp = 0`), a nowe obserwacje klasyfikujemy większością głosów wszystkich drzew.
+Najpierw budujemy taki model dla `nbagg = 25` drzew z opcją `coob = TRUE`, czyli z błędem liczonym metodą *out-of-bag*, a następnie sprawdzamy, jak błąd klasyfikacji zależy od liczby replikacji B.
+
+Zależność od B oceniamy estymatorem .632+ (funkcja `errorest` z pakietu `ipred`, `nboot = 100` prób bootstrapowych).
+Estymator ten łączy, z odpowiednimi wagami, błąd liczony na obserwacjach spoza próby bootstrapowej z błędem na zbiorze uczącym, dzięki czemu ocena nie zależy od pojedynczego podziału danych.
 
 ```{r bagging, echo=FALSE}
-# Bagging z 25 drzewami; coob=TRUE -> liczony błąd Out-of-Bag
+# bagging na 25 drzewach, coob=TRUE to błąd out-of-bag
 btree <- bagging(class ~ ., data = dane2, nbagg = 25, coob = TRUE,
                  control = rpart.control(minsplit = 1, cp = 0))
 
-# Badanie wpływu liczby replikacji B na błąd klasyfikacji (estymator .632+)
+# sprawdzamy jak liczba drzew B wpływa na błąd (.632+)
 B.vector <- c(1, 5, 10, 20, 30, 40, 50, 100)
 
 bagging.error.rates <- sapply(B.vector, function(b) {
-  # minsplit i cp przekazujemy do errorest przez argument control
+  # minsplit i cp lecą do errorest przez control
   err <- errorest(class ~ ., data = dane2, model = bagging, nbagg = b,
                   estimator = "632plus",
-                  est.para = control.errorest(nboot = 20),
+                  est.para = control.errorest(nboot = 100),
                   control = rpart.control(minsplit = 1, cp = 0))
   err$error
 })
 ```
 
 ```{r bagging-tab, echo=FALSE}
-tab_ai(data.frame("Liczba drzew (nbagg)" = 25, "Błąd OOB" = btree$err,
+tabelka(data.frame("Liczba drzew (nbagg)" = 25, "Błąd OOB" = btree$err,
                   check.names = FALSE),
-       caption = "\\textcolor{aikod}{Bagging: błąd klasyfikacji Out-of-Bag dla 25 drzew.}")
+       caption = "Bagging: błąd klasyfikacji Out-of-Bag dla 25 drzew.")
 ```
 
-```{r bagging-plot, echo=FALSE, fig.width=6, fig.height=4, fig.cap="\\textcolor{aikod}{Bagging: błąd klasyfikacji (estymator .632+) w funkcji liczby drzew B. Błąd maleje do ok. 40 drzew, a następnie się stabilizuje.}"}
+```{r bagging-plot, echo=FALSE, fig.width=6, fig.height=4, fig.cap="Bagging: błąd klasyfikacji (estymator .632+) w funkcji liczby drzew B. Błąd maleje do ok. 40 drzew, a następnie się stabilizuje."}
 plot(B.vector, bagging.error.rates, xlab = "Liczba replikacji B (nbagg)",
-     ylab = "Błąd klasyfikacji (.632+)", type = "b", col = "#1C5BD8", pch = 19)
+     ylab = "Błąd klasyfikacji (.632+)", type = "b", col = "steelblue", pch = 19)
 grid()
 ```
-Powyzszy wykres przestawai zaleznosc bledy klasyfikacji .632+ od liczby drzew, widzimy ze do 40 tendencja jest spadkowa wraz ze wzrostem liczby replikacji blad spada az do `r round(100*min(bagging.error.rates))`%, dzieki czemu mozemy stwardzic ze algorytm zlozony bagging istotnie redukuje blad klasyfikacji w porowaniu do pojedynczego drzewa gdzie blad wyniosl `r round(100*err.tree.split)`%. Widzimy ze powyzej warotosc 40 az do 100 nie zauwazmy dalszego spadku bledu zaczyna sie stabliizowac blad co swiadczy ze dla naszego zbioru wine najlepszym wyborem jest liczba drzew okolo 40. Wiksza ilosc drze zwiksza jedynie koszt oblczeniowu i czas wykonania programu , nie wnoszzac juz istotnej porwany dokladnosci lasyfikacji.
+
+Na wykresie widzimy, że błąd .632+ spada z `r round(100*bagging.error.rates[1], 1)`\% dla pojedynczego pełnego drzewa (B = 1) do ok. `r round(100*min(bagging.error.rates), 1)`\% przy B = 40, a dalsze zwiększanie liczby drzew nie przynosi już poprawy – błąd się stabilizuje.
+*Bagging* istotnie redukuje więc błąd klasyfikacji, a dla naszego zbioru wystarcza ok. 40 replikacji; większa ich liczba zwiększa jedynie koszt obliczeniowy.
+
+Drugą metodą zespołową jest *random forest*.
+Działa on jak *bagging*, ale przy każdym podziale węzła losuje tylko mały podzbiór cech, spośród których wybiera najlepszy podział – standardowo $\lfloor\sqrt{p}\rfloor$, czyli u nas `r floor(sqrt(ncol(dane2) - 1))` z `r ncol(dane2) - 1` cech (parametr `mtry`) – co zmniejsza korelację między drzewami.
+Budujemy las ze 100 drzew (`ntree = 100`); opcja `importance = TRUE` pozwoli nam dodatkowo ocenić ważność poszczególnych cech:
 
 ```{r random-forest, echo=FALSE}
 p <- ncol(dane2) - 1
 
-# rf.2: klasyczny Random Forest (100 drzew, mtry = sqrt(p))
-set.seed(67) # ziarno -> powtarzalny las niezależnie od wcześniejszych losowań
+# zwykły las losowy, 100 drzew, mtry = sqrt(p)
+set.seed(67) # ziarno żeby las był powtarzalny niezależnie od wcześniejszych losowań
 rf.2 <- randomForest(class ~ ., data = train_set, ntree = 100,
                      mtry = floor(sqrt(p)), importance = TRUE)
 
-# Prognoza i macierz pomyłek na zbiorze testowym
+# predykcja i macierz pomyłek na tescie
 pred.labels <- predict(rf.2, newdata = test_set, type = "class")
 real.labels <- test_set$class
 confusion.matrix <- table(pred.labels, real.labels)
 
-# Prognozowane prawdopodobieństwa a posteriori (pokazujemy pierwsze obserwacje)
+# prawdopodobieństwa a posteriori, pokazujemy tylko pierwsze wiersze
 pred.probs <- predict(rf.2, newdata = dane2, type = "prob")
 
 # wartości do tekstu
@@ -315,23 +326,23 @@ oob.final    <- rf.2$err.rate[nrow(rf.2$err.rate), "OOB"]  # błąd OOB dla peł
 ```
 
 ```{r rf-tab-test, echo=FALSE}
-tab_ai(confusion.matrix, row.label = "Predykcja",
-       caption = "\\textcolor{aikod}{Random Forest: macierz pomyłek na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).}")
+tabelka(confusion.matrix, row.label = "Predykcja",
+       caption = "Random Forest: macierz pomyłek na zbiorze testowym (wiersze: predykcja, kolumny: klasa rzeczywista).")
 ```
 
 ```{r rf-tab-oob, echo=FALSE}
-tab_ai(rf.2$confusion, row.label = "Klasa",
+tabelka(rf.2$confusion, row.label = "Klasa",
        col.names = c("Klasa", "Barolo", "Grignolino", "Barbera", "Błąd klasy"),
-       caption = "\\textcolor{aikod}{Random Forest: macierz pomyłek OOB z błędem klasyfikacji w podziale na odmiany (kolumna „Błąd klasy”).}")
+       caption = "Random Forest: macierz pomyłek OOB z błędem klasyfikacji w podziale na odmiany (kolumna „Błąd klasy”).")
 ```
 
 ```{r rf-tab-prob, echo=FALSE}
-tab_ai(head(pred.probs), row.label = "Obs.",
-       caption = "\\textcolor{aikod}{Random Forest: prognozowane prawdopodobieństwa a posteriori dla pierwszych sześciu win.}")
+tabelka(head(pred.probs), row.label = "Obs.",
+       caption = "Random Forest: prognozowane prawdopodobieństwa a posteriori dla pierwszych sześciu win.")
 ```
 
-```{r rf-plot-error, echo=FALSE, fig.width=6.5, fig.height=4.2, fig.cap="\\textcolor{aikod}{Random Forest: błąd klasyfikacji (OOB oraz w podziale na odmiany) w funkcji liczby drzew. Błąd ogólny stabilizuje się od ok. 40 drzew.}"}
-# matplot zamiast plot.randomForest -> kontrola nad polskimi etykietami osi
+```{r rf-plot-error, echo=FALSE, fig.width=6.5, fig.height=4.2, fig.cap="Random Forest: błąd klasyfikacji (OOB oraz w podziale na odmiany) w funkcji liczby drzew. Błąd ogólny stabilizuje się od ok. 40 drzew."}
+# matplot a nie plot.randomForest, bo chcemy polskie opisy osi
 err <- rf.2$err.rate   # kolumny: OOB, Barolo, Grignolino, Barbera
 matplot(1:nrow(err), err, type = "l", lty = 1:ncol(err), col = 1:ncol(err),
         xlab = "Liczba drzew", ylab = "Błąd klasyfikacji")
@@ -339,58 +350,73 @@ legend("topright", legend = colnames(err),
        col = 1:ncol(err), lty = 1:ncol(err), bg = "white", cex = 0.85)
 ```
 
-```{r rf-plot-varimp, echo=FALSE, fig.width=6.5, fig.height=4.5, fig.cap="\\textcolor{aikod}{Random Forest: ranking ważności cech (średni spadek dokładności po permutacji wartości cechy).}"}
-# dotchart zamiast varImpPlot -> polski opis osi (type=1: średni spadek dokładności)
+```{r rf-plot-varimp, echo=FALSE, fig.width=6.5, fig.height=4.5, fig.cap="Random Forest: ranking ważności cech (średni spadek dokładności po permutacji wartości cechy)."}
+# dotchart a nie varImpPlot, znowu dla polskich osi (type=1 to średni spadek dokładności)
 imp <- sort(importance(rf.2, type = 1)[, 1])
 dotchart(imp, xlab = "Średni spadek dokładności po permutacji", pch = 1)
 ```
 
-Na powyzszym wykresie widizmy ogolny zaleznosc bledu klasyfikacji od liczby drzew dla calkowitego bledu (czarna linie) oraz blady dla poszczegolnych trech odmin. Widzimy ze dla okolo 40 drzew nastepuje stabilizacja. Dla oglnego bledu od 40 drzew blad sie stabilizuje i wystepuje na pziomie okolo `r round(100*oob.final)`%. widizmyz e okolo 50 jest wystarczaja ca dla klasyfikacji. nastepnie dla odmianny barbera po okolo 20 drze schodzi do 0 co oznacza ze modle idelanie klasyfikiuje ten batunek. Natomiast najtrudniejsza do klasyfikacji okazuje sie odamiana grignolino blad utrzuje sia na posomie okolo 7%. 
 
-Porwonojac bledy dla pojednczego otzrmalismy blad na poziomie `r round(100*err.tree.split)`%, natomaist osatteczna macierz pomylek dla lasu losowego widzimyz e pomylil sie tylko `r rf.test.nerr` raz dzieki czemu blady klasyfikazci wynosi tylko `r round(100*rf.test.err, 2)`%. Natomiast blad baggingu wynosil okolo `r round(100*min(bagging.error.rates))`% co rowniez widzimyze ze obecnie tzrmalismy duzy spadek do porpzedniej metdy.
+Pierwszy wykres pokazuje zależność błędu klasyfikacji od liczby drzew – łącznego błędu OOB oraz błędów dla poszczególnych odmian.
+Od ok. 40 drzew błąd OOB stabilizuje się na poziomie ok. `r round(100*oob.final)`\%.
+Najłatwiejsza do rozpoznania jest odmiana \textcolor{barbera}{\textit{Barbera}}, której błąd po ok. 20 drzewach spada do zera, a najtrudniejsza – \textcolor{grignolino}{\textit{Grignolino}}, z błędem ok. `r round(100*rf.2$err.rate[nrow(rf.2$err.rate), 'Grignolino'], 1)`\%.
 
+Drugi wykres przedstawia ranking ważności cech: mierzymy, o ile średnio spada dokładność lasu po losowym przepermutowaniu wartości danej cechy.
+Najważniejsze okazują się intensywność barwy (`V10`), zawartość proliny (`V13`) i flawonoidy (`V7`), a najmniej do klasyfikacji wnoszą m.in. alkaliczność popiołu (`V4`) i fenole nieflawonoidowe (`V8`).
+
+Na zbiorze testowym las pomylił się tylko `r rf.test.nerr` raz – jedno wino \textcolor{barolo}{\textit{Barolo}} uznał za \textcolor{grignolino}{\textit{Grignolino}} – co daje błąd `r round(100*rf.test.err, 2)`\% wobec `r round(100*err.tree.split, 1)`\% dla pojedynczego drzewa i ok. `r round(100*min(bagging.error.rates), 1)`\% dla *baggingu*.
+Obie metody zespołowe wyraźnie redukują błąd, a *random forest* wypada z nich lepiej.
+
+Na koniec porównujemy wszystkie trzy metody jedną wspólną miarą – błędem .632+ (ponownie `nboot = 100`), tak aby wynik nie zależał od konkretnego podziału 70/30:
 
 ```{r poprwanie-metod, echo=FALSE}
-# 1. Definiujemy własną funkcję predykcji dla rpart (wymagane przez errorest dla klasyfikacji)
+# errorest przy klasyfikacji chce własnej funkcji predykcji dla rpart
 mypredict.rpart <- function(object, newdata) predict(object, newdata = newdata, type = "class")
 
-# 2. Obliczanie błędu .632+ dla pojedynczego drzewa, baggingu i lasu losowego
+# błąd .632+ dla drzewa, baggingu i lasu
 set.seed(67) # dla powtarzalności wyników próbkowania bootstrapowego
 
 error.tree <- errorest(class ~ ., data = dane2, model = rpart, 
                        predict = mypredict.rpart,
-                       estimator = "632plus", est.para = control.errorest(nboot = 20))
+                       estimator = "632plus", est.para = control.errorest(nboot = 100))
 
 error.bagging <- errorest(class ~ ., data = dane2, model = ipred::bagging,
-                          estimator = "632plus", est.para = control.errorest(nboot = 20),
+                          estimator = "632plus", est.para = control.errorest(nboot = 100),
                           control = rpart.control(minsplit = 1, cp = 0))
 
 error.randomForest <- errorest(class ~ ., data = dane2, model = randomForest,
-                               estimator = "632plus", est.para = control.errorest(nboot = 20))
+                               estimator = "632plus", est.para = control.errorest(nboot = 100))
 
-# Względna redukcja błędu klasyfikacji (w %) względem pojedynczego drzewa
+# o ile procent spadł błąd względem pojedynczego drzewa
 redukcja.bagging <- (error.tree$error - error.bagging$error) / error.tree$error * 100
 redukcja.rf      <- (error.tree$error - error.randomForest$error) / error.tree$error * 100
 ```
 
 ```{r poprwanie-metod-tab, echo=FALSE}
-tab_ai(data.frame(
+tabelka(data.frame(
   Metoda = c("Pojedyncze drzewo", "Bagging", "Random Forest"),
   "Błąd .632+" = sprintf("%.4f", c(error.tree$error, error.bagging$error,
                                    error.randomForest$error)),
   "Redukcja błędu vs drzewo [\\%]" = c("–", sprintf("%.2f", redukcja.bagging),
                                        sprintf("%.2f", redukcja.rf)),
   check.names = FALSE),
-  caption = "\\textcolor{aikod}{Porównanie błędu klasyfikacji (estymator .632+) oraz względnej redukcji błędu względem pojedynczego drzewa.}")
+  caption = "Porównanie błędu klasyfikacji (estymator .632+) oraz względnej redukcji błędu względem pojedynczego drzewa.")
 ```
-Pozwej widzmy wyniki odumowuywykacja dziala metod. Widzimy ze blad klasyfikacji spada drastycznie z oko `r round(100*error.tree$error)`% do `r round(100*error.randomForest$error, 1)`% dla metody random forest. Stosujac te metode otzrmamy o wilele lepsze wyniki. Zlozone algorytmy popraez urednianie setek drzew eliminuja wysoka wariancjie jak byla obecja dla pojedynczego drzewa i stabilizuja reguly decyzyjne i podnosza zdolnosci generalizacji modleu.
 
-Rownizez widizmy isitona roznice medzy modelami zlozonymi dla baggingu blad wyniosl `r round(100*error.bagging$error, 1)`% natomaist dla random forest `r round(100*error.randomForest$error, 1)`%. Róznica ta wynika z odmiennej techniki budowy drzew. W baggingu kazde drzew analizuje wszystkie dosteone cechy. W zb wine kilka paramterow silnie roznicuje kalsy wiec wiekszosc drzew w baggingu wybiera te same zminenne przec co drzewa sa mocno ze soba skorelowane. Natomiast random forest wporadza dodatkowy lemnet losowwosci w kazdym wezle losuje tylko maly podzbior cech, przez co zmusza drzewo do szukania aletrenatywnych wzorców i regul. dzieki czemu drzewa nie sa ze soba skorelowane .
+Wspólna miara potwierdza wcześniejsze obserwacje: błąd .632+ spada z `r round(100*error.tree$error, 1)`\% dla pojedynczego drzewa do `r round(100*error.bagging$error, 1)`\% dla *baggingu* (redukcja o `r round(redukcja.bagging)`\%) i `r round(100*error.randomForest$error, 1)`\% dla *random forest* (redukcja o `r round(redukcja.rf)`\%).
+Metody zespołowe uśredniają decyzje wielu drzew, dzięki czemu niwelują główną słabość pojedynczego drzewa – wysoką wariancję – i lepiej generalizują.
 
+Wyraźna jest też różnica między samymi metodami zespołowymi – błąd *random forest* jest ponad trzykrotnie mniejszy niż *baggingu*.
+Wynika to ze sposobu budowy drzew.
+W *baggingu* każde drzewo wybiera podziały spośród wszystkich cech, a że kilka zmiennych (jak `V10` czy `V13`) bardzo silnie rozdziela odmiany, większość drzew opiera się na tych samych podziałach i ich błędy są mocno skorelowane.
+*Random forest*, losując w każdym węźle tylko `r floor(sqrt(ncol(dane2) - 1))` cechy, zmusza drzewa do sięgania także po pozostałe zmienne – drzewa stają się mniej podobne do siebie, a uśrednianie słabiej skorelowanych błędów skuteczniej je redukuje.
 
 ## Metoda wektorów nośnych (SVM)
 
-NAtepnie wykorzystujac metode wekotrow noscnych porowanym kalsyfikatory dla roznych funckji jadrowych.
+Drugą badaną metodą będzie metoda wektorów nośnych (SVM).
+Metoda ta wyznacza granicę decyzyjną maksymalizującą margines, czyli odległość granicy od najbliższych obserwacji, a za obserwacje leżące po złej stronie płaci karę, której wielkością steruje parametr kosztu $C$.
+O kształcie granicy decyduje funkcja jądrowa: jądro liniowe daje hiperpłaszczyznę, a jądra wielomianowe i radialne – granice krzywoliniowe.
+Porównamy trzy jądra oraz wpływ parametru $C$, korzystając z tego samego podziału 70/30 (to samo ziarno) co dla metod zespołowych:
 
 ```{r przygotowanie-zb, echo=FALSE, warning=FALSE}
 dane2$class <- as.factor(dane2$class)
@@ -412,7 +438,7 @@ svm.linear.C0.1 <- svm(class ~ ., data = training.set, kernel = "linear", cost =
 svm.linear.C1   <- svm(class ~ ., data = training.set, kernel = "linear", cost = 1)
 svm.linear.C10  <- svm(class ~ ., data = training.set, kernel = "linear", cost = 10)
 
-# Predykcje i ocena dla różnych wartości C
+# predykcje i dokładność dla różnych C
 pred.svm.lin0.1 <- predict(svm.linear.C0.1, newdata = test.set)
 pred.svm.lin1   <- predict(svm.linear.C1, newdata = test.set)
 pred.svm.lin10  <- predict(svm.linear.C10, newdata = test.set)
@@ -423,13 +449,17 @@ acc.lin10  <- sum(diag(table(pred.svm.lin10, real.labels))) / n.test
 ```
 
 ```{r jadro-liniowe-tab, echo=FALSE}
-tab_ai(data.frame("Koszt C" = c(0.1, 1, 10),
+tabelka(data.frame("Koszt C" = c(0.1, 1, 10),
                   "Dokładność (test)" = c(acc.lin0.1, acc.lin1, acc.lin10),
                   check.names = FALSE), digits = 4,
-       caption = "\\textcolor{aikod}{SVM z jądrem liniowym: dokładność na zbiorze testowym dla różnych wartości kosztu C.}")
+       caption = "SVM z jądrem liniowym: dokładność na zbiorze testowym dla różnych wartości kosztu C.")
 ```
-Powyzej znajduja sie wyniki dokladnosci dla jadra linowego w zalezcnosci od ronzych wartosci paramtru c, ktory kontroluje kompromis miedzy szerekoascia marginesu separujacego a liczba bledow dopuszczalnych na zb testowym. Widzimyz ze dla jadra linowego zmiana prarametru c od 0.1 do 10 nie wpynela na dokaldnosc klasyfikacji na zb testowym. JEst to skutego tego ze w zb wine w przestrzeni wilowyniarowje nasz zb cechuje sie linoiowa odseparawalonscia klas. co skutkuje ze granica decyzyjna wyznaczona przez svm jest na tyle stablina ze zmiana marginesu nie przesuja jej w sposob, ktroy zminil by klasufukacjie. 
 
+Parametr $C$ określa kompromis między szerokością marginesu a liczbą błędów dopuszczonych na zbiorze uczącym: małe $C$ daje szeroki margines kosztem większej liczby błędów, duże $C$ – ściślejsze dopasowanie do danych.
+Dla jądra liniowego zmiana $C$ w zakresie 0.1–10 w ogóle nie zmienia dokładności na zbiorze testowym (`r round(100*acc.lin1, 1)`\%, czyli jedno błędnie sklasyfikowane wino).
+Odmiany są w `r ncol(dane2) - 1`-wymiarowej przestrzeni cech niemal liniowo separowalne, więc wyznaczona granica jest na tyle stabilna, że zmiana szerokości marginesu praktycznie jej nie przesuwa.
+
+Następnie sprawdzamy pozostałe funkcje jądrowe – wielomianowe stopnia 2 i 4 oraz radialne – na razie z parametrami domyślnymi:
 
 ```{r jadra-inne, echo=FALSE, warning=FALSE}
 
@@ -437,7 +467,7 @@ svm.poly2  <- svm(class ~ ., data = training.set, kernel = "polynomial", degree 
 svm.poly4  <- svm(class ~ ., data = training.set, kernel = "polynomial", degree = 4)
 svm.radial <- svm(class ~ ., data = training.set, kernel = "radial") # domyślne parametry
 
-# Predykcje i ocena
+# predykcje i dokładność
 pred.svm.poly2  <- predict(svm.poly2, newdata = test.set)
 pred.svm.poly4  <- predict(svm.poly4, newdata = test.set)
 pred.svm.radial <- predict(svm.radial, newdata = test.set)
@@ -448,34 +478,39 @@ acc.svm.radial <- sum(diag(table(pred.svm.radial, real.labels))) / n.test
 ```
 
 ```{r jadra-inne-tab, echo=FALSE}
-tab_ai(data.frame(
+tabelka(data.frame(
   "Jądro" = c("wielomianowe (deg = 2)", "wielomianowe (deg = 4)", "radialne (domyślne)"),
   "Dokładność (test)" = c(acc.svm.poly2, acc.svm.poly4, acc.svm.radial),
   check.names = FALSE), digits = 4, align = "lc",
-  caption = "\\textcolor{aikod}{SVM: dokładność na zbiorze testowym dla różnych funkcji jądrowych przy parametrach domyślnych.}")
+  caption = "SVM: dokładność na zbiorze testowym dla różnych funkcji jądrowych przy parametrach domyślnych.")
 ```
-Powyzej znajduja sie wyniki dla roznych funkcji jader. Jadro radianlne okazuje sie idelanym wyborem dla naszego zioru wine, poniewaz bezlednie sklasyfikowal zb. NAstepnie jadro liniowe wspomniane wczescniej rozniwez bardzo dobrze poraddzilo sb z klasyfikacja. Natomiast jadrwa wilowymiraowe radza sobe gorzej a zwikeszanie stopnia wielomianu jeszcze bardziej oblizna doklasnosc.
 
+Przy parametrach domyślnych najlepiej wypada jądro radialne, które klasyfikuje cały zbiór testowy bezbłędnie (dokładność `r round(100*acc.svm.radial)`\%).
+Jądra wielomianowe radzą sobie wyraźnie gorzej – `r round(100*acc.svm.poly2, 1)`\% dla stopnia 2 i `r round(100*acc.svm.poly4, 1)`\% dla stopnia 4 – a wzrost stopnia wielomianu dodatkowo obniża dokładność, bo coraz bardziej giętka granica zaczyna dopasowywać się do przypadkowych własności zbioru uczącego.
+Jądro liniowe badane wcześniej (`r round(100*acc.lin1, 1)`\%) ustępuje radialnemu tylko minimalnie.
+
+Dla jądra radialnego spróbujemy jeszcze jednocześnie dostroić koszt $C$ i parametr $\gamma$, który steruje zasięgiem oddziaływania pojedynczej obserwacji (im większa $\gamma$, tym bardziej lokalna i pofalowana granica decyzyjna).
+Funkcja `tune()` z pakietu `e1071` przeszukuje siatkę wartości $C$ od $2^{-4}$ do $2^{4}$ i $\gamma$ od $2^{-8}$ do $2^{4}$, oceniając każdą parę 10-krotną walidacją krzyżową na zbiorze uczącym:
 
 ```{r optymalizacja, echo=FALSE, warning=FALSE}
 C.range <- 2^((-4):4)
 gamma.range <- 2^((-8):4)
 
-# Wyznaczamy kolumny cech (wszystkie prócz 'class') do procesu tuningu
+# same cechy bez class, do tuningu
 X_train <- training.set[, colnames(training.set) != "class"]
 y_train <- training.set$class
 
-# Automatyczny dobór parametrów metodą sprawdzianu krzyżowego (Cross-Validation)
-set.seed(67) # tune() losowo dzieli dane na podzbiory CV -> ziarno dla powtarzalności
+# tune() dobiera parametry walidacją krzyżową
+set.seed(67) # tune() losowo dzieli dane na foldy, więc ziarno dla powtarzalności
 radial.tune <- tune(svm, train.x = X_train, train.y = y_train,
                     kernel = "radial",
                     ranges = list(cost = C.range, gamma = gamma.range))
 
-# Najlepsze parametry znalezione przez tune()
+# najlepsze parametry z tune()
 C.best     <- radial.tune$best.parameters[["cost"]]
 gamma.best <- radial.tune$best.parameters[["gamma"]]
 
-# Ostateczny model z najlepszymi parametrami i ocena na zbiorze testowym
+# finalny model na najlepszych parametrach i ocena na tescie
 svm.radial.tuned <- svm(class ~ ., data = training.set, kernel = "radial",
                         cost = C.best, gamma = gamma.best)
 pred.svm.radial.tuned <- predict(svm.radial.tuned, newdata = test.set)
@@ -483,330 +518,489 @@ acc.svm.radial.tuned  <- sum(diag(table(pred.svm.radial.tuned, real.labels))) / 
 ```
 
 ```{r optymalizacja-tab, echo=FALSE}
-tab_ai(data.frame("Najlepszy koszt C" = C.best, "Najlepsza gamma" = gamma.best,
+tabelka(data.frame("Najlepszy koszt C" = C.best, "Najlepsza gamma" = gamma.best,
                   "Błąd CV (10-fold)" = radial.tune$best.performance,
                   check.names = FALSE), digits = 5,
-       caption = "\\textcolor{aikod}{SVM radialne: najlepsze parametry C i gamma z walidacji krzyżowej oraz odpowiadający im błąd CV.}")
+       caption = "SVM radialne: najlepsze parametry C i gamma z walidacji krzyżowej oraz odpowiadający im błąd CV.")
 ```
 
 ```{r optymalizacja-tab2, echo=FALSE}
-tab_ai(data.frame(
+tabelka(data.frame(
   "Model" = c("radialne (domyślne)", "radialne (dostrojone)"),
   "Dokładność (test)" = c(acc.svm.radial, acc.svm.radial.tuned),
   check.names = FALSE), digits = 4, align = "lc",
-  caption = "\\textcolor{aikod}{SVM radialne: dokładność na zbiorze testowym przed i po dostrojeniu C oraz gamma.}")
+  caption = "SVM radialne: dokładność na zbiorze testowym przed i po dostrojeniu C oraz gamma.")
 ```
 
-```{r optymalizacja-plot1, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="\\textcolor{aikod}{SVM radialne: błąd walidacji krzyżowej w przestrzeni parametrów (osie w skali log2 dla C i gamma). Ciemniejsze pola oznaczają niższy błąd.}"}
-plot(radial.tune, transform.x = log2, transform.y = log2, color.palette = topo.colors,
+```{r optymalizacja-plot1, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="SVM radialne: błąd walidacji krzyżowej w przestrzeni parametrów (osie w skali log2 dla C i gamma). Ciemniejsze pola oznaczają niższy błąd."}
+plot(radial.tune, transform.x = log2, transform.y = log2,
+     color.palette = function(n) hcl.colors(n, "YlGnBu"),
      main = "Błąd walidacji krzyżowej (SVM radialne)",
      xlab = "koszt C (log2)", ylab = "gamma (log2)")
 ```
 
-```{r optymalizacja-plot2, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="\\textcolor{aikod}{SVM radialne: powierzchnia błędu walidacji krzyżowej w funkcji C i gamma (widok perspektywiczny).}"}
-plot(radial.tune, type = "perspective",
-     main = "Powierzchnia błędu walidacji krzyżowej (SVM radialne)",
-     xlab = "koszt C", ylab = "gamma")
-```
-Powyzej mamy wynki dla jadra radnialenog przed i po tunigiem. Skutecznosc klasyfikacji na zb testowym wynosi w obu przypdakach `r round(100*acc.svm.radial.tuned)`%. Algorytm optymalizacyjn wskazal jako najlepsze parametry koszt c=`r C.best` oraz gamma=`r signif(gamma.best, 3)`.
+```{r optymalizacja-plot2, echo=FALSE, fig.width=6, fig.height=4.5, fig.cap="SVM radialne: powierzchnia błędu walidacji krzyżowej w funkcji C i gamma (widok perspektywiczny, osie w skali log2)."}
+# błąd CV na siatce C x gamma (osie w skali log2, jak na wykresie konturowym)
+perf <- radial.tune$performances
+cs <- sort(unique(perf$cost)); gs <- sort(unique(perf$gamma))
+z <- matrix(NA, length(cs), length(gs))
+z[cbind(match(perf$cost, cs), match(perf$gamma, gs))] <- perf$error
+x <- log2(cs); y <- log2(gs)
 
-\textcolor{red}{Uwaga merytoryczna: dostrojony koszt (`r C.best`) wychodzi równy domyślnemu, a jądro radialne i tak klasyfikuje zbiór testowy bezbłędnie już przed tuningiem – więc na zbiorze testowym optymalizacja NIE poprawiła skuteczności. Trzeba to napisać wprost (lista pyta wprost: „czy optymalizacja pozwoliła poprawić skuteczność?"), zamiast obecnej narracji o „modelu bezpieczniejszym / szerokim marginesie". Ewentualną przewagę można pokazać tylko na poziomie błędu CV z `tune()`, nie na teście.}
+# wygładzenie: interpolacja na gęstszą siatkę monotonicznym splinem (gładko, bez przestrzeliwań przy urwisku)
+nx <- 46; ny <- 46
+fx <- seq(min(x), max(x), length.out = nx)
+fy <- seq(min(y), max(y), length.out = ny)
+z1 <- sapply(seq_along(y), function(j) splinefun(x, z[, j], method = "monoH.FC")(fx))
+zf <- t(sapply(seq_len(nx), function(i) splinefun(y, z1[i, ], method = "monoH.FC")(fy)))
+
+# kolor ścianek wg średniej wysokości, ciemny = niski błąd (jak na konturze)
+nr <- nrow(zf); nc <- ncol(zf)
+zfacet <- (zf[-1, -1] + zf[-1, -nc] + zf[-nr, -1] + zf[-nr, -nc]) / 4
+pal <- hcl.colors(40, "YlGnBu")
+facetcol <- pal[cut(zfacet, 40, include.lowest = TRUE)]
+
+# zlab rysujemy sami przy osi Z (wbudowany zlab persp nachodzi na liczby podziałki)
+par(mar = c(1.5, 2, 3, 1))
+pm <- persp(fx, fy, zf,
+            theta = -35, phi = 25, expand = 0.6, d = 2,
+            col = facetcol, border = NA, shade = 0.4,
+            ticktype = "detailed", nticks = 5,
+            main = "Powierzchnia błędu walidacji krzyżowej (SVM radialne)",
+            xlab = "koszt C (log2)", ylab = "gamma (log2)", zlab = "")
+zlab_xy <- trans3d(min(fx), max(fy), mean(range(zf, na.rm = TRUE)), pm)
+text(zlab_xy$x, zlab_xy$y, "błąd CV", srt = 90, pos = 2, offset = 2.8, cex = 0.95, xpd = NA)
+```
+
+Najniższy błąd walidacji krzyżowej, `r round(100*radial.tune$best.performance, 2)`\%, osiąga para $C = `r C.best`$, $\gamma = `r signif(gamma.best, 3)`$.
+Dostrojony koszt jest więc równy wartości domyślnej ($C = 1$), a $\gamma$ wychodzi mniejsza od domyślnej ($1/13 \approx `r signif(1/13, 3)`$).
+Optymalizacja nie poprawiła jednak skuteczności na zbiorze testowym – nie miała czego poprawiać, bo już model z parametrami domyślnymi klasyfikował go bezbłędnie i po dostrojeniu dokładność pozostaje na poziomie `r round(100*acc.svm.radial.tuned)`\%.
+Mapa i powierzchnia błędu CV pokazują za to, że wynik nie jest przypadkowy – niski błąd utrzymuje się w szerokim obszarze umiarkowanych $C$ i małych $\gamma$, więc klasyfikator radialny jest mało wrażliwy na dokładny wybór parametrów.
 
 ## Porównanie skuteczności metod
 
-Podsumowujac klazyfikator bazowy (pojedyncze drzewo) charakteryzuje sie najnizsza dokladnosci z podowu skonnosci do przeuczneia i wysokiej wariancji. Zastoswoanie metod zlozonych i svm drastycznie obniza blad klasyfikajci. Najlepsza metoda jest random forest dla 100 drzew gdzie dokaldnosc wynosla `r round(100*(1-rf.test.err), 2)`% oraz svm dla jadra radialengo gdzie byla `r round(100*acc.svm.radial.tuned)`% dolakdnaocis. Równiez bardza dobra metoda jest svm dla jadra liniowego (dokladnosc `r round(100*acc.lin1, 2)`%). \textcolor{red}{Dokończ zdanie / akapit – urywa się.}
+Takie zestawienie ma jednak słabość: metody zespołowe ocenialiśmy estymatorem .632+, a klasyfikatory SVM – dokładnością na jednym podziale 70/30, czyli innymi miarami.
+Żeby porównanie było uczciwe, wyznaczamy błąd .632+ (jak poprzednio, `nboot = 100`) również dla trzech wariantów SVM:
 
-\textcolor{red}{Uwaga merytoryczna do porównania a) vs b): RF oceniasz błędem .632+ (`r round(100*error.randomForest$error, 1)`\%), a SVM tylko dokładnością na jednym podziale 70/30 (`r round(100*acc.svm.radial.tuned)`\%). To nie jest ta sama miara – żeby uczciwie wskazać „najlepszą" metodę, najlepiej policzyć dla SVM ten sam estymator .632+ (errorest) co dla drzew, albo dla wszystkich metod podać dokładność na tym samym zbiorze testowym.}
+```{r porownanie-632-svm, echo=FALSE, warning=FALSE}
+# .632+ dla svm tak samo jak dla drzew, errorest podaje kernel/cost/gamma do svm przez ...
+set.seed(67)
+error.svm.linear <- errorest(class ~ ., data = dane2, model = svm, kernel = "linear",
+                             estimator = "632plus", est.para = control.errorest(nboot = 100))
+error.svm.radial <- errorest(class ~ ., data = dane2, model = svm, kernel = "radial",
+                             estimator = "632plus", est.para = control.errorest(nboot = 100))
+error.svm.radial.tuned <- errorest(class ~ ., data = dane2, model = svm, kernel = "radial",
+                                   cost = C.best, gamma = gamma.best,
+                                   estimator = "632plus", est.para = control.errorest(nboot = 100))
+```
 
-\textcolor{red}{Poniższe dwa akapity to robocze notatki do wkomponowania w porównanie powyżej (a nie osobny tekst). Uwaga: zhardkodowane „$C=0.5$ i $\gamma=0.03125$" są nieaktualne – po dodaniu ziarna wychodzi $C=`r C.best`$, $\gamma=`r signif(gamma.best,3)`$; popraw albo zastąp inline.}
+```{r porownanie-632-svm-tab, echo=FALSE}
+tabelka(data.frame(
+  Metoda = c("Pojedyncze drzewo", "Bagging", "Random Forest",
+             "SVM liniowe (C = 1)", "SVM radialne (domyślne)", "SVM radialne (dostrojone)"),
+  "Błąd .632+ [\\%]" = sprintf("%.2f", 100 * c(error.tree$error, error.bagging$error,
+                                               error.randomForest$error, error.svm.linear$error,
+                                               error.svm.radial$error, error.svm.radial.tuned$error)),
+  check.names = FALSE), align = "lc",
+  caption = "Porównanie wszystkich metod Części 1 wspólną miarą – błędem klasyfikacji .632+.")
+```
 
-JAko jedyny model bezbłędnie sklasyfikował wszystkie próbki w zbiorze testowym. Jądro radialne potrafi w sposób ciągły i gładki wyginać granice decyzyjne w wielowymiarowej przestrzeni, idealnie dopasowując się do specyfiki chemicznej win.Dodatkowy atut: Dzięki przeprowadzonej optymalizacji (tuningowi) wiesz, że parametry $C=0.5$ i $\gamma=0.03125$ dają modelowi bardzo szeroki margines bezpieczeństwa, co czyni go najbardziej stabilnym na przyszłość
-Ustępuje SVM zaledwie o jeden mały błąd na zbiorze testowym (pomylił jedno wino Barolo z Grignolino). To potężny i niezwykle bezobsługowy algorytm, który rewelacyjnie uśrednia decyzje setek drzew, ale w tym konkretnym, czystym zbiorze minimalnie przegrał z idealnie dopasowaną geometrią SVM
+Przy wspólnej mierze najlepsze okazują się *random forest* (`r round(100*error.randomForest$error, 2)`\%) i SVM z jądrem radialnym o parametrach domyślnych (`r round(100*error.svm.radial$error, 2)`\%) – różnica między nimi jest znikoma, mniejsza niż losowa zmienność samego estymatora.
+Nieco słabiej wypadają dostrojone SVM radialne (`r round(100*error.svm.radial.tuned$error, 2)`\%) i SVM liniowe (`r round(100*error.svm.linear$error, 2)`\%), dalej *bagging* (`r round(100*error.bagging$error, 2)`\%), a stawkę zdecydowanie zamyka pojedyncze drzewo (`r round(100*error.tree$error, 2)`\%).
+
+Podsumowując: pojedyncze drzewo jest zdecydowanie najsłabszym klasyfikatorem – cechują je wysoka wariancja i skłonność do przeuczenia.
+Metody zespołowe redukują jego błąd kilkukrotnie, a porównywalny poziom osiąga SVM: jądro radialne jako jedyne klasyfikuje zbiór testowy bezbłędnie, gładko dopasowując granicę decyzyjną do danych, podczas gdy *random forest* myli na nim jedno wino \textcolor{barolo}{\textit{Barolo}} z \textcolor{grignolino}{\textit{Grignolino}}.
+Strojenie $C$ i $\gamma$ niczego już nie poprawiło – model domyślny był na zbiorze testowym bezbłędny, a błąd .632+ po dostrojeniu wyszedł nawet minimalnie wyższy (różnica w granicach losowej zmienności estymatora).
+Za najskuteczniejsze metody dla zbioru `wine` uznajemy więc *random forest* i SVM z jądrem radialnym, których wyniki są praktycznie nierozróżnialne.
+
 
 # Część 2 – analiza skupień
 
-tam klaudiusz jakieś rzeczy napisał do tej pierwszej części coś
-
-W drugiej czesci raprtu zastosujemy algorytm grupujacy PAM oraz chierahiczny agnes na zbiorze danych kteoy zostal uzyty w pierwzej czesci.
+W drugiej części raportu zastosujemy dwie metody analizy skupień – algorytm grupujący PAM oraz hierarchiczny AGNES – na tym samym zbiorze `wine`, na którym pracowaliśmy w pierwszej części.
+Porównamy otrzymane grupowania z rzeczywistym podziałem na odmiany, ocenimy ich jakość wskaźnikami wewnętrznymi i zewnętrznymi, wybierzemy optymalną liczbę skupień, a na koniec zinterpretujemy otrzymane skupienia.
 
 ## Wybór i przygotowanie danych
 
-```{r, echo=FALSE, warning=FALSE}
+```{r przygotowanie-skupienia, echo=FALSE, warning=FALSE}
 czesc_2_cechy <- subset(dane2, select = -class)
 czesc_2_klasa <- dane2$class
 
+# kolory skupień do wykresów Części 2 (celowo inne niż kolory odmian)
+kolory_skupien <- c("#BB574C", "#498C3E", "#8A64B9") # czerwony, zielony, fioletowy (odcienie w stronę logo Julii, wyrównane w OKLCH - te same L i C)
+
+# tęcza do pudełek cech - pełna, ale nie jaskrawa (jasność zależna od odcienia: żółcie jasne, błękity ciemniejsze,
+# ~70% maksymalnej chromy sRGB), żeby żółcie/zielenie nie wychodziły musztardowo-oliwkowe jak przy stałej L
+kolory_cech <- c("#E1524F", "#E78F55", "#ECBC65", "#EDEC77", "#A1F673", "#7BF3BF",
+                 "#7EF5EF", "#6ACDEA", "#519FE0", "#3F41CC", "#8D4AD7", "#E65FDF", "#E25390")
 ```
 
-Do analizy skupien bedziemy uzywac wysztkich rekordów, ktorych jest `r nrow(dane2)`, podzielimy zbor danych na ceche class oraz pozostale `r ncol(czesc_2_cechy)` cech. 
+Do analizy używamy wszystkich `r nrow(dane2)` rekordów – zbiór jest na tyle mały, że nie trzeba losować podzbioru 200 obserwacji.
+Przed grupowaniem usuwamy zmienną `class`; zachowujemy ją jednak osobno, ponieważ posłuży nam później do zewnętrznej oceny jakości grupowania.
+Do wyznaczania odległości zostaje `r ncol(czesc_2_cechy)` cech.
 
-Nastepnie zweryfikujemy czy konieczne bedzie zastosowanie standaryzaci do meaciezrzy odmiennosci w tym celu zrobilismy wkres rozrzutu wszystkich cech.
+Następnie sprawdzamy, czy przed wyznaczeniem macierzy odległości konieczna będzie standaryzacja.
+Pomogą nam w tym wykresy pudełkowe wszystkich cech:
 
-```{r, echo=FALSE, warning=FALSE}
-boxplot(czesc_2_cechy)
-
+```{r boxplot-przed-std, echo=FALSE, warning=FALSE, fig.width=6, fig.height=4, fig.cap="Wykresy pudełkowe cech przed standaryzacją."}
+boxplot(czesc_2_cechy, col = kolory_cech, las = 2)
+title(ylab = "Wartość cechy")
 ```
-Na podstawie powyzszego wykresu, wnioskujemy ze standaryzacja jest konieczna ze wzgledu na ostatnia zmienna ktora chechuje sie zdecydowanie wieksza zmiennacia od pozostalych. 
 
-Poniez znajduje sie wykres po przeprowadznej standaryzacji. 
+Podobnie jak w poprzednim sprawozdaniu zauważamy, że zmienna `V13` (zawartość proliny) ma zdecydowanie większą zmienność od pozostałych cech.
+Bez standaryzacji zdominowałaby ona macierz odległości i grupowanie zależałoby praktycznie tylko od niej, więc standaryzacja jest konieczna.
 
-```{r, echo=FALSE, warning=FALSE}
+Poniżej ten sam wykres po standaryzacji – rozrzuty wszystkich zmiennych są teraz porównywalne.
+
+```{r boxplot-po-std, echo=FALSE, warning=FALSE, fig.width=6, fig.height=4, fig.cap="Wykresy pudełkowe cech po standaryzacji."}
 czesc_2_cechy_std <- as.data.frame(scale(czesc_2_cechy))
-boxplot(czesc_2_cechy_std)
-
+boxplot(czesc_2_cechy_std, col = kolory_cech, las = 2)
+title(ylab = "Wartość cechy (po standaryzacji)")
 ```
 
 ## Wizualizacja wyników grupowania
 
-Nastepnie na danych bez zmiennej klas zastosowalismy algorytm grupujacy PAM. 
+Zaczynamy od metody grupującej – algorytmu PAM.
+Na danych po standaryzacji wyznaczamy macierz odległości euklidesowych i dzielimy zbiór na K = 3 skupienia, czyli tyle, ile jest rzeczywistych odmian.
+Wynik przedstawiamy na wykresie rozrzutu dwóch pierwszych składowych głównych (PCA):
 
-```{r, echo=FALSE, warning=FALSE}
-library(cluster)
-library(factoextra)
+```{r pam-pca-wykres, echo=FALSE, warning=FALSE, fig.width=7, fig.height=4.6, fig.cap="Grupowanie PAM (K = 3) na tle dwóch pierwszych składowych głównych. Kolor punktu oznacza skupienie PAM, a symbol – rzeczywistą odmianę."}
 
 czesc_2_cechy_std_macierz <- as.matrix(czesc_2_cechy_std)
-                        
+
 wino.odleglosci <- dist(czesc_2_cechy_std)
 wino.pam2 <- pam(x = wino.odleglosci, diss = TRUE, k = 3)
 
 wino.pca <- prcomp(czesc_2_cechy_std)
+wino.pca.war <- wino.pca$sdev^2 / sum(wino.pca$sdev^2) # udział wariancji składowych
 
 symbole <- c(15, 16, 17)
 klasy_fact <- as.factor(dane2$class)
 
+# zgodność skupień z odmianami (tabela i liczby do tekstu niżej)
+tab_pam3 <- table(wino.pam2$clustering, czesc_2_klasa)
 
-plot(wino.pca$x[, 1], wino.pca$x[, 2], 
-     col = wino.pam2$clustering,          
-     pch = symbole[klasy_fact],           
-     xlab = "Główna Składowa 1 (PC1)", 
+# legendy w prawym marginesie, żeby nie zasłaniały punktów
+par(mar = c(5, 4, 2, 11) + 0.1, xpd = TRUE)
+
+plot(wino.pca$x[, 1], wino.pca$x[, 2],
+     col = kolory_skupien[wino.pam2$clustering],
+     pch = symbole[klasy_fact],
+     xlab = "Główna Składowa 1 (PC1)",
      ylab = "Główna Składowa 2 (PC2)",
-     main = "Wizualizacja klastrów PAM vs Oryginalne Klasy (PCA)",
      cex = 1.3)
 
-legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "PAM (Kolory)")
-legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy oryginalne")
-
-
+usr <- par("usr")
+legend(usr[2] + 0.3, usr[4], legend = paste("Skupienie", 1:3),
+       fill = kolory_skupien, title = "PAM (kolory)")
+legend(usr[2] + 0.3, usr[4] - 0.45 * (usr[4] - usr[3]), legend = levels(klasy_fact),
+       pch = symbole, title = "Klasy oryginalne", text.font = 3)
 ```
 
-na powyzszym wykresie mamy wkres zaleznosc pc1 od pc2 gdzie kolorami zaznaczone sa przynaleznosci do klas po zastosowaniu algorytmu pam natomiast same ksztaly informuja nas o rzeczywistej przynaleznosci. Algorytm podzielil przestzrean dwuwymairowana na trzy wyrazne, zawarte bloki. punkty o tym samym kolorze leza blisko siebie. Granice pomiedzy skupisakmi sa dobrze zarysowane. Najlepiej algorytm poradzil soeb ie z klasyfikacja klasy Barbera na zielono zaznaczone sa jego wszystkie rekordy z kikloma wyjatkami z grupy Grignolino. Oznacza to ze ta odmiana wina wyrozniaja szczegolne wartosc poszczeglonych cech.
-NAstepnie klasa Barolo tzn 
-czarne kwadraty w ktorej wystepuja glownie kwadray co swiadczy o bardzo dobrej klasyfikacji. Grupa Grignilino tzn roznowe kolka czesc z nich zosatla skalsyfikowana jakos barolo. jest to spowodoane tym ze algrytm pam dazy do tworzenia kulistych skupien przez co te punkty zostaly odciete 
+Na powyższym wykresie widzimy dane w rzucie na dwie pierwsze składowe główne, które łącznie wyjaśniają `r round(100*sum(wino.pca.war[1:2]))`\% zmienności danych – kolory oznaczają skupienia wyznaczone przez PAM, a symbole rzeczywiste odmiany.
+Algorytm podzielił dane na trzy zwarte grupy o dobrze zarysowanych granicach, odpowiadające odmianom.
+Najlepiej odtworzona została odmiana \textcolor{barbera}{\textit{Barbera}} – jej skupienie (fioletowe) zawiera wszystkie `r tab_pam3["3", "Barbera"]` obserwacji tej odmiany i tylko `r tab_pam3["3", "Grignolino"]` obserwację odmiany \textcolor{grignolino}{\textit{Grignolino}}.
+Również wszystkie wina odmiany \textcolor{barolo}{\textit{Barolo}} (kwadraty) trafiły do wspólnego skupienia (czerwonego), jednak dołączyło do nich `r tab_pam3["1", "Grignolino"]` win \textcolor{grignolino}{\textit{Grignolino}}.
+Sama odmiana \textcolor{grignolino}{\textit{Grignolino}} (kółka) okazała się najtrudniejsza – leży na wykresie pomiędzy dwiema pozostałymi i `r tab_pam3["1", "Grignolino"] + tab_pam3["3", "Grignolino"]` z `r sum(tab_pam3[, "Grignolino"])` jej obserwacji zostało odciętych do sąsiednich skupień, do czego przyczynia się też skłonność PAM do tworzenia skupień o kulistych kształtach.
 
+Zgodność podziału PAM z odmianami podsumowuje poniższa tabela:
 
+```{r pam-zgodnosc-tab, echo=FALSE, warning=FALSE}
+# dopasowanie skupień do odmian i odsetek zgodnych obserwacji (matchClasses, e1071)
+dopasowanie.pam3 <- matchClasses(tab_pam3, method = "exact", verbose = FALSE)
+zgodnosc.pam3 <- sum(tab_pam3[cbind(1:3, dopasowanie.pam3)]) / sum(tab_pam3)
 
-```{r, echo=FALSE, warning=FALSE}
+tabelka(tab_pam3, row.label = "Skupienie",
+       col.names = c("Skupienie", odmiany_tex[colnames(tab_pam3)]),
+       caption = "Liczności skupień PAM (K = 3) w podziale na rzeczywiste odmiany.")
+```
+
+Do zmierzenia tej zgodności jedną liczbą używamy funkcji `matchClasses` z pakietu `e1071`, która dopasowuje każde skupienie do jednej odmiany tak, aby zmaksymalizować liczbę zgodnych obserwacji.
+Po takim dopasowaniu zgodne są `r sum(tab_pam3[cbind(1:3, dopasowanie.pam3)])` ze `r sum(tab_pam3)` win, czyli `r round(100*zgodnosc.pam3, 1)`\% obserwacji – podział na skupienia w bardzo dużym stopniu odtwarza podział na odmiany.
+
+Podstawowe własności skupień – zwartość i separację – podsumowuje profil *silhouette*.
+Wartość *silhouette* obserwacji jest bliska 1, gdy leży ona blisko obiektów ze swojego skupienia i daleko od najbliższego sąsiedniego skupienia, a ujemna, gdy jest jej bliżej do sąsiedniego skupienia niż do własnego:
+
+```{r pam-silhouette, echo=FALSE, warning=FALSE, fig.width=6, fig.height=3.4, fig.cap="Profil \\textit{silhouette} podziału PAM (K = 3); każdy słupek to jedna obserwacja. Przerywana linia oznacza średnią wartość \\textit{silhouette} całego podziału."}
+sil3 <- silhouette(wino.pam2$clustering, wino.odleglosci)
+sil3.srednie <- summary(sil3)$clus.avg.widths # średni silhouette w skupieniach
+
+sil_plot <- fviz_silhouette(sil3, print.summary = FALSE) +
+  scale_fill_manual(values = kolory_skupien) +
+  scale_colour_manual(values = kolory_skupien) +
+  labs(title = NULL, y = "Szerokość silhouette", fill = "Skupienie", colour = "Skupienie") +
+  theme_minimal(base_size = 10) +
+  theme(axis.text.x = element_blank(), axis.ticks.x = element_blank())
+
+# fviz rysuje linię średniej czystą czerwienią - zmiękczamy ją odrobinę
+hl <- which(vapply(sil_plot$layers, function(l) inherits(l$geom, "GeomHline"), logical(1)))
+if (length(hl)) sil_plot$layers[[hl[1]]]$aes_params$colour <- "#E23B2D"
+sil_plot
+```
+
+Najbardziej zwarte i najlepiej odseparowane jest skupienie trzecie, odpowiadające odmianie \textcolor{barbera}{\textit{Barbera}} – jego średni *silhouette* wynosi `r round(sil3.srednie[3], 2)`.
+Skupienia pierwsze i drugie wypadają słabiej (odpowiednio `r round(sil3.srednie[1], 2)` i `r round(sil3.srednie[2], 2)`), a pojedyncze ujemne wartości odpowiadają winom leżącym na granicy skupień.
+Skupienia są więc umiarkowanie zwarte – co widać też na wykresie rozrzutu, gdzie grupy sąsiadują ze sobą bez wyraźnych przerw.
+
+Następnie te same dane grupujemy algorytmem hierarchicznym AGNES z trzema metodami łączenia skupień (*linkage*): *single* (odległość najbliższych sąsiadów), *average* (średnia odległość) i *complete* (odległość najdalszych sąsiadów).
+Zbudowane drzewa odcinamy funkcją `cutree` na poziomie K = 3 skupień i wyniki przedstawiamy na takich samych wykresach jak dla PAM:
+
+```{r agnes-pca-wykresy, echo=FALSE, warning=FALSE, fig.width=7, fig.height=4.6, fig.cap=c("Grupowanie AGNES (\\textit{single linkage}, K = 3) na tle dwóch pierwszych składowych głównych. Kolor punktu oznacza skupienie, a symbol – rzeczywistą odmianę.", "Grupowanie AGNES (\\textit{average linkage}, K = 3); oznaczenia jak wyżej.", "Grupowanie AGNES (\\textit{complete linkage}, K = 3); oznaczenia jak wyżej.")}
 
 wino.agnes.avg <- agnes(x=wino.odleglosci,diss=TRUE, method="average")
 wino.agnes.single <- agnes(x=wino.odleglosci,diss=TRUE, method="single")
 wino.agnes.complete <- agnes(x=wino.odleglosci,diss=TRUE, method="complete")
 
-# Odcinamy drzewa na poziomie 3 skupień (k = 3)
+# ucinamy drzewa na 3 skupieniach (k = 3)
 klastry_avg <- cutree(wino.agnes.avg, k = 3)
 klastry_single <- cutree(wino.agnes.single, k = 3)
 klastry_complete <- cutree(wino.agnes.complete, k = 3)
 
-# Definiujemy symbole dla klas (tak jak wcześniej)
+# zgodność metody complete z odmianami (liczby do tekstu niżej)
+tab_agnes3 <- table(klastry_complete, czesc_2_klasa)
+
+# symbole dla klas, jak wcześniej
 symbole <- c(15, 16, 17)
 klasy_fact <- as.factor(dane2$class)
 
-# --- WYKRES 1: AGNES Average Linkage ---
-X11()
-plot(wino.pca$x[, 1], wino.pca$x[, 2], 
-     col = klastry_avg, # Kolory z metody average
-     pch = symbole[klasy_fact], 
-     xlab = "PC1", ylab = "PC2",
-     main = "AGNES (Average) vs Oryginalne Klasy", cex = 1.3)
-legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
-legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+# legendy w prawym marginesie, żeby nie zasłaniały punktów (jak przy PAM)
+legendy_agnes <- function() {
+  usr <- par("usr")
+  legend(usr[2] + 0.3, usr[4], legend = paste("Skupienie", 1:3),
+         fill = kolory_skupien, title = "AGNES")
+  legend(usr[2] + 0.3, usr[4] - 0.45 * (usr[4] - usr[3]), legend = levels(klasy_fact),
+         pch = symbole, title = "Klasy", text.font = 3)
+}
+par(mar = c(5, 4, 2, 11) + 0.1, xpd = TRUE)
 
-# --- WYKRES 2: AGNES Single Linkage ---
-X11()
-plot(wino.pca$x[, 1], wino.pca$x[, 2], 
-     col = klastry_single, # Kolory z metody single
-     pch = symbole[klasy_fact], 
-     xlab = "PC1", ylab = "PC2",
-     main = "AGNES (Single) vs Oryginalne Klasy", cex = 1.3)
-legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
-legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+# single linkage
+plot(wino.pca$x[, 1], wino.pca$x[, 2],
+     col = kolory_skupien[klastry_single], # kolory z single
+     pch = symbole[klasy_fact],
+     xlab = "PC1", ylab = "PC2", cex = 1.3)
+legendy_agnes()
 
-# --- WYKRES 3: AGNES Complete Linkage ---
-X11()
-plot(wino.pca$x[, 1], wino.pca$x[, 2], 
-     col = klastry_complete, # Kolory z metody complete
-     pch = symbole[klasy_fact], 
-     xlab = "PC1", ylab = "PC2",
-     main = "AGNES (Complete) vs Oryginalne Klasy", cex = 1.3)
-legend("topright", legend = paste("Skupienie", 1:3), fill = 1:3, title = "AGNES")
-legend("bottomright", legend = levels(klasy_fact), pch = symbole, title = "Klasy")
+# average linkage
+par(mar = c(5, 4, 2, 11) + 0.1, xpd = TRUE)
+plot(wino.pca$x[, 1], wino.pca$x[, 2],
+     col = kolory_skupien[klastry_avg], # kolory z average
+     pch = symbole[klasy_fact],
+     xlab = "PC1", ylab = "PC2", cex = 1.3)
+legendy_agnes()
 
+# complete linkage
+par(mar = c(5, 4, 2, 11) + 0.1, xpd = TRUE)
+plot(wino.pca$x[, 1], wino.pca$x[, 2],
+     col = kolory_skupien[klastry_complete], # kolory z complete
+     pch = symbole[klasy_fact],
+     xlab = "PC1", ylab = "PC2", cex = 1.3)
+legendy_agnes()
 ```
 
-Na powyzszych wykresach widzimy rezulata uzycia algorytmu hierarchicznego agnes ze wzegluda na trz jego typy.
+Na powyższych wykresach widzimy wyniki algorytmu AGNES dla trzech metod łączenia skupień.
 
-Piwrweszym z nich jest single linkage jest to najgorszy podial, widzimy ze praktycznie wszystkie  rekordy zosatly przypisane do jednego klastra poza 4. wystepuje skrany efekt lancuczowy punkty blisko siebie zostaly polaczone w jedna klase. 
+Metoda *single linkage* poradziła sobie najgorzej – do jednego skupienia trafiły prawie wszystkie obserwacje (`r sum(klastry_single == 1)` ze `r length(klastry_single)`), a dwa pozostałe skupienia liczą łącznie `r sum(klastry_single != 1)` obserwacje.
+To skrajny przykład efektu łańcuchowego: skoro o połączeniu decyduje odległość dwóch najbliższych punktów, kolejne obserwacje są dołączane do rosnącego skupienia przez pojedyncze bliskie pary i zamiast trzech grup powstaje jedna wielka grupa oraz kilka odciętych obserwacji odstających.
 
-Metoda srednie wizanaia rozniez nie poradzila sobie z klasyfikacja praktycznie wszystkie punkty zosatly sklasyfikowane jako jedno. Wystepuje wyrazna zwartosc i speraracja lecz punkty sa zle skalsyofkowane.
+Metoda *average linkage* dała niemal identyczny, zdegenerowany podział – `r sum(klastry_avg == 1)` obserwacje w jednym skupieniu i szczątkowe skupienia `r sum(klastry_avg == 2)`- i `r sum(klastry_avg == 3)`-elementowe.
+Z punktu widzenia struktury odmian taki podział jest bezużyteczny.
 
-Natomiast dla metody complete algortym znacznie lepiej poradzil sobie z klasyfikacja w porowniu do dwoch wczesniejszych metod. Wszytkie dane z klasy barbera zosatly sklasyfikowane jako jedna z kilkoma z girgniolono. Lecz w dowch pozosatlych klasach wystepuje wieksze wymieszanie. 
+Zdecydowanie najlepiej wypadła metoda *complete linkage*, której podział przypomina wynik PAM.
+Wszystkie `r tab_agnes3["3", "Barbera"]` win odmiany \textcolor{barbera}{\textit{Barbera}} trafiło do wspólnego skupienia (razem z `r tab_agnes3["3", "Grignolino"]` winami \textcolor{grignolino}{\textit{Grignolino}}), natomiast odmiany \textcolor{barolo}{\textit{Barolo}} i \textcolor{grignolino}{\textit{Grignolino}} wymieszały się mocniej niż przy PAM – łącznie `r tab_agnes3["1", "Grignolino"] + tab_agnes3["2", "Barolo"]` obserwacji trafiło do skupienia zdominowanego przez inną odmianę.
 
+Struktury zbudowane przez trzy metody łączenia porównujemy też na dendrogramach.
+Dla czytelności nie rysujemy podpisów liści – zamiast tego gałęzie kolorujemy według podziału na trzy skupienia, a pod liśćmi rysujemy paski w kolorach rzeczywistych odmian:
 
+```{r dendrogramy, echo=FALSE, warning=FALSE, fig.width=6.5, fig.height=3.8, fig.cap="Dendrogramy AGNES dla trzech metod łączenia skupień. Gałęzie pokolorowano według podziału na trzy skupienia (\\texttt{cutree}), a paski pod dendrogramami pokazują rzeczywiste odmiany: \\textcolor{barolo}{\\textit{Barolo}}, \\textcolor{grignolino}{\\textit{Grignolino}}, \\textcolor{barbera}{\\textit{Barbera}}."}
 
-
-```{r, echo=FALSE, warning=FALSE}
-# 1. Instalacja i załadowanie pakietu do modyfikacji dendrogramów
-if(!require(dendextend)) install.packages("dendextend")
-library(dendextend)
-
-# 2. Konwersja obiektów AGNES na klasyczne dendrogramy
+# zamiana obiektów agnes na zwykłe dendrogramy
 dend_avg      <- as.dendrogram(wino.agnes.avg)
 dend_single   <- as.dendrogram(wino.agnes.single)
 dend_complete <- as.dendrogram(wino.agnes.complete)
 
-# 3. Przygotowanie kolorów na podstawie prawdziwych klas (dane2$class)
-# Dopasowujemy kolory dokładnie do kolejności obiektów w zbiorze danych
-kolory_klas <- as.numeric(as.factor(dane2$class)) 
+# kolory z prawdziwych klas, w kolejności obiektów w danych
+kolory_klas <- kolory_odmian[dane2$class]
 
-# 4. Kolorowanie liści dendrogramów zgodnie z prawdziwą klasą
-labels_colors(dend_avg)      <- kolory_klas[order.dendrogram(dend_avg)]
-labels_colors(dend_single)   <- kolory_klas[order.dendrogram(dend_single)]
-labels_colors(dend_complete) <- kolory_klas[order.dendrogram(dend_complete)]
+# 3 dendrogramy obok siebie: gałęzie wg 3 skupień, pod liśćmi paski w kolorach odmian
+par(mfrow = c(1, 3), mar = c(2.5, 4.5, 2, 0.5))
 
-# 5. Wyświetlenie 3 dendrogramów obok siebie do porównania
-graphics.off()
-par(mfrow = c(1, 3), mar = c(2, 4, 3, 1))
-
-plot(dend_single, main = "Single Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
-plot(dend_complete, main = "Complete Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
-plot(dend_avg, main = "Average Linkage\n(Kolory = Prawdziwe klasy)", leaflab = "none")
-
+dendy <- list(single = dend_single, complete = dend_complete, average = dend_avg)
+for (nazwa in names(dendy)) {
+  dend <- color_branches(dendy[[nazwa]], k = 3, col = kolory_skupien)
+  plot(dend, leaflab = "none", main = nazwa, font.main = 3)
+  title(ylab = "wysokość łączenia")
+  u <- par("usr")
+  kolory_lisci <- kolory_klas[order.dendrogram(dend)] # kolory w kolejności liści
+  n <- length(kolory_lisci)
+  rect((1:n) - 0.5, u[3] - 0.115 * (u[4] - u[3]), (1:n) + 0.5,
+       u[3] - 0.06 * (u[4] - u[3]), col = kolory_lisci, border = NA, xpd = NA)
+}
 ```
 
-Na powyzszych wykresach znajduja sie dendrogramy dla trzech roznych metod klasyfikatora agnes. Pierwszy przedstawia drzewo dla metody single liknage obiekty sa dolaczne do drzewa jeden po drugim. brakuje wyraznych odrebnych poddrzew. 
+Na powyższym wykresie znajdują się dendrogramy dla trzech metod łączenia.
+Pierwszy przedstawia drzewo metody *single linkage* – obiekty są dołączane do drzewa niemal jeden po drugim, brakuje wyraźnych, odrębnych poddrzew, a paski odmian pod liśćmi są silnie przemieszane.
 
-Nastepna metoda complete linkage, widzmy ze drzewo jest podzielone na wyrazne pod drzewa, co widzmlismy na porzednich wykresach ze kalsyfikator dosc dobrze podzielil dane na trzy klastry. 
+Drzewo metody *complete linkage* jako jedyne dzieli się na trzy wyraźne poddrzewa, które – jak pokazują paski pod liśćmi – w dużym stopniu odpowiadają rzeczywistym odmianom.
+Potwierdza to obserwację z wykresów rozrzutu, że ta metoda sensownie podzieliła dane na trzy skupienia.
 
-Osatni dendrogram obrazuje metode average linkage jest to kombinacja porzednch algorytmow widzimy ze drzwa wzrastaja na prawy skos.
+Ostatni dendrogram obrazuje metodę *average linkage*, będącą kompromisem między dwiema poprzednimi.
+Struktura drzewa przypomina jednak wynik *single linkage* – drzewo narasta „schodkowo" w jedną stronę, bez zrównoważonych poddrzew.
 
-Porownujac te trzy metody widzimyz e najlepiej poradzila sobie metoda complete lingae stworzyla ona zrownowaznoe, wysokie i wyrazne odsepraowne galezie. W metodzi sigle widzimy wyrazna wade tego algorytmu na naszyhc danych. natomiast averge stworzyla silna asymetryczna struktore, co uniemozliwily prawidlowa klasyfikacje. 
+Porównując te trzy metody, najlepiej poradziła sobie metoda *complete linkage* – stworzyła zrównoważone, wyraźnie odseparowane gałęzie.
+W metodzie *single* widać skrajny efekt łańcuchowy, a *average* zbudowała silnie asymetryczną strukturę, która po odcięciu na poziomie trzech skupień również nie oddaje podziału na odmiany.
+W dalszej części jako reprezentanta metod hierarchicznych używamy więc AGNES z łączeniem *complete*.
 
 ## Ocena jakości grupowania, wybór liczby skupień i porównanie metod
 
-nastepnie dla zkaleru liczby skupien od 1 do 10 wykorzystamy srednia liczbe indeksu sihuette do porwnania wynikow otrzymanych dla roznych algorytmow analizy skupien. 
-
-```{r, echo=FALSE, warning=FALSE}
-# Załadowanie potrzebnych pakietów
-library(cluster)
-library(mclust) # Do Adjusted Rand Index (ARI)
+```{r ocena-jakosci, echo=FALSE, warning=FALSE}
 
 K_max <- 8
-wyniki <- data.frame(K = 2:K_max, 
+wyniki <- data.frame(K = 2:K_max,
                      PAM_sil = NA, PAM_ari = NA,
                      AGNES_sil = NA, AGNES_ari = NA)
 
-# Pętla po kolejnych liczbach skupień K
+# lecimy po kolejnych K
 for(k in 2:K_max) {
-  
-  # 1. Uruchomienie algorytmów dla danego K
+
+  # oba algorytmy dla danego K
   pam_obj <- pam(wino.odleglosci, diss = TRUE, k = k)
   agnes_klastry <- cutree(wino.agnes.complete, k = k)
-  
-  # 2. Wskaźniki Wewnętrzne (Silhouette)
-  # Wyciągamy średnią wartość (avg.width) z profilu sylwetkowego
+
+  # wskaźnik wewnętrzny: średni silhouette
   pam_sil_obj <- silhouette(pam_obj$clustering, wino.odleglosci)
   wyniki$PAM_sil[wyniki$K == k] <- mean(pam_sil_obj[, "sil_width"])
-  
+
   agnes_sil_obj <- silhouette(agnes_klastry, wino.odleglosci)
   wyniki$AGNES_sil[wyniki$K == k] <- mean(agnes_sil_obj[, "sil_width"])
-  
-  # 3. Wskaźniki Zewnętrzne (Adjusted Rand Index - ARI)
-  # Porównujemy wyznaczone klastry z prawdziwą zmienną dane2$class
+
+  # wskaźnik zewnętrzny: ARI, porównanie z prawdziwą klasą
   wyniki$PAM_ari[wyniki$K == k] <- adjustedRandIndex(pam_obj$clustering, dane2$class)
   wyniki$AGNES_ari[wyniki$K == k] <- adjustedRandIndex(agnes_klastry, dane2$class)
 }
-
-# Wyświetlamy tabelę z wynikami
-print(wyniki)
-
 ```
 
-Powysza tabela przedstaiw wyniki dla algorytmi pam i agnes complete dla wskaznika wewnterznetgo silhouette i zwntetrzenego ari dla roznych wartsoci poczatkowej liczby klastów. Dla algrytmu pam najwyzsza warosc wskanicka wewnetrzego otrzmuje dla K=3 i wynosi ona 0.267 natomosyut dla tego wskanika lecz dla metody hierarczinej otrzmalismy wartosc0.203 dla K = 3, co swidczy ze najlepszy podzial danych jest dla 3 klastor co jest zgodne z rzeczywsitoscia. natomiast dla wskaznika zewwnetrzego najwyzesz wartosci dla algorytmu pam dsoatjemy dla k=3. natomiast dla algorytmu agenes dla wskaznika ari widzimy ze wraz ze wzrotstem liczby klastór rosnie wartosc wskaznika sa to bledne wartosci, ktre wynikaja z dzialania algorytmu ktory odcina pojedyncze punkty odstajace na obrzezach, zamiast dziedlisc cala chmure punktow. 
+Następnie dla liczby skupień K od 2 do `r K_max` porównujemy oba algorytmy: PAM oraz AGNES (*complete*).
+Jako wskaźnika wewnętrznego używamy średniego indeksu *silhouette* (ocenia zwartość i separację skupień bez znajomości klas), a jako zewnętrznego – wskaźnika ARI (*Adjusted Rand Index*), mierzącego zgodność grupowania z rzeczywistym podziałem na odmiany: 1 oznacza podział identyczny z podziałem na klasy, a wartości bliskie 0 – podział losowy.
 
-```{r, echo=FALSE, warning=FALSE}
+```{r ocena-jakosci-tab, echo=FALSE}
+# tabelka z wynikami
+tabelka(wyniki,
+       col.names = c("K", "Silhouette (PAM)", "ARI (PAM)",
+                     "Silhouette (AGNES)", "ARI (AGNES)"),
+       caption = "Średni indeks \\textit{silhouette} (wskaźnik wewnętrzny) oraz ARI (wskaźnik zewnętrzny) dla algorytmów PAM i AGNES (\\textit{complete linkage}) w zależności od liczby skupień K.")
+```
 
-par(mfrow = c(1, 2))
+Powyższa tabela przedstawia wyniki dla algorytmów PAM i AGNES (*complete*).
+Najwyższą wartość średniego indeksu *silhouette* oba algorytmy osiągają dla K = 3 – `r round(wyniki$PAM_sil[wyniki$K == 3], 3)` dla PAM oraz `r round(wyniki$AGNES_sil[wyniki$K == 3], 3)` dla AGNES – czyli dokładnie dla rzeczywistej liczby odmian.
+Wskaźnik ARI dla PAM również jest najwyższy przy K = 3 (`r round(wyniki$PAM_ari[wyniki$K == 3], 3)`) i wyraźnie spada dla większych K.
+Dla AGNES wskaźnik ARI przy K = 3 wynosi `r round(wyniki$AGNES_ari[wyniki$K == 3], 3)` i dla większych K nieznacznie rośnie – mieszane skupienie z odmianami \textcolor{barolo}{\textit{Barolo}} i \textcolor{grignolino}{\textit{Grignolino}} dzieli się wtedy na czystsze podgrupy – ale nie zmienia to wniosku, że strukturę klas znacznie lepiej odtwarza PAM.
 
-# Wykres 1: Silhouette (Im wyżej, tym lepsza jakość/zwartość klastrów)
-plot(wyniki$K, wyniki$PAM_sil, type="b", col="blue", pch=16, ylim=c(0, 0.6),
+```{r ocena-jakosci-wykresy, echo=FALSE, warning=FALSE, fig.width=6.5, fig.height=3.6, fig.cap="Średni indeks \\textit{silhouette} (po lewej) oraz ARI (po prawej) dla algorytmów PAM i AGNES (\\textit{complete linkage}) w zależności od liczby skupień K."}
+par(mfrow = c(1, 2), mar = c(4, 4, 2.5, 1))
+
+# silhouette, im wyżej tym lepiej
+plot(wyniki$K, wyniki$PAM_sil, type="b", col="#0072B2", pch=16, ylim=c(0, 0.35),
      xlab="Liczba skupień K", ylab="Średni Silhouette", main="Wskaźnik Wewnętrzny")
-lines(wyniki$K, wyniki$AGNES_sil, type="b", col="red", pch=17)
-legend("topright", legend=c("PAM", "AGNES Complete"), col=c("blue", "red"), pch=c(16, 17))
+lines(wyniki$K, wyniki$AGNES_sil, type="b", col="#D55E00", pch=17)
+grid()
+legend("topright", legend=c("PAM", "AGNES Complete"), col=c("#0072B2", "#D55E00"), pch=c(16, 17), cex=0.85)
 
-# Wykres 2: Adjusted Rand Index (Im bliżej 1, tym lepsza zgodność z prawdą)
-plot(wyniki$K, wyniki$PAM_ari, type="b", col="blue", pch=16, ylim=c(0, 1),
+# ARI, im bliżej 1 tym lepsza zgodność z prawdą
+plot(wyniki$K, wyniki$PAM_ari, type="b", col="#0072B2", pch=16, ylim=c(0, 1),
      xlab="Liczba skupień K", ylab="Adjusted Rand Index", main="Wskaźnik Zewnętrzny")
-lines(wyniki$K, wyniki$AGNES_ari, type="b", col="red", pch=17)
-legend("topright", legend=c("PAM", "AGNES Complete"), col=c("blue", "red"), pch=c(16, 17)) 
+lines(wyniki$K, wyniki$AGNES_ari, type="b", col="#D55E00", pch=17)
+grid()
+legend("topright", legend=c("PAM", "AGNES Complete"), col=c("#0072B2", "#D55E00"), pch=c(16, 17), cex=0.85)
 ```
 
-Powyzsze wykresy bardzo dobrze obrazuja nam warosci poszczegównych wskaniczkow dla algorytmow pam i agnec complete. Widzimy na wykresie po lewj stornie ze najwysza wartosc obywda algorytmu przyjmuja dla K= 3, co pokrywa sie z rzeczywista liczba klas w danych.
+Powyższe wykresy obrazują wartości obu wskaźników.
+Na wykresie po lewej stronie widzimy, że najwyższą wartość średniego *silhouette* oba algorytmy przyjmują dla K = 3, co pokrywa się z rzeczywistą liczbą odmian, a krzywa PAM leży przy tym wyraźnie powyżej krzywej AGNES.
 
-Natomiast dla wykresu po prawej stornie widzimy ze algorytm pam osiaga najwyazsz wartosc wskanica ari dla K=3, a potem drastycznie spada, co dobrze odgadlo strukture rzeczywistych danych. Natomiast wskanizk ari dla algorytmu agnes wrasata, co przdstawai sztuczna stabilizacje na wysokim pozmoie dla wyzszych wartosci K. 
+Na wykresie po prawej stronie algorytm PAM osiąga najwyższą wartość ARI dla K = 3 (`r round(wyniki$PAM_ari[wyniki$K == 3], 3)`), po czym wskaźnik wyraźnie spada – PAM dobrze odgadł strukturę danych właśnie przy trzech skupieniach.
+Dla AGNES wskaźnik ARI jest niższy i powoli rośnie z K z powodu opisanego pod tabelą.
+Podsumowując: optymalna liczba skupień to K = 3, a z porównywanych algorytmów lepiej poradził sobie PAM – ma wyższy *silhouette* i znacznie wyższą zgodność z odmianami (ARI `r round(wyniki$PAM_ari[wyniki$K == 3], 3)` wobec `r round(wyniki$AGNES_ari[wyniki$K == 3], 3)` dla AGNES).
 
 ## Interpretacja wyników grupowania – charakterystyki skupień
 
-\textcolor{red}{– Wykorzystując wnioski z poprzedniego punktu, wyznacz podział na skupienia dla optymalnej liczby skupień K.}
+Zgodnie z wnioskami z poprzedniego punktu interpretujemy podział wyznaczony algorytmem PAM dla optymalnej liczby skupień K = 3 (podział ten wyznaczyliśmy już w punkcie o wizualizacji – to obiekt `wino.pam2`).
+Zaczynamy od średnich wartości cech w skupieniach, liczonych na danych w oryginalnych skalach (przed standaryzacją), żeby dało się je interpretować w jednostkach cech:
 
-\textcolor{red}{– Analizując podstawowe charakterystyki poszczególnych cech, zbadaj czym wyróżniają się obiekty należące do danego skupienia (np. dla obiektów należących do poszczególnych skupień można wyznaczyć średnie wartości cech, porównać wykresy pudełkowe itp.).}
+```{r interpretacja-profile, echo=FALSE, warning=FALSE}
+# optymalny podział PAM (K = 3) mamy już w wino.pam2
 
-\textcolor{red}{– W przypadku metody PAM sprawdź także, które obiekty są medoidami (reprezentantami skupień) i co je wyróżnia.}
-
-```{r, echo=FALSE, warning=FALSE}
-# 1. Zapisujemy ostateczny, optymalny podział PAM (K = 3) do naszych danych
-# (Upewnij się, że dane_oryginalne to Twoja ramka z cechami przed standaryzacją, np. bez kolumny 'class')
-
-
-# 2. Wyznaczamy średnie wartości cech w każdym skupieniu (Profilowanie)
-profile_skupien <- aggregate(czesc_2_cechy, 
-                             by = list(Skupienie = wino.pam2$clustering), 
+# średnie cech w każdym skupieniu
+profile_skupien <- aggregate(czesc_2_cechy,
+                             by = list(Skupienie = wino.pam2$clustering),
                              FUN = mean)
-print("--- ŚREDNIE WARTOŚCI CECH W SKUPIENIACH ---")
-print(profile_skupien)
 
-# 3. Identyfikacja medoidów (reprezentantów skupień)
+# medoidy, czyli reprezentanci skupień
 indeksy_medoidow <- wino.pam2$id.med # Indeksy wierszy, które są medoidami
 medoidy_wartosci <- czesc_2_cechy[indeksy_medoidow, ]
 
-print("--- NUMERY OBIEKTÓW BĘDĄCYCH MEDOIDAMI ---")
-print(indeksy_medoidow)
-print("--- WARTOŚCI CECH DLA MEDOIDÓW ---")
-print(medoidy_wartosci)
-
-# 4. Wykresy pudełkowe (Boxploty) dla kluczowych cech (np. pierwszych czterech)
-# Funkcja par(mfrow) pozwoli wyświetlić kilka cech na raz
-graphics.off()
-par(mfrow = c(2, 2))
-
-for(i in 1:13) {
-  boxplot(czesc_2_cechy[, i] ~ wino.pam2$clustering,
-          main = paste("Cecha:", colnames(czesc_2_cechy)[i]),
-          xlab = "Skupienie (PAM)", ylab = "Wartość",
-          col = c("black", "red", "green"))
-}
+# rozmiary skupień (do tekstu)
+rozmiary_skupien <- table(wino.pam2$clustering)
 ```
-Podsumowujac najlepszym algorytmem klastyzyjacym dane wine jest PAM dla liczby klastorw rownej 3.
+
+```{r profile-skupien-tab, echo=FALSE}
+# średnie cech w skupieniach: transponujemy (cechy w wierszach), żeby tabela mieściła się na stronie
+profile_t <- as.data.frame(t(round(profile_skupien[, -1], 2)))
+colnames(profile_t) <- paste("Skupienie", 1:3)
+
+tabelka(profile_t, row.label = "Cecha", digits = 2,
+       caption = "Średnie wartości cech w skupieniach PAM (K = 3); dane w oryginalnych skalach.")
+```
+
+Podsumowując, najlepiej grupującym zbiór `wine` algorytmem okazał się PAM z liczbą skupień K = 3.
+
+Kolumny tabeli odpowiadają skupieniom 1–3, które – jak pokazał wykres rozrzutu – reprezentują kolejno odmiany \textcolor{barolo}{\textit{Barolo}}, \textcolor{grignolino}{\textit{Grignolino}} i \textcolor{barbera}{\textit{Barbera}}; liczą one odpowiednio `r rozmiary_skupien[1]`, `r rozmiary_skupien[2]` i `r rozmiary_skupien[3]` win.
+Dla większości cech najwyższe średnie przyjmuje skupienie 1 – m.in. dla alkoholu (`V1`), fenoli (`V6`), flawonoidów (`V7`) i proliny (`V13`) – a najniższe skupienie 2.
+Skupienie 3 wyróżnia się z kolei najwyższymi średnimi kwasu jabłkowego (`V2`), fenoli nieflawonoidowych (`V8`) i intensywności barwy (`V10`) przy najniższych flawonoidach (`V7`), odcieniu koloru (`V11`) i OD280/OD315 (`V12`).
+
+Rozrzuty cech w skupieniach porównujemy na wykresach pudełkowych:
+
+```{r interpretacja-boxploty, echo=FALSE, warning=FALSE, fig.width=6.5, fig.height=6, out.width="100%", fig.cap="Wykresy pudełkowe wszystkich cech w podziale na skupienia PAM (K = 3); skala osi pionowej dobrana osobno dla każdej cechy."}
+# pudełka wszystkich cech w podziale na skupienia, wszystko na jednym wykresie
+cechy <- colnames(czesc_2_cechy)
+
+dane_box <- data.frame(
+  Skupienie = factor(rep(wino.pam2$clustering, times = length(cechy))),
+  cecha     = factor(rep(cechy, each = nrow(czesc_2_cechy)), levels = cechy),
+  wartosc   = unlist(czesc_2_cechy[, cechy], use.names = FALSE)
+)
+
+ggplot(dane_box, aes(x = Skupienie, y = wartosc, fill = Skupienie)) +
+  geom_boxplot(outlier.size = 0.5) +
+  facet_wrap(~ cecha, scales = "free_y", ncol = 4) +
+  scale_fill_manual(values = kolory_skupien) +
+  labs(x = NULL, y = NULL) +
+  theme_minimal(base_size = 9) +
+  theme(axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        legend.position = "bottom",
+        panel.grid.minor = element_blank())
+```
 
 
-W tabeli profile skupien.
-Wartości w wierszu 1 odpowiadają Skupieniu 1, które jak wykazano na wykresie rozrzutu, reprezentuje odmianę Barolo. Wiersz 2 (Skupienie 2) odpowiada odmianie Grignolino, natomiast wiersz 3 (Skupienie 3) reprezentuje chemiczny profil odmiany Barbera. W tabeli widzimy wartosc dla kazdej z grup dla kazdej zmiennej widzimyz zegrupa 2 przyjmje najszesciej najwizsze wartosci natomiwa grupa 1 najwyzsze. Widzimy ze najwieksze ronice wystepjce 
+Na wykresach pudełkowych widzimy rozrzuty każdej cechy w skupieniach.
+Najlepiej skupienia rozdziela `V13` (zawartość proliny) – w skupieniu 1 (\textcolor{barolo}{\textit{Barolo}}) wartości leżą zdecydowanie wyżej (średnio `r round(profile_skupien$V13[1])`) niż w dwóch pozostałych (`r round(profile_skupien$V13[2])` i `r round(profile_skupien$V13[3])`).
+Dla `V7` (flawonoidy) widzimy „schodkową" separację prawie bez nakładania się pudełek: skupienie 1 ma wartości najwyższe, skupienie 2 średnie, a skupienie 3 skrajnie niskie.
+Podobnie przy `V12` (OD280/OD315) skupienie 3 wyraźnie odstaje w dół od dwóch pozostałych.
 
-Widzimy te rozrzuty dla kazdej z grup dla kazdej zmiennej na box plotach. Zmienne ktroe idelanie separuja grupy to cecha V13 barolo znajduje się drastycznie wyżej niż dla pozostałych dwóch grup. Pokazuje to, że ta odmiana wina posiada unikalnie wysoką wartość tego parametru, co pozwala ją natychmiast bezbłędnie zidentyfikować. nastepnie cecha V7 tutaj widzimy, schodkową separację bez wzajemnego nakładania się pudełek. Skupienie 1 ma wartości najwyższe, Skupienie 2 (Grignolino) średnie, a Skupienie 3 (Barbera) skrajnie niskie. oraz cecha V12 podobnie jak przy V7, Skupienie 3 dramatycznie odstaje na dole od reszty stawki, podczas gdy Skupienie 1 i 2 utrzymują się na wyższych poziomach.
+Cechą wyróżniającą pojedyncze skupienie jest np. `V2` (kwas jabłkowy), którego wysokie wartości charakteryzują skupienie 3 (\textcolor{barbera}{\textit{Barbera}}) – jego pudełko jest mocno przesunięte w górę względem skupień 1 i 2.
+Skupienie 2 (\textcolor{grignolino}{\textit{Grignolino}}) nie ma jednej cechy o skrajnie wysokich wartościach – wyróżnia się raczej ogólnie niskimi wartościami, m.in. alkoholu (`V1`), intensywności barwy (`V10`) i proliny (`V13`).
 
-Nastpeni cechy ktroe wyrozniaja konkretna odamine to V2 wyrqaznie wyorznia Skupieni 3 Barolo, które osiąga znacznie wyższe wartości kwasowości i jego pudełko jest mocno przesunięte w górę w stosunku do klastrów 1 i 2. anstepnie cecha V1 dobrze wyorzna skupienie 1. Dla skupienie 2 nie mamy kontrenej jednej cechy ktorej rozrzut dla skupienia 2 wyraznie rozni sie od dwoch pozosatlych skupien. 
+Na koniec sprawdzamy, które wina są medoidami, czyli obiektami reprezentującymi skupienia (PAM wybiera je tak, aby suma odległości obiektów skupienia od medoidu była najmniejsza).
+Medoidami okazały się wina o numerach `r paste(indeksy_medoidow, collapse = ", ")` – po jednym z każdej odmiany, odpowiednio \textcolor{barolo}{\textit{Barolo}}, \textcolor{grignolino}{\textit{Grignolino}} i \textcolor{barbera}{\textit{Barbera}}.
+Ich wartości cech zestawiamy w tabeli:
 
+```{r medoidy-tab, echo=FALSE}
+# wartości cech medoidów: transponujemy jak profile skupień; w nagłówku numer wina i odmiana medoidu
+medoidy_t <- as.data.frame(t(medoidy_wartosci))
+colnames(medoidy_t) <- paste0("Wino ", indeksy_medoidow, " (",
+                              odmiany_tex[as.character(czesc_2_klasa[indeksy_medoidow])], ")")
 
-Mediodidami, czyli nahvardzoej reprezentatywnymi obiektami wewnatrz klastór, okazaly sie rekoryd `r print(indeksy_medoidow)`. porownujac tabele wartosci medowidow dla kazdej zmiennej i sredniej punktow skupien widzimy ze sa bardzo podbne, co oznacza ze te konkrten wina sa reprezantantami przecetnechy win w poszczegonych winach. 
+tabelka(medoidy_t, row.label = "Cecha", digits = 2,
+       caption = "Wartości cech medoidów – reprezentantów skupień PAM (K = 3).")
+```
 
-
-
-
-
+Porównując wartości cech medoidów ze średnimi skupień z poprzedniej tabeli widzimy, że są one bardzo zbliżone – np. dla wina `r indeksy_medoidow[1]` zawartość proliny `V13` wynosi `r medoidy_wartosci$V13[1]` przy średniej skupienia `r round(profile_skupien$V13[1])`.
+Medoidy są więc typowymi, przeciętnymi przedstawicielami swoich skupień, a zarazem odmian, do których należą – każde skupienie jest reprezentowane przez wino tej odmiany, która je zdominowała.
